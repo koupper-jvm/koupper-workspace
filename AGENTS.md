@@ -6,15 +6,19 @@ This file defines the default automation flow for coding agents working in this 
 
 Before making any changes, every agent must read:
 
-1. `docs/AGENT_BOOTSTRAP.md`
+1. `docs/AGENT_RECEPTION.md`
+2. `docs/AGENT_BOOTSTRAP.md`
 
-`docs/AGENT_BOOTSTRAP.md` is the single reception file and defines any additional required reads based on task scope.
+`docs/AGENT_RECEPTION.md` is the single startup entrypoint.
+`docs/AGENT_BOOTSTRAP.md` defines required follow-up reads by task scope.
 
 ## Branching and Base
 
 - Always start from `develop`.
 - Keep feature work in dedicated branches (`feature/*`, `fix/*`, `docs/*`).
 - Do not run destructive git commands (`reset --hard`, force-push) unless explicitly requested.
+- `main` is governed by an active ruleset (PR-first + linear history + code scanning gate).
+- `develop` is currently the high-velocity integration branch (lighter governance posture).
 
 ## Release Automation (Mandatory)
 
@@ -39,6 +43,7 @@ Use Koupper release scripts instead of manual git/gh command sequences.
 - PRs to `develop` use fast CI gates (compile + targeted consistency checks).
 - Heavy validation (full smoke + install/uninstall E2E) runs on `main`/release flows.
 - Run local quick checks before push (`scripts/ci/local-quick-checks.ps1|.sh`).
+- If a `develop -> main` release PR becomes stale/conflicted after history operations, close it and create a fresh sync PR path instead of trying to patch a broken PR.
 
 ## Safety and Scope
 
@@ -53,3 +58,4 @@ Use Koupper release scripts instead of manual git/gh command sequences.
 3. Validate locally (compile/tests relevant to scope).
 4. Use release flow script to open PR and monitor CI.
 5. Merge only under configured policy.
+6. Update `docs/SESSION_STATE.md` and `docs/DELIVERY_CHECKLIST.md` before handoff.

@@ -1,8 +1,8 @@
 # Agent Bootstrap
 
-This is the single reception file for every new agent session.
+This file defines required follow-up reads and operational defaults after startup.
 
-If the user says "go to reception" or "read bootstrap", this is the file to read first.
+Single startup entrypoint is `docs/AGENT_RECEPTION.md`.
 
 ## Session defaults
 
@@ -10,6 +10,7 @@ If the user says "go to reception" or "read bootstrap", this is the file to read
 - Feature branches: `feature/*`, `fix/*`, `docs/*`
 - Keep scope strict; avoid unrelated refactors
 - Use release scripts (no manual ad-hoc git/gh flows)
+- Treat `docs/SESSION_STATE.md` as current truth for active release/tag/PR status before taking action.
 
 ## Required follow-up reads by scope
 
@@ -33,6 +34,7 @@ If the user says "go to reception" or "read bootstrap", this is the file to read
   - `smoke-windows`
   - `smoke-linux`
   - `install-uninstall-e2e-windows`
+- `main` governance: active ruleset enforces PR path, linear history, and code scanning gate.
 
 ## Recommended execution mode
 
@@ -77,3 +79,4 @@ Linux/macOS:
 - Update `docs/NEXT_FEATURES_NOTES.md` at the end of each feature wave.
 - Update release docs/scripts in the same PR when release behavior changes.
 - Keep `AGENTS.md` stable; only edit when policy truly changes.
+- Update `docs/SESSION_STATE.md` and `docs/DELIVERY_CHECKLIST.md` at session end with factual branch/PR/tag status.

@@ -1,0 +1,18 @@
+project:
+  name: "Koupper"
+  base_branch: "develop"
+
+profile: "standard"
+
+startup:
+  reception_file: "docs/AGENT_RECEPTION.md"
+  session_state_file: "docs/SESSION_STATE.md"
+
+required_files:
+  - "docs/AGENT_RECEPTION.md"
+  - "docs/AGENT_BOOTSTRAP.md"
+  - "docs/SESSION_STATE.md"
+  - "docs/DELIVERY_CHECKLIST.md"
+  - "scripts/agent/preflight.kts"
+  - "scripts/agent/init.kts"
+  - "scripts/agent/validate.kts"

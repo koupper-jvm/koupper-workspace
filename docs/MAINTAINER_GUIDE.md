@@ -23,6 +23,10 @@ This folder stores maintainer-focused documentation. Public user documentation l
 - `CONTRACT_VERSIONING_POLICY.md`: governs additive vs breaking API changes and deprecation lifecycle across CLI, providers, and script execution contract.
 - `PROVIDER_AUTHORING_CHECKLIST.md`: four-surface checklist (register + catalog + docs + tests) for every new provider.
 - `migrations/`: per-change migration notes for behavior or default changes that affect existing usage.
+- `AGENT_RECEPTION.md`: single startup entrypoint for agent sessions.
+- `SESSION_STATE.md`: lightweight handoff/status file for daily resume.
+- `DELIVERY_CHECKLIST.md`: per-feature delivery checklist.
+- `agent-setup.md`: one-command setup/validation usage for agent workflow files.
 
 ## Archive
 
