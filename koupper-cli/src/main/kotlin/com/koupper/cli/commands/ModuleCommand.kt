@@ -13,21 +13,6 @@ import org.yaml.snakeyaml.Yaml
 import java.io.File
 import java.io.InputStream
 
-private fun Any?.asMapStringAny(): Map<String, Any?>? {
-    val raw = this as? Map<*, *> ?: return null
-    return raw.entries.associate { (k, v) -> k.toString() to v }
-}
-
-private fun Any?.asListOfMapStringAny(): List<Map<String, Any?>> {
-    val raw = this as? List<*> ?: return emptyList()
-    return raw.mapNotNull { it.asMapStringAny() }
-}
-
-private fun Any?.asListOfString(): List<String> {
-    val raw = this as? List<*> ?: return emptyList()
-    return raw.mapNotNull { it?.toString() }
-}
-
 fun extractServerPort(moduleDir: File): String? {
     val setupFile = findKtFileRecursively(
         File(moduleDir, "src/main/kotlin"),
@@ -56,7 +41,6 @@ class ModuleCommand : Command() {
         super.usage = """
             
    koupper $ANSI_GREEN_155$name$ANSI_RESET
-   koupper $ANSI_GREEN_155$name$ANSI_RESET add-scripts name="demo-script" --script-inclusive "extensions/example.kts"
     """
         super.description = """
    ${ANSI_YELLOW_229}Displays folders and files inside the module, including their tags.
@@ -101,10 +85,6 @@ class ModuleCommand : Command() {
     override fun name(): String = MODULE
 
     override fun execute(vararg args: String): String {
-        if (args.getOrNull(1)?.equals("add-scripts", ignoreCase = true) == true) {
-            return addScriptsToExistingModule(*args)
-        }
-
         val flags = mutableSetOf<String>()
         var moduleName: String? = null
 
@@ -114,16 +94,8 @@ class ModuleCommand : Command() {
 
         val rawCurrent = args.getOrNull(0) ?: "."
         currentLocation = File(rawCurrent).absoluteFile
-
-        val results = mutableListOf<String>()
-        val targetDir = if (moduleName != null) File(currentLocation, moduleName) else currentLocation
-        if (!targetDir.exists() || !targetDir.isDirectory) {
-            return "$ANSI_YELLOW_229 Module not found: ${targetDir.path} $ANSI_RESET"
-        }
-
-        currentLocation = targetDir
-
         val libDir = File(currentLocation, "libs")
+
         val octopusJar = libDir.listFiles { f ->
             f.isFile && f.name.startsWith("octopus-") && f.name.endsWith(".jar")
         }?.maxByOrNull { it.lastModified() }
@@ -134,6 +106,12 @@ class ModuleCommand : Command() {
             "📦 Octopus dependency: $name (version $version)\n"
         } else {
             "⚠️ Octopus dependency not found in ${libDir.absolutePath}\n"
+        }
+
+        val results = mutableListOf<String>()
+        val targetDir = if (moduleName != null) File(currentLocation, moduleName) else currentLocation
+        if (!targetDir.exists() || !targetDir.isDirectory) {
+            return "\n$ANSI_YELLOW_229 Module not found: ${targetDir.path} $ANSI_RESET\n"
         }
 
         val koupperHelpersDirectory = System.getProperty("user.home") + File.separator +
@@ -157,179 +135,10 @@ class ModuleCommand : Command() {
 
         if (results.isEmpty()) {
             return "\n$octopusDependencyInfo\n" +
-                    "$ANSI_YELLOW_229 No info produced for this module.$ANSI_RESET"
+                    "$ANSI_YELLOW_229 No info produced for this module.$ANSI_RESET\n"
         }
 
         return "\n$octopusDependencyInfo\n" + results.joinToString("\n")
-    }
-
-    private fun addScriptsToExistingModule(vararg args: String): String {
-        val contextDir = File(args.getOrNull(0) ?: ".").absoluteFile
-        val raw = args.drop(2).joinToString(" ").trim()
-
-        if (raw.isBlank()) {
-            return "$ANSI_YELLOW_229 Missing parameters. Example: koupper module add-scripts name=\"demo\" --script-inclusive \"extensions/example.kts\".$ANSI_RESET"
-        }
-
-        val params = ScriptImportParser.parseKeyValueParams(raw)
-        val moduleName = params["name"]?.trim().orEmpty()
-        if (moduleName.isBlank()) {
-            return "$ANSI_YELLOW_229 Missing required parameter: name.$ANSI_RESET"
-        }
-
-        val moduleDir = File(contextDir, moduleName)
-        if (!moduleDir.exists() || !moduleDir.isDirectory) {
-            return "$ANSI_YELLOW_229 Module not found: ${moduleDir.path}$ANSI_RESET"
-        }
-
-        val packageName = params["package"]?.trim().takeUnless { it.isNullOrBlank() }
-            ?: detectModulePackageName(moduleDir)
-            ?: return "$ANSI_YELLOW_229 Could not infer package name from module. Provide package=\"your.package\".$ANSI_RESET"
-
-        val pkgPath = packageName.replace(".", "/")
-        val extensionsDir = File(moduleDir, "src/main/kotlin/$pkgPath/extensions")
-        extensionsDir.mkdirs()
-
-        val tokens = ScriptImportParser.splitBySpacesRespectingQuotes(raw)
-        val imports = ScriptImportParser.parseScriptImports(tokens)
-        if (imports.isEmpty()) {
-            return "$ANSI_YELLOW_229 No script import flags provided. Use -si/-se/-swi/-swe.$ANSI_RESET"
-        }
-
-        val errors = ScriptImportParser.validateScriptImports(imports)
-        if (errors.isNotEmpty()) {
-            return "$ANSI_YELLOW_229${errors.joinToString("\n")}$ANSI_RESET"
-        }
-
-        val overwrite = tokens.any { it == "--overwrite" }
-        val result = importScriptsIntoModule(
-            currentDir = contextDir,
-            moduleExtensionsDir = extensionsDir,
-            imports = imports,
-            packageName = packageName,
-            overwrite = overwrite
-        )
-
-        return buildString {
-            append("${ANSI_GREEN_155}Scripts added to module $moduleName.${ANSI_RESET}\n")
-            append(" - Added: ${result.added}\n")
-            append(" - Skipped (exists): ${result.skipped}\n")
-            append(" - Failed: ${result.failed}\n")
-            if (result.failed > 0) {
-                append("\nVerify source paths exist and start with extensions/.\n")
-            }
-            if (!overwrite) {
-                append("\nTip: use --overwrite to replace existing destination files.\n")
-            }
-        }
-    }
-
-    private data class ImportResult(
-        val added: Int,
-        val skipped: Int,
-        val failed: Int
-    )
-
-    private fun importScriptsIntoModule(
-        currentDir: File,
-        moduleExtensionsDir: File,
-        imports: List<ParsedScriptImport>,
-        packageName: String,
-        overwrite: Boolean
-    ): ImportResult {
-        var added = 0
-        var skipped = 0
-        var failed = 0
-
-        imports.forEach { imp ->
-            if (imp.wildcard) {
-                val baseDirRel = imp.path.substringBefore("*").trimEnd('/')
-                val baseDirFs = File(currentDir, baseDirRel)
-                if (!baseDirFs.exists() || !baseDirFs.isDirectory) {
-                    failed++
-                    return@forEach
-                }
-
-                val files = baseDirFs.walkTopDown()
-                    .filter { it.isFile && (it.name.endsWith(".kts") || it.name.endsWith(".kt")) }
-                    .toList()
-
-                files.forEach { src ->
-                    val relativeInsideExtensions = src.relativeTo(baseDirFs).path
-                    val dest = if (imp.mode == ScriptImportMode.EXCLUSIVE) {
-                        File(moduleExtensionsDir, src.name)
-                    } else {
-                        File(moduleExtensionsDir, relativeInsideExtensions)
-                    }
-
-                    dest.parentFile.mkdirs()
-                    when (copyScriptWithPackageReplacement(src, dest, packageName, overwrite)) {
-                        CopyOutcome.ADDED -> added++
-                        CopyOutcome.SKIPPED -> skipped++
-                        CopyOutcome.FAILED -> failed++
-                    }
-                }
-            } else {
-                val src = File(currentDir, imp.path)
-                if (!src.exists() || !src.isFile) {
-                    failed++
-                    return@forEach
-                }
-
-                val normalized = imp.path.replace("\\", "/")
-                val relativeInsideExtensions = normalized.substringAfter("extensions/", src.name)
-                val dest = if (imp.mode == ScriptImportMode.EXCLUSIVE) {
-                    File(moduleExtensionsDir, src.name)
-                } else {
-                    File(moduleExtensionsDir, relativeInsideExtensions)
-                }
-
-                dest.parentFile.mkdirs()
-                when (copyScriptWithPackageReplacement(src, dest, packageName, overwrite)) {
-                    CopyOutcome.ADDED -> added++
-                    CopyOutcome.SKIPPED -> skipped++
-                    CopyOutcome.FAILED -> failed++
-                }
-            }
-        }
-
-        return ImportResult(added = added, skipped = skipped, failed = failed)
-    }
-
-    private enum class CopyOutcome { ADDED, SKIPPED, FAILED }
-
-    private fun copyScriptWithPackageReplacement(
-        src: File,
-        dest: File,
-        packageName: String,
-        overwrite: Boolean
-    ): CopyOutcome {
-        if (dest.exists() && !overwrite) {
-            return CopyOutcome.SKIPPED
-        }
-
-        return try {
-            val content = src.readText(Charsets.UTF_8)
-            val contentReplaced = content.replace("%PACKAGE%", packageName)
-            dest.writeText(contentReplaced, Charsets.UTF_8)
-            if (dest.exists() && dest.length() > 0) CopyOutcome.ADDED else CopyOutcome.FAILED
-        } catch (_: Exception) {
-            CopyOutcome.FAILED
-        }
-    }
-
-    private fun detectModulePackageName(moduleDir: File): String? {
-        val sourceRoot = File(moduleDir, "src/main/kotlin")
-        if (!sourceRoot.exists()) return null
-
-        val extensionsDir = sourceRoot.walkTopDown()
-            .firstOrNull { it.isDirectory && it.name == "extensions" }
-            ?: return null
-
-        val relative = extensionsDir.relativeTo(sourceRoot).path.replace("\\", "/")
-        return relative.substringBeforeLast("/extensions", missingDelimiterValue = "")
-            .replace('/', '.')
-            .ifBlank { null }
     }
 
     private fun buildModuleAnalysisResult(): String {
@@ -364,8 +173,8 @@ class ModuleCommand : Command() {
             result.append("\n")
         }
 
-        val folders = jsonData["folders"].asListOfMapStringAny()
-        val files = jsonData["files"].asListOfMapStringAny()
+        val folders = jsonData["folders"] as? List<Map<String, Any?>> ?: emptyList()
+        val files = jsonData["files"] as? List<Map<String, Any?>> ?: emptyList()
 
         val allNames = folders.map { it["folder"] as? String ?: "" } +
                 files.map { it["file"] as? String ?: "" }
@@ -374,14 +183,14 @@ class ModuleCommand : Command() {
 
         for (folder in folders) {
             val folderName = folder["folder"] as? String ?: ""
-            val tags = folder["tags"].asListOfString().map(::colorizeTag)
+            val tags = (folder["tags"] as? List<String>)?.map(::colorizeTag) ?: emptyList()
             val padded = folderName.padEnd(maxNameLength + 2)
             result.append("$padded${tags.joinToString(" ")}\n")
         }
 
         for (file in files) {
             val fileName = file["file"] as? String ?: ""
-            val tags = file["tags"].asListOfString().map(::colorizeTag)
+            val tags = (file["tags"] as? List<String>)?.map(::colorizeTag) ?: emptyList()
             val signature = file["signature"]?.toString().orEmpty()
             val padded = fileName.padEnd(maxNameLength + 2)
             result.append("$padded${tags.joinToString(" ")}")
@@ -465,7 +274,7 @@ class ModuleCommand : Command() {
 
         sb.append("Controllers:\n")
 
-        val controllersList = jsonController?.get("controllers").asListOfMapStringAny()
+        val controllersList = jsonController?.get("controllers") as? List<Map<String, Any?>> ?: emptyList()
         val yamlControllers = config.controllers ?: emptyList()
 
         yamlControllers.forEach { yamlCtrl ->
@@ -477,7 +286,7 @@ class ModuleCommand : Command() {
 
             sb.append("$yamlCtrlName -> $yamlCtrlPath $ctrlMatchStatus\n")
 
-            val jsonEndpoints = jsonCtrl?.get("endpoints").asListOfMapStringAny()
+            val jsonEndpoints = jsonCtrl?.get("endpoints") as? List<Map<String, Any?>> ?: emptyList()
 
             yamlCtrl.apis?.forEachIndexed { idx, api ->
                 val handlerName = "RequestHandler" + (api.handler?.replaceFirstChar { it.uppercaseChar() } ?: "")
@@ -520,8 +329,9 @@ class ModuleCommand : Command() {
         val file = File(System.getProperty("user.home"), ".koupper/helpers/controllers.json")
         if (!file.exists()) return "⚠️  No controllers found\n"
 
-        val mapper = jacksonObjectMapper()
-        val raw: Any = mapper.readValue(file, object : com.fasterxml.jackson.core.type.TypeReference<Any>() {})
+        try {
+            val mapper = jacksonObjectMapper()
+            val raw: Any = mapper.readValue(file, object : com.fasterxml.jackson.core.type.TypeReference<Any>() {})
 
             val data: Map<String, Any?> = when (raw) {
                 is Map<*, *> -> raw.entries.associate { it.key.toString() to it.value }
@@ -536,12 +346,12 @@ class ModuleCommand : Command() {
                 result.append("\n")
             }
 
-            val controllers = data["controllers"].asListOfMapStringAny()
+            val controllers = data["controllers"] as? List<Map<String, Any?>> ?: emptyList()
             if (controllers.isEmpty()) return result.toString()
 
             result.append(" ⚙️ Controllers found:\n\n")
 
-            val allEndpoints = controllers.flatMap { it["endpoints"].asListOfMapStringAny() }
+            val allEndpoints = controllers.flatMap { it["endpoints"] as? List<Map<String, Any?>> ?: emptyList() }
             val maxMethod = (allEndpoints.maxOfOrNull { (it["method"]?.toString() ?: "Unknown").length } ?: 6).coerceAtLeast(6)
             val maxHandler = (allEndpoints.maxOfOrNull { (it["handler"]?.toString() ?: "Unknown").length } ?: 7).coerceAtLeast(7)
 
@@ -549,7 +359,7 @@ class ModuleCommand : Command() {
                 val port = entry["port"] ?: "Unknown"
                 val name = entry["controller"] as? String ?: "Unknown"
                 val basePath = entry["path"] ?: "/"
-                val endpoints = entry["endpoints"].asListOfMapStringAny()
+                val endpoints = entry["endpoints"] as? List<Map<String, Any?>> ?: emptyList()
 
                 if (idx > 0) {
                     result.append("${DIM}────────────────────────────────────────────────────────────${RESET}\n\n")
@@ -592,6 +402,9 @@ class ModuleCommand : Command() {
                 }
             }
 
-        return result.toString().trimEnd() + "\n\n"
+            return result.toString().trimEnd() + "\n"
+        } finally {
+            if (file.exists()) file.delete()
+        }
     }
 }
