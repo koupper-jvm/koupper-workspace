@@ -15,8 +15,6 @@ class NewCommand : Command() {
         super.usage =
             "\n   koupper ${ANSI_GREEN_155}$name$ANSI_RESET ${ANSI_GREEN_155}module name=\"auth-server\",version=\"1.0.0\",package=\"tdn.auth\" --script-inclusive \"scripts/example.kts\" type=\"script\"${ANSI_RESET}\n" +
                     "\n   koupper ${ANSI_GREEN_155}$name$ANSI_RESET ${ANSI_GREEN_155}module name=\"auth-server\",version=\"1.0.0\",package=\"tdn.auth\" -si \"scripts/example.kts\" type=\"script\"${ANSI_RESET}\n" +
-                    "\n   koupper ${ANSI_GREEN_155}$name$ANSI_RESET ${ANSI_GREEN_155}module name=\"jobs-server\",version=\"1.0.0\",package=\"tdn.jobs\" template=\"jobs\"${ANSI_RESET}\n" +
-                    "\n   koupper ${ANSI_GREEN_155}$name$ANSI_RESET ${ANSI_GREEN_155}module name=\"pipeline-server\",version=\"1.0.0\",package=\"tdn.pipeline\" template=\"pipelines\"${ANSI_RESET}\n" +
                     "\n   koupper ${ANSI_GREEN_155}$name$ANSI_RESET ${ANSI_GREEN_155}script-name.kts${ANSI_RESET}\n"
         super.description = "\n   Creates a module or script\n"
         super.arguments = emptyMap()
@@ -36,7 +34,7 @@ class NewCommand : Command() {
             args[1].trim().equals("module", ignoreCase = true) -> {
                 val raw = args.drop(2).joinToString(" ").trim()
 
-                val params = ScriptImportParser.parseKeyValueParams(raw)
+                val params = parseKeyValueParams(raw)
                 val missing = validateRequiredParams(params, listOf("name", "version", "package"))
                 if (missing.isNotEmpty()) {
                     return "\n${ANSI_YELLOW_229}Missing required parameters: ${missing.joinToString(", ")}.$ANSI_RESET\n"
@@ -45,29 +43,28 @@ class NewCommand : Command() {
                 val name = params["name"]!!
                 val version = params["version"]!!
                 val packageName = params["package"]!!
-                val template = (params["template"] ?: "default").trim().ifBlank { "default" }.lowercase()
-                val typeRaw = (params["type"] ?: inferTypeFromTemplate(template)).trim().ifBlank { inferTypeFromTemplate(template) }
-                val type = normalizeType(typeRaw)
+                val type = (params["type"] ?: "script").trim().ifBlank { "script" }
+                val template = (params["template"] ?: "default").trim().ifBlank { "default" }
 
                 val allowedTemplates = setOf("default", "http", "jobs", "pipelines")
                 if (template !in allowedTemplates) {
                     return "\n${ANSI_YELLOW_229}Invalid template: $template. Allowed: ${allowedTemplates.joinToString(", ")}.$ANSI_RESET\n"
                 }
 
-                val allowedTypes = setOf("script", "job", "pipeline")
-                if (type !in allowedTypes) {
-                    return "\n${ANSI_YELLOW_229}Invalid type: $typeRaw. Allowed: ${allowedTypes.joinToString(", ")} (also supports aliases jobs/pipelines/scripts).$ANSI_RESET\n"
-                }
+                val tokens = splitBySpacesRespectingQuotes(raw)
+                val scriptImports = parseScriptImports(tokens)
 
-                val tokens = ScriptImportParser.splitBySpacesRespectingQuotes(raw)
-                val scriptImports = ScriptImportParser.parseScriptImports(tokens)
-
-                val scriptErrors = ScriptImportParser.validateScriptImports(scriptImports)
+                val scriptErrors = validateScriptImports(scriptImports)
                 if (scriptErrors.isNotEmpty()) {
                     return "\n${ANSI_YELLOW_229}${scriptErrors.joinToString("\n")}$ANSI_RESET\n"
                 }
 
                 val moduleDir = File(args[0], name)
+                moduleDir.mkdirs()
+
+                val pkgPath = packageName.trim().replace(".", "/")
+                val extensionsDir = File(moduleDir, "src/main/kotlin/$pkgPath/extensions")
+                extensionsDir.mkdirs()
 
                 val initResource = initResourceForTemplate(template)
 
@@ -87,32 +84,6 @@ class NewCommand : Command() {
 
                 finalInitFile.writeText(replacedInit, Charsets.UTF_8)
 
-                val runResult = try {
-                    CommandManager.commands["run"]?.execute(moduleDir.parentFile.absolutePath, "init.kts") ?: ""
-                } finally {
-                    if (finalInitFile.exists()) {
-                        finalInitFile.delete()
-                    }
-                }
-
-                if (!moduleDir.exists()) {
-                    return "\n${ANSI_YELLOW_229}Module scaffolding failed for $name. Run output: $runResult$ANSI_RESET\n"
-                }
-
-                val requiredScaffoldFiles = listOf(
-                    File(moduleDir, "settings.gradle"),
-                    File(moduleDir, "build.gradle")
-                )
-                val missingScaffoldFiles = requiredScaffoldFiles.filterNot { it.exists() }
-                if (missingScaffoldFiles.isNotEmpty()) {
-                    val missingNames = missingScaffoldFiles.joinToString(", ") { it.name }
-                    return "\n${ANSI_YELLOW_229}Module scaffolding failed for $name. Missing files: $missingNames.$ANSI_RESET\n"
-                }
-
-                val pkgPath = packageName.trim().replace(".", "/")
-                val extensionsDir = File(moduleDir, "src/main/kotlin/$pkgPath/extensions")
-                extensionsDir.mkdirs()
-
                 val currentDir = File(args[0])
 
                 applyScriptImports(
@@ -123,8 +94,10 @@ class NewCommand : Command() {
                     packageName = packageName
                 )
 
-                if (!extensionsDir.exists() || extensionsDir.listFiles().isNullOrEmpty()) {
-                    return "\n${ANSI_YELLOW_229}Module was created but no starter scripts were generated in ${extensionsDir.path}.$ANSI_RESET\n"
+                CommandManager.commands["run"]?.execute(moduleDir.parentFile.absolutePath, "init.kts") ?: ""
+
+                if (finalInitFile.exists()) {
+                    finalInitFile.delete()
                 }
 
                 "Module $name generated successfully with type $type."
@@ -150,16 +123,7 @@ class NewCommand : Command() {
                     return "\n${ANSI_YELLOW_229} The script ${File(finalScript).name} already exist.${ANSI_RESET}\n"
                 }
 
-                val template = this::class.java.classLoader.getResourceAsStream("script.txt")
-                    ?.bufferedReader(Charsets.UTF_8)
-                    ?.readText()
-                    .orEmpty()
-
-                val standaloneTemplate = template
-                    .replace("package %PACKAGE%\r\n\r\n", "")
-                    .replace("package %PACKAGE%\n\n", "")
-
-                File(finalScript).writeText(standaloneTemplate, Charsets.UTF_8)
+                this::class.java.classLoader.getResourceAsStream("script.txt")?.toFile(finalScript)
                 "${args[1]} file created."
             }
 
@@ -176,6 +140,14 @@ class NewCommand : Command() {
 
         return result
     }
+
+    private enum class ScriptMode { INCLUSIVE, EXCLUSIVE }
+
+    private data class ScriptImport(
+        val mode: ScriptMode,
+        val wildcard: Boolean,
+        val path: String
+    )
 
     private fun InputStream.toFile(path: String) {
         File(path).outputStream().use { this.copyTo(it) }
@@ -198,30 +170,121 @@ class NewCommand : Command() {
         return "$newInfo$additionalInfo$ANSI_RESET"
     }
 
-    override fun showArguments(): String {
-        return """
+    override fun showArguments(): String = ""
 
- ${ANSIColors.ANSI_YELLOW_229}* Parameters:$ANSI_RESET
-   ${ANSI_GREEN_155}name$ANSI_RESET      Required module name
-   ${ANSI_GREEN_155}version$ANSI_RESET   Required semantic version
-   ${ANSI_GREEN_155}package$ANSI_RESET   Required Kotlin package (e.g. demo.app)
-   ${ANSI_GREEN_155}template$ANSI_RESET  Optional: default | http | jobs | pipelines
-   ${ANSI_GREEN_155}type$ANSI_RESET      Optional: script | job | pipeline (aliases supported)
+    private fun parseKeyValueParams(input: String): Map<String, String> {
+        if (input.isBlank()) return emptyMap()
 
- ${ANSIColors.ANSI_YELLOW_229}* Script import flags:$ANSI_RESET
-   ${ANSI_GREEN_155}-si, --script-inclusive$ANSI_RESET           Include script preserving relative path
-   ${ANSI_GREEN_155}-se, --script-exclusive$ANSI_RESET           Include script at module root extensions
-   ${ANSI_GREEN_155}-swi, --script-wildcard-inclusive$ANSI_RESET Include all scripts from wildcard preserving structure
-   ${ANSI_GREEN_155}-swe, --script-wildcard-exclusive$ANSI_RESET Include all scripts from wildcard flattened
+        val regex = Regex("""\b([A-Za-z][A-Za-z0-9_-]*)\s*=\s*("([^"]*)"|([^\s,]+))""")
+        val out = LinkedHashMap<String, String>()
 
-        """.trimIndent()
+        regex.findAll(input).forEach { m ->
+            val key = m.groupValues[1].trim()
+            val quoted = m.groupValues[3]
+            val plain = m.groupValues[4]
+            val value = if (quoted.isNotBlank()) quoted else plain
+            out[key] = value
+        }
+
+        return out
+    }
+
+    private fun splitBySpacesRespectingQuotes(input: String): List<String> {
+        if (input.isBlank()) return emptyList()
+
+        val out = mutableListOf<String>()
+        val sb = StringBuilder()
+        var inQuotes = false
+
+        for (ch in input) {
+            when (ch) {
+                '"' -> {
+                    inQuotes = !inQuotes
+                    sb.append(ch)
+                }
+
+                ' ' -> {
+                    if (inQuotes) sb.append(ch)
+                    else {
+                        val token = sb.toString().trim()
+                        if (token.isNotEmpty()) out.add(token)
+                        sb.setLength(0)
+                    }
+                }
+
+                else -> sb.append(ch)
+            }
+        }
+
+        val last = sb.toString().trim()
+        if (last.isNotEmpty()) out.add(last)
+
+        return out
+    }
+
+    private fun parseScriptImports(tokens: List<String>): List<ScriptImport> {
+        fun stripQuotes(s: String): String =
+            if (s.length >= 2 && s.first() == '"' && s.last() == '"') s.substring(1, s.length - 1) else s
+
+        fun flagToImport(flag: String): Pair<ScriptMode, Boolean>? = when (flag) {
+            "-si", "--script-inclusive" -> ScriptMode.INCLUSIVE to false
+            "-se", "--script-exclusive" -> ScriptMode.EXCLUSIVE to false
+            "-swi", "--script-wildcard-inclusive" -> ScriptMode.INCLUSIVE to true
+            "-swe", "--script-wildcard-exclusive" -> ScriptMode.EXCLUSIVE to true
+            else -> null
+        }
+
+        val out = mutableListOf<ScriptImport>()
+        var i = 0
+
+        while (i < tokens.size) {
+            val flag = tokens[i].trim()
+            val mapped = flagToImport(flag)
+
+            if (mapped != null) {
+                val (mode, wildcard) = mapped
+                val next = tokens.getOrNull(i + 1) ?: throw IllegalArgumentException("Missing path after $flag")
+                val path = stripQuotes(next.trim())
+                out.add(ScriptImport(mode, wildcard, path))
+                i += 2
+            } else {
+                i += 1
+            }
+        }
+
+        return out
+    }
+
+    private fun validateScriptImports(imports: List<ScriptImport>): List<String> {
+        val errors = mutableListOf<String>()
+
+        imports.forEach { imp ->
+            if (imp.path.isBlank()) {
+                errors.add("Empty script path")
+                return@forEach
+            }
+            if (!imp.path.startsWith("extensions/")) {
+                errors.add("Script path must start with extensions/: ${imp.path}")
+            }
+            if (!imp.wildcard) {
+                if (!(imp.path.endsWith(".kts") || imp.path.endsWith(".kt"))) {
+                    errors.add("Script must end with .kts or .kt: ${imp.path}")
+                }
+            } else {
+                if (!imp.path.contains("*")) {
+                    errors.add("Wildcard flag requires * in path: ${imp.path}")
+                }
+            }
+        }
+
+        return errors
     }
 
     private fun applyScriptImports(
         currentDir: File,
         moduleExtensionsDir: File,
         type: String,
-        imports: List<ParsedScriptImport>,
+        imports: List<ScriptImport>,
         packageName: String
     ) {
         val templates = templateResourceForType(type)
@@ -308,7 +371,7 @@ class NewCommand : Command() {
                         "Failed to copy file: ${srcFs.name} to ${dest.absolutePath}"
                     }
                 } else {
-                    println("${ANSI_YELLOW_229}Resource specified in path is not a file.${ANSI_RESET}")
+                    println("${ANSI_YELLOW_229}Resource specified in path is not a file.")
                 }
             }
         }
@@ -318,43 +381,26 @@ class NewCommand : Command() {
         moduleScriptsDir: File,
         sourceFile: File,
         baseExtensionsDir: File,
-        mode: ScriptImportMode
+        mode: ScriptMode
     ): File {
         val relativePath = sourceFile.relativeTo(baseExtensionsDir).path
 
         return when (mode) {
-            ScriptImportMode.EXCLUSIVE -> {
+            ScriptMode.EXCLUSIVE -> {
                 File(moduleScriptsDir, sourceFile.name)
             }
-            ScriptImportMode.INCLUSIVE -> {
+            ScriptMode.INCLUSIVE -> {
                 File(moduleScriptsDir, relativePath)
             }
         }
     }
 
     private fun templateResourceForType(type: String): List<String> {
-        return when (normalizeType(type)) {
+        return when (type.trim().lowercase()) {
             "script" -> listOf("script.txt")
             "job" -> listOf("job.txt")
             "pipeline" -> listOf("script1.txt", "script2.txt")
             else -> listOf("script.txt")
-        }
-    }
-
-    private fun normalizeType(type: String): String {
-        return when (type.trim().lowercase()) {
-            "scripts" -> "script"
-            "jobs" -> "job"
-            "pipelines" -> "pipeline"
-            else -> type.trim().lowercase()
-        }
-    }
-
-    private fun inferTypeFromTemplate(template: String): String {
-        return when (template.trim().lowercase()) {
-            "jobs" -> "job"
-            "pipelines" -> "pipeline"
-            else -> "script"
         }
     }
 

@@ -11,8 +11,7 @@ class JobRunWorkerHandler : JobSubcommandHandler {
         val scriptPath = "$context/job-runner.kts"
         File(scriptPath).writeText(generateJobRunnerScript(configId, jobIdArg))
 
-        val output = RunCommand().execute(context, "job-runner.kts")
-        return if (output.endsWith("\n")) output else "$output\n"
+        return RunCommand().execute(context, "job-runner.kts")
     }
 
     /**
@@ -58,7 +57,7 @@ val setup: (JobRunner) -> String = { runner ->
         res.forEach {
             when (it) {
                 is JobInfo -> {
-                    if (sb.isNotEmpty()) sb.appendLine()
+                    sb.appendLine()
                     sb.appendLine("From config with id: ${'$'}{it.configId}")
                     sb.appendLine("📦 Job ID: ${'$'}{it.id}")
                     sb.appendLine(" - Function: ${'$'}{it.function}")
@@ -67,7 +66,7 @@ val setup: (JobRunner) -> String = { runner ->
                     sb.appendLine(" - Source: ${'$'}{it.source}")
                 }
                 is JobResult.Error -> {
-                    if (sb.isNotEmpty()) sb.appendLine()
+                    sb.appendLine()
                     sb.appendLine("${'$'}{it.message}")
                 }
             }
