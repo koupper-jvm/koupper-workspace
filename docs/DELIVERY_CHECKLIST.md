@@ -66,7 +66,7 @@ _Last updated: 2026-04-15 (end of day)_
 
 ### Multi-repo readiness snapshot
 
-- [x] `koupper`: `main` and `develop` aligned at `522670803c29edd11b9bf3224689097ba3ab803a`; `v6.4.0` retargeted and verified.
+- [x] `koupper`: `main` and `develop` aligned at `2ef085ae9b7df9348caf019c4ec93c40ae06df8c`; `v6.4.0` retargeted and verified.
 - [x] `koupper-cli`: `main` and `develop` aligned; `v4.5.0` tag present.
 - [x] `koupper-docs`: sync flow completed; `docs-v6.4.0` tag present.
 - [x] Open PRs across `koupper`, `koupper-cli`, `koupper-docs`: none.
