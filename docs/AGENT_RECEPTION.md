@@ -37,7 +37,7 @@ If any step fails, read the error before proceeding — do not skip.
 | `.` (root) | `koupper-jvm/koupper-infrastructure` | agent workflow, release scripts, CI/deploy helpers |
 | `koupper/` | `koupper-jvm/koupper` (octopus engine) | main Gradle multi-module project |
 | `koupper-cli/` | `koupper-jvm/koupper-cli` | CLI module |
-| `koupper-document/` | `koupper-jvm/koupper-document` | VitePress docs site (git-excluded locally) |
+| `koupper-document/` | `koupper-jvm/koupper-docs` | VitePress docs site (local folder keeps legacy name) |
 
 ---
 

@@ -1,53 +1,53 @@
 # Session State
 
-_Last updated: 2026-04-15 (post release-history cleanup closeout)_
+_Last updated: 2026-04-15 (end-of-day closeout)_
 
 ## Current Objective
 
-Resume normal feature delivery from `develop` after release-history cleanup and branch/tag alignment.
+Start the next feature wave from clean `develop` baselines across Koupper repos.
 
 ## Completed This Session
 
-- Rewrote `develop` commit history to remove Claude/Anthropic references from commit messages.
-- Cleaned PR descriptions in the 117-128 range to remove Claude references.
-- Closed stale/conflicted release PR #122.
-- Created and merged sync PR #129 (`release/main-sync-20260415-1315` -> `main`) to align `main` with rewritten `develop` content.
-- Retargeted release tag `v6.4.0` to `main` head commit `f00f0552a6fa7b43bf7a455774ea68c8c33ca649`.
-- Re-enabled `main` branch ruleset enforcement after merge/tag operations.
+- Verified and finalized branch/tag status for `koupper`, `koupper-cli`, and `koupper-docs`.
+- Confirmed no open PRs in the three repos after closeout.
+- Cleaned remaining AI-trace PR metadata entries and rechecked PR text matches to zero.
+- Re-aligned `koupper` `main` and `develop` to the same commit and retargeted `v6.4.0`.
+- Re-established `koupper-cli` long-lived branches (`main` + `develop`) with release tag `v4.5.0`.
+- Synced `koupper-docs` release flow and preserved `docs-v6.4.0` on `main`.
 
 ## Pending Tasks (priority order)
 
-1. Start next feature wave from `develop` (provider scaffold or release ergonomics from `docs/NEXT_FEATURES_NOTES.md`).
-2. Optionally add branch ruleset/protection for `develop` to mirror `main` governance posture.
-3. Keep `koupper-document` docs auto-deploy wiring in next docs/release wave (still manual trigger based).
+1. Start new delivery branches from `develop` in each active repo.
+2. Optionally enforce the same governance posture on non-main branches where needed.
+3. Keep docs deploy automation follow-up in the next docs/release wave.
 
 ## Branch / PR Status
 
-| Item | Status |
-|----|--------|
-| `origin/develop` | `6e5f16a0b8c31a3bf45316ee690b6e0b4de995d3` |
-| `origin/main` | `f00f0552a6fa7b43bf7a455774ea68c8c33ca649` |
-| Content parity (`main` vs `develop`) | Aligned (same tree) |
-| PR #122 | CLOSED |
-| PR #129 | MERGED |
-| Open PRs | none |
-| Tag `v6.4.0` | points to `origin/main` (`f00f0552...`) |
+| Repo | Status |
+|---|---|
+| `koupper` | `main` = `develop` = `522670803c29edd11b9bf3224689097ba3ab803a` |
+| `koupper` tag | `v6.4.0` -> `522670803c29edd11b9bf3224689097ba3ab803a` |
+| `koupper-cli` | `main` = `develop` = `f7fa1c4caf1d339c7265c7119b719ada6bba9d2a` |
+| `koupper-cli` tag | `v4.5.0` -> `f7fa1c4caf1d339c7265c7119b719ada6bba9d2a` |
+| `koupper-docs` | `main` = `d1380ce4bb2d1fa8d97b9e34f03d89412e44afbf`, `develop` = `67c751af89a46a864aaefbd4ddeb058aa5c16f9e` (sync complete) |
+| `koupper-docs` tag | `docs-v6.4.0` -> `d1380ce4bb2d1fa8d97b9e34f03d89412e44afbf` |
+| Open PRs | none (`koupper`, `koupper-cli`, `koupper-docs`) |
 
 ## Next 3 Commands to Resume Features
 
 ```bash
-# 1. Bootstrap session context
+# 1. Bootstrap this workspace session
 cd "C:\Users\dosek\develop\koupper infrastructure" && koupper run scripts/agent/preflight.kts '{}' && koupper run scripts/agent/validate.kts '{}'
 
-# 2. Sync feature base branch
-cd "C:\Users\dosek\develop\koupper infrastructure\koupper" && git checkout develop && git pull origin develop
+# 2. Sync local base branch in the active repo
+cd "C:\Users\dosek\develop\koupper" && git checkout develop && git pull origin develop
 
-# 3. Start new scoped branch (example)
+# 3. Start feature branch (example)
 git checkout -b feature/provider-scaffold-command
 ```
 
 ## Risks / Blockers
 
-- `main` ruleset is active again; any direct/non-compliant merge path will be blocked by policy.
-- `develop` currently has no equivalent active ruleset; governance mismatch is intentional for now but should be reviewed.
-- If local daemon uses stale `octopus.jar`, rebuild/copy protocol from `docs/AGENT_RECEPTION.md` must be followed before local validation.
+- `main` branch policies remain active in governed repos; non-compliant merge paths will be blocked.
+- `koupper-docs` keeps `main`/`develop` as separate SHAs after sync; this is expected with sync-PR flow.
+- If local daemon uses stale `octopus.jar`, follow `docs/AGENT_RECEPTION.md` install update protocol before local validation.
