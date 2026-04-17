@@ -1,6 +1,6 @@
 # Session State
 
-_Last updated: 2026-04-15 (end-of-day closeout)_
+_Last updated: 2026-04-17 (session closeout)_
 
 ## Current Objective
 
@@ -14,6 +14,9 @@ Start the next feature wave from clean `develop` baselines across Koupper repos.
 - Re-aligned `koupper` `main` and `develop` to the same commit and retargeted `v6.4.0`.
 - Re-established `koupper-cli` long-lived branches (`main` + `develop`) with release tag `v4.5.0`.
 - Synced `koupper-docs` release flow and preserved `docs-v6.4.0` on `main`.
+- Fixed module scanner behavior in `koupper` (`module` command): recursive handler detection, more robust controller detection, base package inference.
+- Fixed critical Dynamo deserialization NPE in `DynamoClientImpl.convertAttributeValue` for empty map/list attributes (`hasM`/`hasL` + null-safe `nul`).
+- Renamed workspace installer script to `install-workspace.kts` in `koupper-infrastructure` to avoid confusion with product installer.
 
 ## Pending Tasks (priority order)
 
@@ -25,11 +28,11 @@ Start the next feature wave from clean `develop` baselines across Koupper repos.
 
 | Repo | Status |
 |---|---|
-| `koupper` | `main` = `develop` = `2ef085ae9b7df9348caf019c4ec93c40ae06df8c` |
-| `koupper` tag | `v6.4.0` -> `2ef085ae9b7df9348caf019c4ec93c40ae06df8c` |
+| `koupper` | `main` = `develop` = `4ae829f090d752dee093dfc080b80c032398367d` |
+| `koupper` tag | `v6.4.0` -> `4ae829f090d752dee093dfc080b80c032398367d` |
 | `koupper-cli` | `main` = `develop` = `f7fa1c4caf1d339c7265c7119b719ada6bba9d2a` |
 | `koupper-cli` tag | `v4.5.0` -> `f7fa1c4caf1d339c7265c7119b719ada6bba9d2a` |
-| `koupper-docs` | `main` = `d1380ce4bb2d1fa8d97b9e34f03d89412e44afbf`, `develop` = `67c751af89a46a864aaefbd4ddeb058aa5c16f9e` (sync complete) |
+| `koupper-docs` | `main` = `develop` = `d1380ce4bb2d1fa8d97b9e34f03d89412e44afbf` |
 | `koupper-docs` tag | `docs-v6.4.0` -> `d1380ce4bb2d1fa8d97b9e34f03d89412e44afbf` |
 | Open PRs | none (`koupper`, `koupper-cli`, `koupper-docs`) |
 
