@@ -44,6 +44,11 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
    - ~~Add deploy script for `koupper.com/docs`.~~ Done (6.4.0) — `scripts/deploy/deploy-docs.kts`.
    - Next: wire docs deploy into CI on merge to `koupper-docs` main (auto-deploy on push).
 
+6. **Module scanner hardening (follow-up)**
+   - Validate `koupper module` detection in mixed Kotlin module layouts without class-level `@Path`.
+   - Add Java/Spring-style controller detection fallback if needed by downstream projects.
+   - Add regression fixtures for `.http.yml/.json` absent/present behavior messaging.
+
 ## Scope guardrails
 
 - Do not mix provider feature code with unrelated refactors.

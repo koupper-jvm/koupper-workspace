@@ -1,6 +1,6 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-15 (end of day)_
+_Last updated: 2026-04-17 (end of day)_
 
 ## Wave: Compiled Job Worker Bug Cluster (PRs #125–#128)
 
@@ -66,11 +66,13 @@ _Last updated: 2026-04-15 (end of day)_
 
 ### Multi-repo readiness snapshot
 
-- [x] `koupper`: `main` and `develop` aligned at `2ef085ae9b7df9348caf019c4ec93c40ae06df8c`; `v6.4.0` retargeted and verified.
+- [x] `koupper`: `main` and `develop` aligned at `4ae829f090d752dee093dfc080b80c032398367d`; `v6.4.0` retargeted and verified.
 - [x] `koupper-cli`: `main` and `develop` aligned; `v4.5.0` tag present.
-- [x] `koupper-docs`: sync flow completed; `docs-v6.4.0` tag present.
+- [x] `koupper-docs`: `main` and `develop` aligned; `docs-v6.4.0` tag present.
 - [x] Open PRs across `koupper`, `koupper-cli`, `koupper-docs`: none.
 - [x] AI-trace checks for commit messages/PR text re-run for active branches and current metadata.
+- [x] Critical Dynamo decode NPE fix shipped (`DynamoClientImpl` empty map/list + `nul` null-safety).
+- [x] Module scan reliability fix shipped (controllers + handlers detection in `module` command).
 
 ---
 

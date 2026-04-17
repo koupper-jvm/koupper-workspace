@@ -25,6 +25,10 @@ This is the single startup file for every agent session in this workspace.
    ```bash
    cd koupper && git checkout develop && git pull origin develop && cd ..
    ```
+8. If validating workspace install script, use:
+   ```bash
+   kotlinc -script install-workspace.kts -- --doctor
+   ```
 
 If any step fails, read the error before proceeding — do not skip.
 
