@@ -17,6 +17,7 @@ Start the next feature wave from clean `develop` baselines across Koupper repos.
 - Fixed module scanner behavior in `koupper` (`module` command): recursive handler detection, more robust controller detection, base package inference.
 - Fixed critical Dynamo deserialization NPE in `DynamoClientImpl.convertAttributeValue` for empty map/list attributes (`hasM`/`hasL` + null-safe `nul`).
 - Renamed workspace installer script to `install-workspace.kts` in `koupper-infrastructure` to avoid confusion with product installer.
+- Added true Dynamo chunk pagination methods with URL-safe cursor token support (`queryItemsPaginatedChunk`, `scanItemsPaginatedChunk`).
 
 ## Pending Tasks (priority order)
 
@@ -28,8 +29,8 @@ Start the next feature wave from clean `develop` baselines across Koupper repos.
 
 | Repo | Status |
 |---|---|
-| `koupper` | `main` = `develop` = `4ae829f090d752dee093dfc080b80c032398367d` |
-| `koupper` tag | `v6.4.0` -> `4ae829f090d752dee093dfc080b80c032398367d` |
+| `koupper` | `main` = `develop` = `12d7c79a77cef3317f98be5ef2f0cb94b8d8e83b` |
+| `koupper` tag | `v6.4.0` -> `12d7c79a77cef3317f98be5ef2f0cb94b8d8e83b` |
 | `koupper-cli` | `main` = `develop` = `f7fa1c4caf1d339c7265c7119b719ada6bba9d2a` |
 | `koupper-cli` tag | `v4.5.0` -> `f7fa1c4caf1d339c7265c7119b719ada6bba9d2a` |
 | `koupper-docs` | `main` = `develop` = `d1380ce4bb2d1fa8d97b9e34f03d89412e44afbf` |
