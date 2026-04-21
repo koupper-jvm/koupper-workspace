@@ -1,6 +1,27 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-17 (end of day)_
+_Last updated: 2026-04-17 (api key auth follow-up)_
+
+## Wave: API Key Auth + Main Sync Follow-up
+
+### Scope
+
+- [x] API key auth delivery completed on `koupper` `develop` (`6bf0ca7`).
+- [x] Scope kept to auth feature and sync preparation only.
+
+### Validation
+
+- [x] `koupper/koupper`: `:providers:test` passed.
+- [x] `koupper/koupper`: `:octopus:test` passed.
+- [x] Workspace agent checks passed (`scripts/agent/preflight.kts`, `scripts/agent/validate.kts`).
+
+### Release Flow
+
+- [x] Governed sync PR opened: `koupper` PR #130 (`develop -> main`) with auto-merge enabled.
+- [ ] Merge PR #130 after required checks succeed.
+- [ ] Re-evaluate `v6.4.0` tag target after merge.
+
+---
 
 ## Wave: Compiled Job Worker Bug Cluster (PRs #125–#128)
 
@@ -66,10 +87,10 @@ _Last updated: 2026-04-17 (end of day)_
 
 ### Multi-repo readiness snapshot
 
-- [x] `koupper`: `main` and `develop` aligned at `12d7c79a77cef3317f98be5ef2f0cb94b8d8e83b`; `v6.4.0` retargeted and verified.
+- [ ] `koupper`: currently diverged (`main` `12d7c7947d1294bfb50036037ddef49f730d4fee`, `develop` `6bf0ca7652aa6052217b3a330afa9fedfda136b4`) with sync PR #130 open.
 - [x] `koupper-cli`: `main` and `develop` aligned; `v4.5.0` tag present.
 - [x] `koupper-docs`: `main` and `develop` aligned; `docs-v6.4.0` tag present.
-- [x] Open PRs across `koupper`, `koupper-cli`, `koupper-docs`: none.
+- [ ] Open PRs across `koupper`, `koupper-cli`, `koupper-docs`: `koupper` #130 open; others none.
 - [x] AI-trace checks for commit messages/PR text re-run for active branches and current metadata.
 - [x] Critical Dynamo decode NPE fix shipped (`DynamoClientImpl` empty map/list + `nul` null-safety).
 - [x] Module scan reliability fix shipped (controllers + handlers detection in `module` command).
