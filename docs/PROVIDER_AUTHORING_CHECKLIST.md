@@ -23,7 +23,7 @@ This checklist must be completed for every new Service Provider shipped in the f
 
 ## 4 — Add to providers-catalog.json
 
-Add an entry to `koupper/providers/src/main/resources/providers-catalog.json`:
+Add an entry to `providers/src/main/resources/providers-catalog.json`:
 
 ```json
 {
@@ -41,7 +41,7 @@ Add an entry to `koupper/providers/src/main/resources/providers-catalog.json`:
   "env": [
     { "name": "ENV_VAR_NAME", "required": true, "description": "What this env var controls." }
   ],
-  "docs": "https://koupper.com/docs/providers/<short-id>"
+  "docs": "https://koupper.com/providers/<short-id>.html"
 }
 ```
 
@@ -51,11 +51,11 @@ Add an entry to `koupper/providers/src/main/resources/providers-catalog.json`:
 - [ ] Test the provider interface contract (happy path).
 - [ ] Test edge cases: missing required config, empty/null inputs, error/failure paths.
 - [ ] For CLI-wrapping providers: use the `commandRunner` injectable to avoid real subprocess calls in tests (see `IaCProviderTest` and `AwsDeployServiceProviderTest`).
-- [ ] Run locally: `cd koupper && ./gradlew :providers:test --tests "com.koupper.providers.<package>.<Name>ProviderTest"`
+- [ ] Run locally: `./gradlew :providers:test --tests "com.koupper.providers.<package>.<Name>ProviderTest"`
 
 ## 6 — Write public docs
 
-- [ ] Create `koupper-document/docs/providers/<short-id>.md` with:
+- [ ] Create `koupper-docs/docs/providers/<short-id>.md` with:
   - Purpose and use cases
   - Environment variables table
   - Usage example in a `.kts` script
@@ -65,7 +65,7 @@ Add an entry to `koupper/providers/src/main/resources/providers-catalog.json`:
 
 ```bash
 # Core catalog parity
-cd koupper && ./gradlew :providers:test --tests "com.koupper.providers.ProviderCatalogConsistencyTest"
+./gradlew :providers:test --tests "com.koupper.providers.ProviderCatalogConsistencyTest"
 
 # CLI catalog parity (if docs exist)
 cd koupper-cli && ./gradlew test --tests "com.koupper.cli.commands.ProviderCommandCatalogPathTest"
@@ -87,13 +87,13 @@ Add an entry under the current unreleased version in `CHANGELOG.md`:
 ## Scaffold file structure
 
 ```
-koupper/providers/src/main/kotlin/com/koupper/providers/<name>/
+providers/src/main/kotlin/com/koupper/providers/<name>/
 ├── <Name>Provider.kt          # interface + data classes
 └── <Name>ServiceProvider.kt   # ServiceProvider.up() binding
 
-koupper/providers/src/test/kotlin/com/koupper/providers/<name>/
+providers/src/test/kotlin/com/koupper/providers/<name>/
 └── <Name>ProviderTest.kt      # unit tests
 
-koupper-document/docs/providers/
+koupper-docs/docs/providers/
 └── <short-id>.md              # public user docs
 ```

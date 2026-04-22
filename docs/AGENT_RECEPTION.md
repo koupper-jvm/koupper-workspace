@@ -25,6 +25,11 @@ This is the single startup file for every agent session in this workspace.
    ```bash
    cd koupper && git checkout develop && git pull origin develop && cd ..
    ```
+8. If validating workspace install script, use:
+   ```bash
+   kotlinc -script install-workspace.kts -- --doctor
+   ```
+   Workspace uninstall script is `uninstall-workspace.kts`.
 
 If any step fails, read the error before proceeding — do not skip.
 
@@ -37,7 +42,7 @@ If any step fails, read the error before proceeding — do not skip.
 | `.` (root) | `koupper-jvm/koupper-infrastructure` | agent workflow, release scripts, CI/deploy helpers |
 | `koupper/` | `koupper-jvm/koupper` (octopus engine) | main Gradle multi-module project |
 | `koupper-cli/` | `koupper-jvm/koupper-cli` | CLI module |
-| `koupper-document/` | `koupper-jvm/koupper-document` | VitePress docs site (git-excluded locally) |
+| `koupper-document/` | `koupper-jvm/koupper-docs` | VitePress docs site (local folder keeps legacy name) |
 
 ---
 

@@ -4,12 +4,6 @@ This note keeps the next implementation waves scoped and aligned with current `d
 
 Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_PLAYBOOK.md`.
 
-## Release baseline (as of 2026-04-15)
-
-- `main` and `develop` are content-aligned after release-history cleanup closeout.
-- `v6.4.0` is anchored to `main` head.
-- No open release PRs remain from the 6.4.0 wave.
-
 ## Current operating baseline
 
 - Branch from `develop`.
@@ -31,9 +25,8 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
    - Add a lightweight health command (`koupper doctor`) smoke to release checks.
 
 3. **Release script ergonomics**
-    - Add a `--no-auto-merge` fallback mode message in fast lane output.
-    - Emit explicit PR URL + next actions at end of every release script.
-    - Add a guard that detects stale/conflicted `develop -> main` PRs and suggests regeneration path.
+   - Add a `--no-auto-merge` fallback mode message in fast lane output.
+   - Emit explicit PR URL + next actions at end of every release script.
 
 4. **Observability**
    - ~~Wire ObservabilityProvider into the Octopus execution monitor chain.~~ Done (6.4.0) — auto emits traces/metrics on every script run.
@@ -42,7 +35,7 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
 
 5. **Docs deploy automation**
    - ~~Add deploy script for `koupper.com/docs`.~~ Done (6.4.0) — `scripts/deploy/deploy-docs.kts`.
-   - Next: wire docs deploy into CI on merge to `koupper-document` main (auto-deploy on push).
+   - Next: wire docs deploy into CI on merge to `koupper-docs` main (auto-deploy on push).
 
 ## Scope guardrails
 

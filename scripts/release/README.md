@@ -17,7 +17,7 @@ Purpose: automate the GitHub release lifecycle from Koupper scripts using sequen
 - `scripts/release/fast-lane.kts`
   - creates/updates a PR without local CI waiting and optionally enables GitHub auto-merge.
 - `scripts/release/version-bump.kts`
-  - computes/applies semver bump on `koupper/build.gradle`.
+  - computes/applies semver bump on `build.gradle`.
 - `scripts/release/tag-release.kts`
   - creates/pushes annotated `v*` release tags.
 
