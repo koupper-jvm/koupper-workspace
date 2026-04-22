@@ -15,7 +15,7 @@ This project uses `develop` as the integration branch and `main/master` as stabl
 
 ## Version Source of Truth
 
-- Current version is defined in `koupper/build.gradle` as:
+- Current version is defined in `build.gradle` as:
   - `version = 'x.y.z'`
 
 ## SemVer Bump Rule

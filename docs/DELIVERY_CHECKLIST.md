@@ -1,6 +1,29 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-15_
+_Last updated: 2026-04-22 (review-gate follow-up)_
+
+## Wave: API Key Auth + Main Sync Follow-up
+
+### Scope
+
+- [x] API key auth delivery completed on `koupper` `develop` (`6bf0ca7`).
+- [x] Scope kept to auth feature and sync preparation only.
+
+### Validation
+
+- [x] `koupper/koupper`: `:providers:test` passed.
+- [x] `koupper/koupper`: `:octopus:test` passed.
+- [x] Workspace agent checks passed (`scripts/agent/preflight.kts`, `scripts/agent/validate.kts`).
+
+### Release Flow
+
+- [x] Governed sync PR opened: `koupper` PR #130 (`develop -> main`) with auto-merge enabled.
+- [x] Required smoke checks for PR #130 completed successfully.
+- [x] Maintainer review request comment posted on PR #130 to unblock auto-merge.
+- [ ] Obtain required review on PR #130 and let auto-merge finalize.
+- [ ] Re-evaluate `v6.4.0` tag target after merge.
+
+---
 
 ## Wave: Compiled Job Worker Bug Cluster (PRs #125–#128)
 
@@ -64,10 +87,21 @@ _Last updated: 2026-04-15_
 - [x] PR descriptions cleanup applied for PRs #117-#128.
 - [x] Main branch ruleset re-enabled after merge/tag operations.
 
+### Multi-repo readiness snapshot
+
+- [ ] `koupper`: currently diverged (`main` `12d7c7947d1294bfb50036037ddef49f730d4fee`, `develop` `6bf0ca7652aa6052217b3a330afa9fedfda136b4`) with sync PR #130 open and awaiting required review.
+- [x] `koupper-cli`: `main` and `develop` aligned; `v4.5.0` tag present.
+- [x] `koupper-docs`: `main` and `develop` aligned; `docs-v6.4.0` tag present.
+- [ ] Open PRs across `koupper`, `koupper-cli`, `koupper-docs`: `koupper` #130 open; others none.
+- [x] AI-trace checks for commit messages/PR text re-run for active branches and current metadata.
+- [x] Critical Dynamo decode NPE fix shipped (`DynamoClientImpl` empty map/list + `nul` null-safety).
+- [x] Module scan reliability fix shipped (controllers + handlers detection in `module` command).
+- [x] Dynamo ORM true pagination chunk methods shipped with URL-safe cursor token encode/decode.
+
 ---
 
 ## Standing checks (apply to every session)
 
 - [x] `koupper run scripts/agent/validate.kts '{}'` returns `ok: true`.
 - [x] `koupper run scripts/agent/preflight.kts '{}'` returns `ok: true`.
-- [ ] `docs/SESSION_STATE.md` updated before ending session.
+- [x] `docs/SESSION_STATE.md` updated before ending session.
