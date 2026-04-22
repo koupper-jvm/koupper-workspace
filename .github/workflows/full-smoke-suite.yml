@@ -55,7 +55,7 @@ jobs:
       - name: Uninstall Koupper
         shell: pwsh
         run: |
-          kotlinc -script uninstall.kts -- --force --purge
+          kotlinc -script uninstall-workspace.kts -- --force --purge
 
       - name: Assert uninstall cleanup
         shell: pwsh

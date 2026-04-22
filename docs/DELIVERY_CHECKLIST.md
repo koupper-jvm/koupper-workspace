@@ -1,6 +1,6 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-22 (resume prep)_
+_Last updated: 2026-04-22 (review-gate follow-up)_
 
 ## Wave: API Key Auth + Main Sync Follow-up
 
@@ -19,6 +19,7 @@ _Last updated: 2026-04-22 (resume prep)_
 
 - [x] Governed sync PR opened: `koupper` PR #130 (`develop -> main`) with auto-merge enabled.
 - [x] Required smoke checks for PR #130 completed successfully.
+- [x] Maintainer review request comment posted on PR #130 to unblock auto-merge.
 - [ ] Obtain required review on PR #130 and let auto-merge finalize.
 - [ ] Re-evaluate `v6.4.0` tag target after merge.
 

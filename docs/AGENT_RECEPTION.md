@@ -29,6 +29,7 @@ This is the single startup file for every agent session in this workspace.
    ```bash
    kotlinc -script install-workspace.kts -- --doctor
    ```
+   Workspace uninstall script is `uninstall-workspace.kts`.
 
 If any step fails, read the error before proceeding — do not skip.
 
