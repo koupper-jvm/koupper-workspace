@@ -1,12 +1,12 @@
 # Koupper Maintainer Guide
 
-This folder stores maintainer-focused documentation. Public user documentation lives in `koupper-document/docs`.
+This folder stores maintainer-focused documentation. Public user documentation lives in `koupper-docs/docs`.
 
 ## Documentation map
 
 | Surface | Path | Audience | Purpose |
 | --- | --- | --- | --- |
-| Public docs | `koupper-document/docs` | Framework users | Product usage, command reference, providers, architecture, production guides |
+| Public docs | `koupper-docs/docs` | Framework users | Product usage, command reference, providers, architecture, production guides |
 | Internal docs | `docs/` | Maintainers | Release routines, governance rules, internal checklists |
 | Examples | `examples/` | Users + maintainers | Runnable reference scripts and smoke assets |
 
@@ -23,10 +23,6 @@ This folder stores maintainer-focused documentation. Public user documentation l
 - `CONTRACT_VERSIONING_POLICY.md`: governs additive vs breaking API changes and deprecation lifecycle across CLI, providers, and script execution contract.
 - `PROVIDER_AUTHORING_CHECKLIST.md`: four-surface checklist (register + catalog + docs + tests) for every new provider.
 - `migrations/`: per-change migration notes for behavior or default changes that affect existing usage.
-- `AGENT_RECEPTION.md`: single startup entrypoint for agent sessions.
-- `SESSION_STATE.md`: lightweight handoff/status file for daily resume.
-- `DELIVERY_CHECKLIST.md`: per-feature delivery checklist.
-- `agent-setup.md`: one-command setup/validation usage for agent workflow files.
 
 ## Archive
 
@@ -34,7 +30,7 @@ This folder stores maintainer-focused documentation. Public user documentation l
 
 ## Rule of thumb
 
-- If users should read it, move it to `koupper-document/docs`.
+- If users should read it, move it to `koupper-docs/docs`.
 - If maintainers operate the repo with it, keep it here.
 - If documentation references commands/scripts, point to runnable assets in `examples/`.
 

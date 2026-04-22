@@ -2,12 +2,12 @@
 
 This checklist is versioned and intended for manual validation on local machines before release.
 
-Public-facing counterpart: `koupper-document/docs/production/script-execution-checklist.md`.
+Public-facing counterpart: `koupper-docs/docs/production/script-execution-checklist.md`.
 
 ## Prerequisites
 
 ```powershell
-kotlinc -script install-workspace.kts -- --doctor
+kotlinc -script install.kts -- --doctor
 koupper help
 ```
 

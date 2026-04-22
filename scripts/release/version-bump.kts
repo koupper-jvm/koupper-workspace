@@ -3,7 +3,7 @@ import com.koupper.octopus.annotations.Export
 import java.io.File
 
 data class Input(
-    val projectFile: String = "koupper/build.gradle",
+    val projectFile: String = "build.gradle",
     val targetVersion: String? = null,
     val bump: String = "patch",
     val dryRun: Boolean = true

@@ -38,7 +38,7 @@ Three contract surfaces are governed by this policy:
 - Changing a method signature in a way that breaks existing call sites.
 - Changing the `@Export` entrypoint contract in a non-additive way.
 
-**Rule:** Breaking changes require a major version bump in `koupper/build.gradle`. The old API must be kept as `@Deprecated` with a removal timeline of at minimum one minor release cycle before deletion.
+**Rule:** Breaking changes require a major version bump in `build.gradle`. The old API must be kept as `@Deprecated` with a removal timeline of at minimum one minor release cycle before deletion.
 
 ## Deprecation lifecycle
 

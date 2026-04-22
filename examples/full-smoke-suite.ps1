@@ -64,6 +64,7 @@ $examplesDir = Split-Path -Parent $scriptPath
 $repoRoot = Split-Path -Parent $examplesDir
 $workspace = Join-Path $examplesDir ".smoke-workspace"
 $isWindowsOs = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+$installScript = if (Test-Path (Join-Path $repoRoot "install-workspace.kts")) { "install-workspace.kts" } else { "install.kts" }
 
 $standaloneScript = Join-Path $examplesDir "smoke-standalone.kts"
 $standaloneInputJson = Join-Path $examplesDir "smoke-standalone.input.json"
@@ -153,14 +154,14 @@ function Invoke-Koupper {
 Push-Location $repoRoot
 try {
     Write-Step "Ensure local installation artifacts"
-    & { kotlinc -script install.kts }
+    & { kotlinc -script $installScript }
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Install failed, retrying with force mode..." -ForegroundColor Yellow
         if ($isWindowsOs) {
             Stop-KoupperProcesses
         }
-        & { kotlinc -script install.kts -- --force }
+        & { kotlinc -script $installScript -- --force }
         if ($LASTEXITCODE -ne 0) {
             throw "Step failed (Ensure local installation artifacts) with exit code $LASTEXITCODE"
         }
@@ -168,10 +169,10 @@ try {
 
     if ($ForceInstall) {
         Run-External "Stop running Koupper processes" { Stop-KoupperProcesses }
-        Run-External "Refresh local installation (force)" { kotlinc -script install.kts -- --force }
+        Run-External "Refresh local installation (force)" { kotlinc -script $installScript -- --force }
     }
     Run-External "Check CLI availability" { Invoke-Koupper help }
-    Run-External "Run install doctor" { kotlinc -script install.kts -- --doctor }
+    Run-External "Run install doctor" { kotlinc -script $installScript -- --doctor }
 
     Run-External "Show help: new" { Invoke-Koupper help new }
     Run-External "Show help: run" { Invoke-Koupper help run }
