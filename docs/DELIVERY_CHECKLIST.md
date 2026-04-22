@@ -1,6 +1,6 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-17 (api key auth follow-up)_
+_Last updated: 2026-04-22 (resume prep)_
 
 ## Wave: API Key Auth + Main Sync Follow-up
 
@@ -18,7 +18,8 @@ _Last updated: 2026-04-17 (api key auth follow-up)_
 ### Release Flow
 
 - [x] Governed sync PR opened: `koupper` PR #130 (`develop -> main`) with auto-merge enabled.
-- [ ] Merge PR #130 after required checks succeed.
+- [x] Required smoke checks for PR #130 completed successfully.
+- [ ] Obtain required review on PR #130 and let auto-merge finalize.
 - [ ] Re-evaluate `v6.4.0` tag target after merge.
 
 ---
@@ -87,7 +88,7 @@ _Last updated: 2026-04-17 (api key auth follow-up)_
 
 ### Multi-repo readiness snapshot
 
-- [ ] `koupper`: currently diverged (`main` `12d7c7947d1294bfb50036037ddef49f730d4fee`, `develop` `6bf0ca7652aa6052217b3a330afa9fedfda136b4`) with sync PR #130 open.
+- [ ] `koupper`: currently diverged (`main` `12d7c7947d1294bfb50036037ddef49f730d4fee`, `develop` `6bf0ca7652aa6052217b3a330afa9fedfda136b4`) with sync PR #130 open and awaiting required review.
 - [x] `koupper-cli`: `main` and `develop` aligned; `v4.5.0` tag present.
 - [x] `koupper-docs`: `main` and `develop` aligned; `docs-v6.4.0` tag present.
 - [ ] Open PRs across `koupper`, `koupper-cli`, `koupper-docs`: `koupper` #130 open; others none.
