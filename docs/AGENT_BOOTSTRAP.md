@@ -2,6 +2,8 @@
 
 This is the default bootstrap file for maintainers and automated sessions in this repository.
 
+Startup entrypoint is `docs/AGENT_RECEPTION.md`; run that checklist first, then continue with this file.
+
 ## Session defaults
 
 - Base branch: `develop`

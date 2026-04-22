@@ -1,6 +1,6 @@
 # Session State
 
-_Last updated: 2026-04-22 (resume prep)_
+_Last updated: 2026-04-22 (review-gate follow-up)_
 
 ## Current Objective
 
@@ -23,10 +23,14 @@ Close `koupper` sync PR #130 and leave `main`/`develop` + tag state ready for th
 - Ran validation tests from `koupper/koupper`: `:providers:test` and `:octopus:test` (both successful).
 - Opened governed sync PR in `koupper`: `develop -> main` (`#130`) and enabled auto-merge (`squash`).
 - Confirmed required smoke checks completed successfully on PR #130.
+- Fixed bootstrap validation drift by adding explicit `docs/AGENT_RECEPTION.md` entrypoint reference in `docs/AGENT_BOOTSTRAP.md`.
+- Re-ran mandatory workspace checks: `scripts/agent/preflight.kts` and `scripts/agent/validate.kts` now both return `ok=true`.
+- Rechecked open PR inventory (`koupper-infrastructure`, `koupper`, `koupper-cli`, `koupper-docs`): only `koupper` PR #130 remains open.
+- Posted a maintainer-review request comment on `koupper` PR #130 to unblock auto-merge.
 
 ## Pending Tasks (priority order)
 
-1. Get required review/approval on `koupper` PR #130 (`REVIEW_REQUIRED` is the remaining blocker).
+1. Get required review/approval on `koupper` PR #130 (`REVIEW_REQUIRED` remains the only merge blocker).
 2. Verify auto-merge completion and confirm `main == develop` in `koupper`.
 3. Retarget `v6.4.0` only if policy still requires tag parity with refreshed `main`.
 
