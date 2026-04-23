@@ -1,6 +1,6 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-15_
+_Last updated: 2026-04-22_
 
 ## Wave: Compiled Job Worker Bug Cluster (PRs #125–#128)
 
@@ -70,4 +70,68 @@ _Last updated: 2026-04-15_
 
 - [x] `koupper run scripts/agent/validate.kts '{}'` returns `ok: true`.
 - [x] `koupper run scripts/agent/preflight.kts '{}'` returns `ok: true`.
-- [ ] `docs/SESSION_STATE.md` updated before ending session.
+- [x] `docs/SESSION_STATE.md` updated before ending session.
+
+---
+
+## Wave: Standalone Release Installer Validation (PRs #148–#149)
+
+### Scope
+
+- [x] Validate standalone release installer path end-to-end (no repo clone required).
+- [x] Keep changes limited to release asset packaging + install verification.
+
+### Implementation
+
+- [x] PR #148 merged: standalone installer + release asset publishing workflow.
+- [x] PR #149 merged: fixed `SHA256SUMS` generation to use relative filenames.
+- [x] Tags published for validation flow:
+  - [x] `v6.5.0` (initial standalone asset publish)
+  - [x] `v6.5.1` (checksum packaging hotfix release)
+
+### Validation
+
+- [x] `Publish Install Assets` workflow passed for `v6.5.0`.
+- [x] Reproduced standalone install checksum failure on `v6.5.0` (expected after discovery).
+- [x] `Publish Install Assets` workflow passed for `v6.5.1` after hotfix.
+- [x] Local standalone install succeeded from `v6.5.1`.
+- [x] Standalone doctor checks passed from `v6.5.1`.
+
+### Documentation / Handoff
+
+- [x] `docs/SESSION_STATE.md` updated with branch/PR/tag status and resume commands.
+- [ ] Optional follow-up: annotate `v6.5.0` release notes as superseded by `v6.5.1` for standalone users.
+
+---
+
+## Wave: Maintainer Workspace Bootstrap + Install Docs Alignment
+
+### Scope
+
+- [x] Define a maintainer flow that initializes the full multi-repo workspace from zero.
+- [x] Align install documentation across user and maintainer modes.
+
+### Implementation
+
+- [x] Added `scripts/setup/workspace-bootstrap.sh`.
+- [x] Added `scripts/setup/workspace-bootstrap.ps1`.
+- [x] Updated `scripts/setup/README.md` with multi-repo bootstrap usage.
+- [x] Updated install guidance in:
+  - [x] `README.md` (workspace root)
+  - [x] `koupper/README.md`
+  - [x] `koupper-document/docs/getting-started.md`
+  - [x] `koupper-document/docs/production/troubleshooting.md`
+  - [x] `koupper-document/docs/commands/provider.md`
+  - [x] `koupper-document/docs/production/script-execution-checklist.md`
+
+### Validation
+
+- [x] Verified release-based standalone installer succeeds on `v6.5.1`.
+- [x] Confirmed new bootstrap scripts are present in setup directory.
+- [ ] Run bootstrap scripts end-to-end on a clean machine (Linux/macOS + Windows).
+
+### Documentation / Publish
+
+- [x] `docs/SESSION_STATE.md` updated for this wave.
+- [ ] Open/merge PRs for `koupper-infrastructure`, `koupper`, and `koupper-document` doc changes.
+- [ ] Deploy `koupper-document` to publish updates to `koupper.com`.

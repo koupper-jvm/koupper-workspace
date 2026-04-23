@@ -10,7 +10,7 @@
   <img alt="Kotlin-first" src="https://img.shields.io/badge/language-Kotlin-7f52ff">
   <img alt="Runtime" src="https://img.shields.io/badge/runtime-Octopus-0f172a">
   <img alt="Architecture" src="https://img.shields.io/badge/architecture-provider--first-0284c7">
-  <a href="https://koupper.com/docs"><img alt="Docs" src="https://img.shields.io/badge/docs-koupper.com-0ea5e9"></a>
+  <a href="https://koupper.com/"><img alt="Docs" src="https://img.shields.io/badge/docs-koupper.com-0ea5e9"></a>
 </p>
 
 Koupper is a Kotlin scripting runtime + CLI for teams that want fast iteration and production-grade execution in the same model.
@@ -28,18 +28,49 @@ Tech tags:
 
 ## Start here
 
-- Public docs site: https://koupper.com/docs
-- Getting started: https://koupper.com/docs/getting-started
-- Command reference: https://koupper.com/docs/commands/
-- Provider catalog: https://koupper.com/docs/providers/
+- Public docs site: https://koupper.com/
+- Getting started: https://koupper.com/getting-started.html
+- Command reference: https://koupper.com/commands/
+- Provider catalog: https://koupper.com/providers/
 
-## Quick install
+## Quick install (standalone, no repo clone)
+
+Prerequisites:
+
+- Java 17 on your `PATH`
+- Kotlin compiler (`kotlinc`) on your `PATH`
+
+```bash
+curl -L -o install-standalone.kts https://github.com/koupper-jvm/koupper/releases/latest/download/install-standalone.kts
+kotlinc -script install-standalone.kts -- --force
+kotlinc -script install-standalone.kts -- --doctor
+koupper -v
+```
+
+Windows PowerShell:
+
+```powershell
+Invoke-WebRequest -Uri "https://github.com/koupper-jvm/koupper/releases/latest/download/install-standalone.kts" -OutFile "install-standalone.kts"
+kotlinc -script .\install-standalone.kts -- --force
+kotlinc -script .\install-standalone.kts -- --doctor
+koupper -v
+```
+
+The standalone installer downloads signed release assets (`koupper-cli.jar`, `octopus.jar`, `model-project.zip`, `providers.json`) and verifies them with `SHA256SUMS`.
+
+## Installation modes
+
+- End user install (`install-standalone.kts`): no repository clone, installs from latest release assets into `~/.koupper`.
+- Developer install (`install.kts`): clone the repository and build/install from source in your local workspace.
+- Both modes install runtime files under `~/.koupper`; the difference is where binaries/templates come from (release assets vs local source build).
+
+## Source install (contributors)
 
 ```bash
 git clone https://github.com/koupper-jvm/koupper.git
 cd koupper
-./scripts/setup/install.sh
-koupper -v
+kotlinc -script install.kts -- --force
+kotlinc -script install.kts -- --doctor
 ```
 
 Windows PowerShell:
@@ -47,18 +78,25 @@ Windows PowerShell:
 ```powershell
 git clone https://github.com/koupper-jvm/koupper.git
 cd koupper
-./scripts/setup/install.ps1
-koupper -v
+kotlinc -script install.kts -- --force
+kotlinc -script install.kts -- --doctor
 ```
 
-The setup scripts validate prerequisites first (Java 17+, `kotlinc`, Git) and print exact download links when something is missing.
+## Full maintainer workspace (infrastructure + runtime + CLI + docs)
 
-Optional automatic dependency mode:
+Use this when you need to maintain the whole platform (release scripts, `koupper`, `koupper-cli`, and docs) in one workspace.
 
-- macOS/Linux: `./scripts/setup/install.sh --auto-install-deps`
-- Windows: `./scripts/setup/install.ps1 -AutoInstallDeps`
+```bash
+curl -fsSL https://raw.githubusercontent.com/koupper-jvm/koupper-infrastructure/develop/scripts/setup/workspace-bootstrap.sh -o workspace-bootstrap.sh
+bash workspace-bootstrap.sh --workspace "$HOME/dev/koupper infrastructure" --pull
+```
 
-In auto mode, the installer validates current versions first and asks before updating incompatible prerequisites.
+Windows PowerShell:
+
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/koupper-jvm/koupper-infrastructure/develop/scripts/setup/workspace-bootstrap.ps1" -OutFile "workspace-bootstrap.ps1"
+./workspace-bootstrap.ps1 -Workspace "$HOME\dev\koupper infrastructure" -Pull
+```
 
 ## 60-second quick smoke
 
@@ -104,15 +142,15 @@ Expected result:
 
 Recommended reading path:
 
-1. [Getting Started](https://koupper.com/docs/getting-started)
-2. [Why Koupper vs Alternatives](https://koupper.com/docs/why-koupper-vs-alternatives)
-3. [Ideal Customer Profile](https://koupper.com/docs/ideal-customer-profile)
-4. [Use Cases](https://koupper.com/docs/use-cases)
-5. [Golden Demo: Worker Flow](https://koupper.com/docs/examples/golden-demo-worker-flow)
-6. [Command Overview](https://koupper.com/docs/commands/)
-7. [Provider Catalog](https://koupper.com/docs/providers/)
-8. [Architecture](https://koupper.com/docs/architecture/)
-9. [Production](https://koupper.com/docs/production/hardening)
+1. [Getting Started](https://koupper.com/getting-started.html)
+2. [Why Koupper vs Alternatives](https://koupper.com/why-koupper-vs-alternatives.html)
+3. [Ideal Customer Profile](https://koupper.com/ideal-customer-profile.html)
+4. [Use Cases](https://koupper.com/use-cases.html)
+5. [Golden Demo: Worker Flow](https://koupper.com/examples/golden-demo-worker-flow.html)
+6. [Command Overview](https://koupper.com/commands/)
+7. [Provider Catalog](https://koupper.com/providers/)
+8. [Architecture](https://koupper.com/architecture/)
+9. [Production](https://koupper.com/production/hardening.html)
 
 ## Contributing
 
