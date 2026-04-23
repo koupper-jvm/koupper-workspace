@@ -6,7 +6,7 @@ These scripts provide one-command prerequisite checks + installer execution.
 
 Use these scripts when you want a fresh workspace that includes:
 
-- `koupper-infrastructure` (workspace root)
+- `koupper-workspace` (workspace root)
 - `koupper/`
 - `koupper-cli/`
 - `koupper-document/`
