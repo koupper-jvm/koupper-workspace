@@ -129,9 +129,15 @@ if ($Ssh) {
 Write-Info "Preparing workspace at $workspacePath"
 Ensure-RepoRoot -RepoPath $workspacePath -RemoteUrl $infraUrl
 
-$installScript = Join-Path $workspacePath "install.kts"
+$installCwd = $workspacePath
+$installScript = Join-Path $installCwd "install.kts"
 if (-not (Test-Path $installScript)) {
-    throw "install.kts not found in workspace root. Ensure this is koupper-workspace."
+    $installCwd = Join-Path $workspacePath "koupper"
+    $installScript = Join-Path $installCwd "install.kts"
+}
+
+if (-not (Test-Path $installScript)) {
+    throw "install.kts not found in workspace root or ./koupper. Ensure this is koupper-workspace."
 }
 
 Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper" -RemoteUrl $koupperUrl
@@ -145,7 +151,7 @@ Update-Repo -RepoPath (Join-Path $workspacePath "koupper-cli") -BranchName $Bran
 Update-Repo -RepoPath (Join-Path $workspacePath "koupper-document") -BranchName $Branch -Label "koupper-document"
 
 Write-Info "Running installer"
-Push-Location $workspacePath
+Push-Location $installCwd
 try {
     if ($DoctorOnly) {
         & kotlinc -script install.kts -- --doctor
