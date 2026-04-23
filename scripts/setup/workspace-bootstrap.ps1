@@ -129,6 +129,10 @@ if ($Ssh) {
 Write-Info "Preparing workspace at $workspacePath"
 Ensure-RepoRoot -RepoPath $workspacePath -RemoteUrl $infraUrl
 
+Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper" -RemoteUrl $koupperUrl
+Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-cli" -RemoteUrl $cliUrl
+Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-document" -RemoteUrl $docsUrl
+
 $installCwd = $workspacePath
 $installScript = Join-Path $installCwd "install.kts"
 if (-not (Test-Path $installScript)) {
@@ -139,10 +143,6 @@ if (-not (Test-Path $installScript)) {
 if (-not (Test-Path $installScript)) {
     throw "install.kts not found in workspace root or ./koupper. Ensure this is koupper-workspace."
 }
-
-Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper" -RemoteUrl $koupperUrl
-Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-cli" -RemoteUrl $cliUrl
-Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-document" -RemoteUrl $docsUrl
 
 Write-Info "Syncing repositories on branch $Branch"
 Update-Repo -RepoPath $workspacePath -BranchName $Branch -Label "koupper-workspace"
