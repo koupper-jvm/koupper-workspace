@@ -1,6 +1,40 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-22_
+_Last updated: 2026-04-23_
+
+## Wave: Module Helpers Directory Hotfix (2026-04-23)
+
+### Scope
+
+- [x] Reproduce and fix `koupper module` crash on clean user homes (`~/.koupper/helpers` missing).
+- [x] Keep scope limited to CLI helper-file write path + standalone install/doctor directory expectations.
+
+### Implementation
+
+- [x] `koupper-cli/src/main/kotlin/com/koupper/cli/commands/ModuleCommand.kt`
+  - [x] Create `~/.koupper/helpers` when missing before writing `list.kts`.
+  - [x] Return explicit error when helper resource `list.txt` is not packaged.
+  - [x] Ensure stream-to-file helper creates parent directory.
+- [x] `koupper/install-standalone.kts`
+  - [x] Create `~/.koupper/helpers` and `~/.koupper/logs` during install.
+  - [x] Add doctor checks for helpers/logs directory presence.
+
+### Validation
+
+- [x] `koupper-cli` compile passes: `./gradlew.bat compileKotlin`.
+- [x] Standalone doctor reflects and validates new expectations: `kotlinc -script install-standalone.kts -- --doctor`.
+- [x] Fresh-profile runtime verification completed after fixes and release update (`koupper module demo-script` success reported by user).
+
+### Documentation / Handoff
+
+- [x] `docs/SESSION_STATE.md` updated with objective, completed work, and next commands.
+- [x] `docs/DELIVERY_CHECKLIST.md` updated for this hotfix wave.
+- [x] Opened and merged scoped hotfix PR(s).
+
+### Publish / Release
+
+- [x] Merged to `main` via sync PR path.
+- [x] Published release `v6.5.2` with refreshed standalone assets.
 
 ## Wave: Compiled Job Worker Bug Cluster (PRs #125–#128)
 
@@ -128,10 +162,30 @@ _Last updated: 2026-04-22_
 
 - [x] Verified release-based standalone installer succeeds on `v6.5.1`.
 - [x] Confirmed new bootstrap scripts are present in setup directory.
-- [ ] Run bootstrap scripts end-to-end on a clean machine (Linux/macOS + Windows).
+- [x] Run bootstrap scripts end-to-end on clean path (PowerShell smoke confirmed).
 
 ### Documentation / Publish
 
 - [x] `docs/SESSION_STATE.md` updated for this wave.
-- [ ] Open/merge PRs for `koupper-infrastructure`, `koupper`, and `koupper-document` doc changes.
-- [ ] Deploy `koupper-document` to publish updates to `koupper.com`.
+- [x] Open/merge PRs for `koupper-workspace`, `koupper`, and `koupper-document` doc/setup changes.
+- [x] Deploy `koupper-document` to publish updates to `koupper.com`.
+
+---
+
+## Wave: Workspace Bootstrap Clone-First Regression Fix (2026-04-23)
+
+### Scope
+
+- [x] Fix one-command bootstrap failure on fresh workspace clone (`install.kts not found in workspace root or ./koupper`).
+- [x] Keep fix constrained to setup scripts ordering (clone child repos before installer-path validation).
+
+### Implementation
+
+- [x] Updated `scripts/setup/workspace-bootstrap.ps1` to clone `koupper`, `koupper-cli`, `koupper-document` before install script resolution.
+- [x] Updated `scripts/setup/workspace-bootstrap.sh` with the same clone-first ordering.
+- [x] Merged on `develop` and `main` (`koupper-jvm/koupper-workspace#11`, `#13`).
+
+### Validation
+
+- [x] Clean-path bootstrap smoke passed with `./scripts/setup/workspace-bootstrap.ps1 -Workspace <clean-path> -DoctorOnly -Pull`.
+- [x] User rerun from documented flow succeeded after pulling updated script.

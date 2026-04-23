@@ -64,38 +64,20 @@ The standalone installer downloads signed release assets (`koupper-cli.jar`, `oc
 - Developer install (`install.kts`): clone the repository and build/install from source in your local workspace.
 - Both modes install runtime files under `~/.koupper`; the difference is where binaries/templates come from (release assets vs local source build).
 
-## Source install (contributors)
+## Developer/maintainer workspace install
 
 ```bash
-git clone https://github.com/koupper-jvm/koupper.git
-cd koupper
-kotlinc -script install.kts -- --force
-kotlinc -script install.kts -- --doctor
+git clone https://github.com/koupper-jvm/koupper-workspace.git "koupper workspace"
+cd "koupper workspace"
+bash ./scripts/setup/workspace-bootstrap.sh --workspace "$(pwd)" --pull
 ```
 
 Windows PowerShell:
 
 ```powershell
-git clone https://github.com/koupper-jvm/koupper.git
-cd koupper
-kotlinc -script install.kts -- --force
-kotlinc -script install.kts -- --doctor
-```
-
-## Full maintainer workspace (infrastructure + runtime + CLI + docs)
-
-Use this when you need to maintain the whole platform (release scripts, `koupper`, `koupper-cli`, and docs) in one workspace.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/koupper-jvm/koupper-infrastructure/develop/scripts/setup/workspace-bootstrap.sh -o workspace-bootstrap.sh
-bash workspace-bootstrap.sh --workspace "$HOME/dev/koupper infrastructure" --pull
-```
-
-Windows PowerShell:
-
-```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/koupper-jvm/koupper-infrastructure/develop/scripts/setup/workspace-bootstrap.ps1" -OutFile "workspace-bootstrap.ps1"
-./workspace-bootstrap.ps1 -Workspace "$HOME\dev\koupper infrastructure" -Pull
+git clone https://github.com/koupper-jvm/koupper-workspace.git "koupper workspace"
+cd "koupper workspace"
+./scripts/setup/workspace-bootstrap.ps1 -Workspace (Get-Location).Path -Pull
 ```
 
 ## 60-second quick smoke
