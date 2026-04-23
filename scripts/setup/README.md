@@ -4,9 +4,14 @@ These scripts provide one-command prerequisite checks + installer execution.
 
 ## Full maintainer workspace bootstrap (multi-repo)
 
+Installer location is auto-detected:
+
+- legacy layout: `install.kts` in workspace root
+- current layout: `koupper/install.kts`
+
 Use these scripts when you want a fresh workspace that includes:
 
-- `koupper-infrastructure` (workspace root)
+- `koupper-workspace` (workspace root)
 - `koupper/`
 - `koupper-cli/`
 - `koupper-document/`

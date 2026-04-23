@@ -92,12 +92,12 @@ fi
 WORKSPACE="$(abs_path "$WORKSPACE")"
 
 if [[ "$USE_SSH" == true ]]; then
-  INFRA_URL="git@github.com:koupper-jvm/koupper-infrastructure.git"
+  INFRA_URL="git@github.com:koupper-jvm/koupper-workspace.git"
   KOUPPER_URL="git@github.com:koupper-jvm/koupper.git"
   CLI_URL="git@github.com:koupper-jvm/koupper-cli.git"
   DOCS_URL="git@github.com:koupper-jvm/koupper-document.git"
 else
-  INFRA_URL="https://github.com/koupper-jvm/koupper-infrastructure.git"
+  INFRA_URL="https://github.com/koupper-jvm/koupper-workspace.git"
   KOUPPER_URL="https://github.com/koupper-jvm/koupper.git"
   CLI_URL="https://github.com/koupper-jvm/koupper-cli.git"
   DOCS_URL="https://github.com/koupper-jvm/koupper-document.git"
@@ -171,8 +171,13 @@ update_repo() {
 echo "[*] Preparing workspace at $WORKSPACE"
 ensure_repo_root "$WORKSPACE" "$INFRA_URL"
 
-if [[ ! -f "$WORKSPACE/install.kts" ]]; then
-  echo "[FAIL] install.kts not found in workspace root. Ensure this is koupper-infrastructure."
+INSTALL_DIR="$WORKSPACE"
+if [[ ! -f "$INSTALL_DIR/install.kts" ]]; then
+  INSTALL_DIR="$WORKSPACE/koupper"
+fi
+
+if [[ ! -f "$INSTALL_DIR/install.kts" ]]; then
+  echo "[FAIL] install.kts not found in workspace root or ./koupper. Ensure this is koupper-workspace."
   exit 1
 fi
 
@@ -181,21 +186,21 @@ ensure_child_repo "$WORKSPACE" "koupper-cli" "$CLI_URL"
 ensure_child_repo "$WORKSPACE" "koupper-document" "$DOCS_URL"
 
 echo "[*] Syncing repositories on branch $BRANCH"
-update_repo "$WORKSPACE" "$BRANCH" "koupper-infrastructure"
+update_repo "$WORKSPACE" "$BRANCH" "koupper-workspace"
 update_repo "$WORKSPACE/koupper" "$BRANCH" "koupper"
 update_repo "$WORKSPACE/koupper-cli" "$BRANCH" "koupper-cli"
 update_repo "$WORKSPACE/koupper-document" "$BRANCH" "koupper-document"
 
 echo "[*] Running installer"
 if [[ "$DOCTOR_ONLY" == true ]]; then
-  (cd "$WORKSPACE" && kotlinc -script install.kts -- --doctor)
+  (cd "$INSTALL_DIR" && kotlinc -script install.kts -- --doctor)
 else
   if [[ "$FORCE_INSTALL" == true ]]; then
-    (cd "$WORKSPACE" && kotlinc -script install.kts -- --force)
+    (cd "$INSTALL_DIR" && kotlinc -script install.kts -- --force)
   else
-    (cd "$WORKSPACE" && kotlinc -script install.kts)
+    (cd "$INSTALL_DIR" && kotlinc -script install.kts)
   fi
-  (cd "$WORKSPACE" && kotlinc -script install.kts -- --doctor)
+  (cd "$INSTALL_DIR" && kotlinc -script install.kts -- --doctor)
 fi
 
 echo "[OK] Maintainer workspace is ready"
