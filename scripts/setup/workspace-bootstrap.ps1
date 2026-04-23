@@ -115,12 +115,12 @@ if (-not (Test-Path $workspacePath)) {
 }
 
 if ($Ssh) {
-    $infraUrl = "git@github.com:koupper-jvm/koupper-infrastructure.git"
+    $infraUrl = "git@github.com:koupper-jvm/koupper-workspace.git"
     $koupperUrl = "git@github.com:koupper-jvm/koupper.git"
     $cliUrl = "git@github.com:koupper-jvm/koupper-cli.git"
     $docsUrl = "git@github.com:koupper-jvm/koupper-document.git"
 } else {
-    $infraUrl = "https://github.com/koupper-jvm/koupper-infrastructure.git"
+    $infraUrl = "https://github.com/koupper-jvm/koupper-workspace.git"
     $koupperUrl = "https://github.com/koupper-jvm/koupper.git"
     $cliUrl = "https://github.com/koupper-jvm/koupper-cli.git"
     $docsUrl = "https://github.com/koupper-jvm/koupper-document.git"
@@ -131,7 +131,7 @@ Ensure-RepoRoot -RepoPath $workspacePath -RemoteUrl $infraUrl
 
 $installScript = Join-Path $workspacePath "install.kts"
 if (-not (Test-Path $installScript)) {
-    throw "install.kts not found in workspace root. Ensure this is koupper-infrastructure."
+    throw "install.kts not found in workspace root. Ensure this is koupper-workspace."
 }
 
 Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper" -RemoteUrl $koupperUrl
@@ -139,7 +139,7 @@ Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-cli" -Remote
 Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-document" -RemoteUrl $docsUrl
 
 Write-Info "Syncing repositories on branch $Branch"
-Update-Repo -RepoPath $workspacePath -BranchName $Branch -Label "koupper-infrastructure"
+Update-Repo -RepoPath $workspacePath -BranchName $Branch -Label "koupper-workspace"
 Update-Repo -RepoPath (Join-Path $workspacePath "koupper") -BranchName $Branch -Label "koupper"
 Update-Repo -RepoPath (Join-Path $workspacePath "koupper-cli") -BranchName $Branch -Label "koupper-cli"
 Update-Repo -RepoPath (Join-Path $workspacePath "koupper-document") -BranchName $Branch -Label "koupper-document"
