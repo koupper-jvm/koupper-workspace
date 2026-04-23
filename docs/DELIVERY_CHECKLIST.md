@@ -1,29 +1,40 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-22 (review-gate follow-up)_
+_Last updated: 2026-04-23_
 
-## Wave: API Key Auth + Main Sync Follow-up
+## Wave: Module Helpers Directory Hotfix (2026-04-23)
 
 ### Scope
 
-- [x] API key auth delivery completed on `koupper` `develop` (`6bf0ca7`).
-- [x] Scope kept to auth feature and sync preparation only.
+- [x] Reproduce and fix `koupper module` crash on clean user homes (`~/.koupper/helpers` missing).
+- [x] Keep scope limited to CLI helper-file write path + standalone install/doctor directory expectations.
+
+### Implementation
+
+- [x] `koupper-cli/src/main/kotlin/com/koupper/cli/commands/ModuleCommand.kt`
+  - [x] Create `~/.koupper/helpers` when missing before writing `list.kts`.
+  - [x] Return explicit error when helper resource `list.txt` is not packaged.
+  - [x] Ensure stream-to-file helper creates parent directory.
+- [x] `koupper/install-standalone.kts`
+  - [x] Create `~/.koupper/helpers` and `~/.koupper/logs` during install.
+  - [x] Add doctor checks for helpers/logs directory presence.
 
 ### Validation
 
-- [x] `koupper/koupper`: `:providers:test` passed.
-- [x] `koupper/koupper`: `:octopus:test` passed.
-- [x] Workspace agent checks passed (`scripts/agent/preflight.kts`, `scripts/agent/validate.kts`).
+- [x] `koupper-cli` compile passes: `./gradlew.bat compileKotlin`.
+- [x] Standalone doctor reflects and validates new expectations: `kotlinc -script install-standalone.kts -- --doctor`.
+- [x] Fresh-profile runtime verification completed after fixes and release update (`koupper module demo-script` success reported by user).
 
-### Release Flow
+### Documentation / Handoff
 
-- [x] Governed sync PR opened: `koupper` PR #130 (`develop -> main`) with auto-merge enabled.
-- [x] Required smoke checks for PR #130 completed successfully.
-- [x] Maintainer review request comment posted on PR #130 to unblock auto-merge.
-- [ ] Obtain required review on PR #130 and let auto-merge finalize.
-- [ ] Re-evaluate `v6.4.0` tag target after merge.
+- [x] `docs/SESSION_STATE.md` updated with objective, completed work, and next commands.
+- [x] `docs/DELIVERY_CHECKLIST.md` updated for this hotfix wave.
+- [x] Opened and merged scoped hotfix PR(s).
 
----
+### Publish / Release
+
+- [x] Merged to `main` via sync PR path.
+- [x] Published release `v6.5.2` with refreshed standalone assets.
 
 ## Wave: Compiled Job Worker Bug Cluster (PRs #125–#128)
 
@@ -87,17 +98,6 @@ _Last updated: 2026-04-22 (review-gate follow-up)_
 - [x] PR descriptions cleanup applied for PRs #117-#128.
 - [x] Main branch ruleset re-enabled after merge/tag operations.
 
-### Multi-repo readiness snapshot
-
-- [ ] `koupper`: currently diverged (`main` `12d7c7947d1294bfb50036037ddef49f730d4fee`, `develop` `6bf0ca7652aa6052217b3a330afa9fedfda136b4`) with sync PR #130 open and awaiting required review.
-- [x] `koupper-cli`: `main` and `develop` aligned; `v4.5.0` tag present.
-- [x] `koupper-docs`: `main` and `develop` aligned; `docs-v6.4.0` tag present.
-- [ ] Open PRs across `koupper`, `koupper-cli`, `koupper-docs`: `koupper` #130 open; others none.
-- [x] AI-trace checks for commit messages/PR text re-run for active branches and current metadata.
-- [x] Critical Dynamo decode NPE fix shipped (`DynamoClientImpl` empty map/list + `nul` null-safety).
-- [x] Module scan reliability fix shipped (controllers + handlers detection in `module` command).
-- [x] Dynamo ORM true pagination chunk methods shipped with URL-safe cursor token encode/decode.
-
 ---
 
 ## Standing checks (apply to every session)
@@ -105,3 +105,87 @@ _Last updated: 2026-04-22 (review-gate follow-up)_
 - [x] `koupper run scripts/agent/validate.kts '{}'` returns `ok: true`.
 - [x] `koupper run scripts/agent/preflight.kts '{}'` returns `ok: true`.
 - [x] `docs/SESSION_STATE.md` updated before ending session.
+
+---
+
+## Wave: Standalone Release Installer Validation (PRs #148–#149)
+
+### Scope
+
+- [x] Validate standalone release installer path end-to-end (no repo clone required).
+- [x] Keep changes limited to release asset packaging + install verification.
+
+### Implementation
+
+- [x] PR #148 merged: standalone installer + release asset publishing workflow.
+- [x] PR #149 merged: fixed `SHA256SUMS` generation to use relative filenames.
+- [x] Tags published for validation flow:
+  - [x] `v6.5.0` (initial standalone asset publish)
+  - [x] `v6.5.1` (checksum packaging hotfix release)
+
+### Validation
+
+- [x] `Publish Install Assets` workflow passed for `v6.5.0`.
+- [x] Reproduced standalone install checksum failure on `v6.5.0` (expected after discovery).
+- [x] `Publish Install Assets` workflow passed for `v6.5.1` after hotfix.
+- [x] Local standalone install succeeded from `v6.5.1`.
+- [x] Standalone doctor checks passed from `v6.5.1`.
+
+### Documentation / Handoff
+
+- [x] `docs/SESSION_STATE.md` updated with branch/PR/tag status and resume commands.
+- [ ] Optional follow-up: annotate `v6.5.0` release notes as superseded by `v6.5.1` for standalone users.
+
+---
+
+## Wave: Maintainer Workspace Bootstrap + Install Docs Alignment
+
+### Scope
+
+- [x] Define a maintainer flow that initializes the full multi-repo workspace from zero.
+- [x] Align install documentation across user and maintainer modes.
+
+### Implementation
+
+- [x] Added `scripts/setup/workspace-bootstrap.sh`.
+- [x] Added `scripts/setup/workspace-bootstrap.ps1`.
+- [x] Updated `scripts/setup/README.md` with multi-repo bootstrap usage.
+- [x] Updated install guidance in:
+  - [x] `README.md` (workspace root)
+  - [x] `koupper/README.md`
+  - [x] `koupper-document/docs/getting-started.md`
+  - [x] `koupper-document/docs/production/troubleshooting.md`
+  - [x] `koupper-document/docs/commands/provider.md`
+  - [x] `koupper-document/docs/production/script-execution-checklist.md`
+
+### Validation
+
+- [x] Verified release-based standalone installer succeeds on `v6.5.1`.
+- [x] Confirmed new bootstrap scripts are present in setup directory.
+- [x] Run bootstrap scripts end-to-end on clean path (PowerShell smoke confirmed).
+
+### Documentation / Publish
+
+- [x] `docs/SESSION_STATE.md` updated for this wave.
+- [x] Open/merge PRs for `koupper-workspace`, `koupper`, and `koupper-document` doc/setup changes.
+- [x] Deploy `koupper-document` to publish updates to `koupper.com`.
+
+---
+
+## Wave: Workspace Bootstrap Clone-First Regression Fix (2026-04-23)
+
+### Scope
+
+- [x] Fix one-command bootstrap failure on fresh workspace clone (`install.kts not found in workspace root or ./koupper`).
+- [x] Keep fix constrained to setup scripts ordering (clone child repos before installer-path validation).
+
+### Implementation
+
+- [x] Updated `scripts/setup/workspace-bootstrap.ps1` to clone `koupper`, `koupper-cli`, `koupper-document` before install script resolution.
+- [x] Updated `scripts/setup/workspace-bootstrap.sh` with the same clone-first ordering.
+- [x] Merged on `develop` and `main` (`koupper-jvm/koupper-workspace#11`, `#13`).
+
+### Validation
+
+- [x] Clean-path bootstrap smoke passed with `./scripts/setup/workspace-bootstrap.ps1 -Workspace <clean-path> -DoctorOnly -Pull`.
+- [x] User rerun from documented flow succeeded after pulling updated script.
