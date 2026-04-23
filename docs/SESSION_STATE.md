@@ -16,7 +16,7 @@ Close `koupper` sync PR #130 and leave `main`/`develop` + tag state ready for th
 - Synced `koupper-docs` release flow and preserved `docs-v6.4.0` on `main`.
 - Fixed module scanner behavior in `koupper` (`module` command): recursive handler detection, more robust controller detection, base package inference.
 - Fixed critical Dynamo deserialization NPE in `DynamoClientImpl.convertAttributeValue` for empty map/list attributes (`hasM`/`hasL` + null-safe `nul`).
-- Renamed workspace installer script to `install-workspace.kts` in `koupper-infrastructure` to avoid confusion with product installer.
+- Renamed workspace installer script to `install-workspace.kts` in `koupper-workspace` to avoid confusion with product installer.
 - Added true Dynamo chunk pagination methods with URL-safe cursor token support (`queryItemsPaginatedChunk`, `scanItemsPaginatedChunk`).
 - Added API key authentication support in `koupper` (`@ApiKeyAuth`, `ApiKeySession`, filter routing/validation updates) on `develop` (`6bf0ca7`).
 - Ran mandatory bootstrap checks in workspace root: `scripts/agent/preflight.kts` and `scripts/agent/validate.kts` (both `ok=true`).
@@ -25,7 +25,7 @@ Close `koupper` sync PR #130 and leave `main`/`develop` + tag state ready for th
 - Confirmed required smoke checks completed successfully on PR #130.
 - Fixed bootstrap validation drift by adding explicit `docs/AGENT_RECEPTION.md` entrypoint reference in `docs/AGENT_BOOTSTRAP.md`.
 - Re-ran mandatory workspace checks: `scripts/agent/preflight.kts` and `scripts/agent/validate.kts` now both return `ok=true`.
-- Rechecked open PR inventory (`koupper-infrastructure`, `koupper`, `koupper-cli`, `koupper-docs`): only `koupper` PR #130 remains open.
+- Rechecked open PR inventory (`koupper-workspace`, `koupper`, `koupper-cli`, `koupper-docs`): only `koupper` PR #130 remains open.
 - Posted a maintainer-review request comment on `koupper` PR #130 to unblock auto-merge.
 
 ## Pending Tasks (priority order)

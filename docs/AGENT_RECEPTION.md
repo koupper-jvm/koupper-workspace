@@ -18,7 +18,7 @@ This is the single startup file for every agent session in this workspace.
    ```
 6. Check open PRs:
    ```bash
-   gh pr list --repo koupper-jvm/koupper-infrastructure --state open
+   gh pr list --repo koupper-jvm/koupper-workspace --state open
    gh pr list --repo koupper-jvm/koupper --state open
    ```
 7. Pull latest develop in the Koupper workspace copy:
@@ -39,7 +39,7 @@ If any step fails, read the error before proceeding — do not skip.
 
 | Path | Repo | Notes |
 |------|------|-------|
-| `.` (root) | `koupper-jvm/koupper-infrastructure` | agent workflow, release scripts, CI/deploy helpers |
+| `.` (root) | `koupper-jvm/koupper-workspace` | agent workflow, release scripts, CI/deploy helpers |
 | `koupper/` | `koupper-jvm/koupper` (octopus engine) | main Gradle multi-module project |
 | `koupper-cli/` | `koupper-jvm/koupper-cli` | CLI module |
 | `koupper-document/` | `koupper-jvm/koupper-docs` | VitePress docs site (local folder keeps legacy name) |
