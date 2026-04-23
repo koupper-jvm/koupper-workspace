@@ -171,6 +171,10 @@ update_repo() {
 echo "[*] Preparing workspace at $WORKSPACE"
 ensure_repo_root "$WORKSPACE" "$INFRA_URL"
 
+ensure_child_repo "$WORKSPACE" "koupper" "$KOUPPER_URL"
+ensure_child_repo "$WORKSPACE" "koupper-cli" "$CLI_URL"
+ensure_child_repo "$WORKSPACE" "koupper-document" "$DOCS_URL"
+
 INSTALL_DIR="$WORKSPACE"
 if [[ ! -f "$INSTALL_DIR/install.kts" ]]; then
   INSTALL_DIR="$WORKSPACE/koupper"
@@ -180,10 +184,6 @@ if [[ ! -f "$INSTALL_DIR/install.kts" ]]; then
   echo "[FAIL] install.kts not found in workspace root or ./koupper. Ensure this is koupper-workspace."
   exit 1
 fi
-
-ensure_child_repo "$WORKSPACE" "koupper" "$KOUPPER_URL"
-ensure_child_repo "$WORKSPACE" "koupper-cli" "$CLI_URL"
-ensure_child_repo "$WORKSPACE" "koupper-document" "$DOCS_URL"
 
 echo "[*] Syncing repositories on branch $BRANCH"
 update_repo "$WORKSPACE" "$BRANCH" "koupper-workspace"
