@@ -4,3 +4,9 @@ koupper-cli/
 koupper-document/
 koupper_mixed_backup_*/
 koupper-cli_mixed_backup_*/
+
+bin/
+**/bin/
+gradle/
+gradlew
+gradlew.bat
