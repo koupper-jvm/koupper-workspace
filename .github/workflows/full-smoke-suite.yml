@@ -8,7 +8,7 @@ on:
     tags: ['v*']
   workflow_dispatch:
   schedule:
-    - cron: '30 7 * * 1'
+    - cron: '30 14 * * 1' # Updated to 14:30 UTC as per recent fixes
 
 jobs:
   install-uninstall-e2e-windows:
@@ -16,8 +16,20 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout
+      - name: Checkout Workspace
         uses: actions/checkout@v4
+
+      - name: Checkout Core
+        uses: actions/checkout@v4
+        with:
+          repository: koupper-jvm/koupper
+          path: koupper
+
+      - name: Checkout CLI
+        uses: actions/checkout@v4
+        with:
+          repository: koupper-jvm/koupper-cli
+          path: koupper-cli
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -69,8 +81,20 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout
+      - name: Checkout Workspace
         uses: actions/checkout@v4
+
+      - name: Checkout Core
+        uses: actions/checkout@v4
+        with:
+          repository: koupper-jvm/koupper
+          path: koupper
+
+      - name: Checkout CLI
+        uses: actions/checkout@v4
+        with:
+          repository: koupper-jvm/koupper-cli
+          path: koupper-cli
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -115,8 +139,20 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout
+      - name: Checkout Workspace
         uses: actions/checkout@v4
+
+      - name: Checkout Core
+        uses: actions/checkout@v4
+        with:
+          repository: koupper-jvm/koupper
+          path: koupper
+
+      - name: Checkout CLI
+        uses: actions/checkout@v4
+        with:
+          repository: koupper-jvm/koupper-cli
+          path: koupper-cli
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
