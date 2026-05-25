@@ -200,7 +200,7 @@ try {
     @'
 package %PACKAGE%
 
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 
 @Export
 val sampleScript: () -> String = {
@@ -211,7 +211,7 @@ val sampleScript: () -> String = {
     @'
 package %PACKAGE%
 
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 
 @Export
 val extraScript: () -> String = {
@@ -238,7 +238,7 @@ val extraScript: () -> String = {
             Run-External "Initialize jobs config" { Invoke-Koupper job init --force }
 
             @'
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 data class WorkerInput(val payload: String?)
 
 @Export

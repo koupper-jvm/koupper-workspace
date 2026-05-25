@@ -1,7 +1,7 @@
 .koupper-observability.jsonl
 koupper/
 koupper-cli/
-koupper-document/
+koupper-docs/
 koupper_mixed_backup_*/
 koupper-cli_mixed_backup_*/
 
