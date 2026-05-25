@@ -118,12 +118,12 @@ if ($Ssh) {
     $infraUrl = "git@github.com:koupper-jvm/koupper-workspace.git"
     $koupperUrl = "git@github.com:koupper-jvm/koupper.git"
     $cliUrl = "git@github.com:koupper-jvm/koupper-cli.git"
-    $docsUrl = "git@github.com:koupper-jvm/koupper-document.git"
+    $docsUrl = "git@github.com:koupper-jvm/koupper-docs.git"
 } else {
     $infraUrl = "https://github.com/koupper-jvm/koupper-workspace.git"
     $koupperUrl = "https://github.com/koupper-jvm/koupper.git"
     $cliUrl = "https://github.com/koupper-jvm/koupper-cli.git"
-    $docsUrl = "https://github.com/koupper-jvm/koupper-document.git"
+    $docsUrl = "https://github.com/koupper-jvm/koupper-docs.git"
 }
 
 Write-Info "Preparing workspace at $workspacePath"

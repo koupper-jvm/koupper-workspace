@@ -95,12 +95,12 @@ if [[ "$USE_SSH" == true ]]; then
   INFRA_URL="git@github.com:koupper-jvm/koupper-workspace.git"
   KOUPPER_URL="git@github.com:koupper-jvm/koupper.git"
   CLI_URL="git@github.com:koupper-jvm/koupper-cli.git"
-  DOCS_URL="git@github.com:koupper-jvm/koupper-document.git"
+  DOCS_URL="git@github.com:koupper-jvm/koupper-docs.git"
 else
   INFRA_URL="https://github.com/koupper-jvm/koupper-workspace.git"
   KOUPPER_URL="https://github.com/koupper-jvm/koupper.git"
   CLI_URL="https://github.com/koupper-jvm/koupper-cli.git"
-  DOCS_URL="https://github.com/koupper-jvm/koupper-document.git"
+  DOCS_URL="https://github.com/koupper-jvm/koupper-docs.git"
 fi
 
 is_empty_dir() {
