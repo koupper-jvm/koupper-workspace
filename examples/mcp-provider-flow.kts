@@ -5,7 +5,7 @@
  * - Register tools and validate local HTTP MCP-style endpoints.
  */
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.mcp.MCPServerProvider
 import java.net.URI
 import java.net.http.HttpClient

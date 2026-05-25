@@ -185,4 +185,4 @@ if (!deleted || koupperHome.exists()) {
 
 println("[OK] Koupper files removed from ${koupperHome.absolutePath}.")
 println("[INFO] If needed, remove ~/.koupper/bin from your PATH manually.")
-println("[INFO] Tip: reinstall fresh with 'kotlinc -script install.kts -- --force'")
+println("[INFO] Tip: reinstall fresh with 'kotlinc -script install-workspace.kts -- --force'")

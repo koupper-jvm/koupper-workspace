@@ -1,5 +1,5 @@
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.aws.dynamo.DynamoLocalAdmin
 
 data class Input(

@@ -9,7 +9,7 @@
  * - koupper run examples/git-provider-flow.kts '{"action":"log","limit":5}'
  */
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.git.GitBranchRequest
 import com.koupper.providers.git.GitClient
 import com.koupper.providers.git.GitCommitRequest

@@ -8,7 +8,7 @@ on:
     tags: ['v*']
   workflow_dispatch:
   schedule:
-    - cron: '30 7 * * *'
+    - cron: '30 7 * * 1'
 
 jobs:
   install-uninstall-e2e-windows:
@@ -39,7 +39,7 @@ jobs:
       - name: Install Koupper
         shell: pwsh
         run: |
-          kotlinc -script install.kts -- --force
+          kotlinc -script install-workspace.kts -- --force
 
       - name: Add Koupper bin to PATH
         shell: pwsh

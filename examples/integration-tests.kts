@@ -9,7 +9,7 @@
  */
 import com.koupper.container.app
 import com.koupper.octopus.ScriptExecutor
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import java.io.File
 
 @Export

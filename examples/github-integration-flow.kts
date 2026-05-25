@@ -18,7 +18,7 @@
  * - koupper run examples/github-integration-flow.kts --json-file examples/github-integration-flow.sample.json
  */
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.github.GitHubCheckRun
 import com.koupper.providers.github.GitHubClient
 import com.koupper.providers.github.GitHubIssueRequest

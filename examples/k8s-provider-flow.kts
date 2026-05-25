@@ -1,5 +1,5 @@
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.k8s.K8sProvider
 
 data class Input(

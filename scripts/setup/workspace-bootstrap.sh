@@ -176,12 +176,21 @@ ensure_child_repo "$WORKSPACE" "koupper-cli" "$CLI_URL"
 ensure_child_repo "$WORKSPACE" "koupper-document" "$DOCS_URL"
 
 INSTALL_DIR="$WORKSPACE"
-if [[ ! -f "$INSTALL_DIR/install.kts" ]]; then
-  INSTALL_DIR="$WORKSPACE/koupper"
+INSTALL_SCRIPT="install-workspace.kts"
+if [[ ! -f "$INSTALL_DIR/$INSTALL_SCRIPT" ]]; then
+  INSTALL_SCRIPT="install.kts"
 fi
 
-if [[ ! -f "$INSTALL_DIR/install.kts" ]]; then
-  echo "[FAIL] install.kts not found in workspace root or ./koupper. Ensure this is koupper-workspace."
+if [[ ! -f "$INSTALL_DIR/$INSTALL_SCRIPT" ]]; then
+  INSTALL_DIR="$WORKSPACE/koupper"
+  INSTALL_SCRIPT="install-workspace.kts"
+  if [[ ! -f "$INSTALL_DIR/$INSTALL_SCRIPT" ]]; then
+    INSTALL_SCRIPT="install.kts"
+  fi
+fi
+
+if [[ ! -f "$INSTALL_DIR/$INSTALL_SCRIPT" ]]; then
+  echo "[FAIL] Install script (install-workspace.kts or install.kts) not found in workspace root or ./koupper. Ensure this is koupper-workspace."
   exit 1
 fi
 
@@ -191,16 +200,16 @@ update_repo "$WORKSPACE/koupper" "$BRANCH" "koupper"
 update_repo "$WORKSPACE/koupper-cli" "$BRANCH" "koupper-cli"
 update_repo "$WORKSPACE/koupper-document" "$BRANCH" "koupper-document"
 
-echo "[*] Running installer"
+echo "[*] Running installer ($INSTALL_SCRIPT)"
 if [[ "$DOCTOR_ONLY" == true ]]; then
-  (cd "$INSTALL_DIR" && kotlinc -script install.kts -- --doctor)
+  (cd "$INSTALL_DIR" && kotlinc -script "$INSTALL_SCRIPT" -- --doctor)
 else
   if [[ "$FORCE_INSTALL" == true ]]; then
-    (cd "$INSTALL_DIR" && kotlinc -script install.kts -- --force)
+    (cd "$INSTALL_DIR" && kotlinc -script "$INSTALL_SCRIPT" -- --force)
   else
-    (cd "$INSTALL_DIR" && kotlinc -script install.kts)
+    (cd "$INSTALL_DIR" && kotlinc -script "$INSTALL_SCRIPT")
   fi
-  (cd "$INSTALL_DIR" && kotlinc -script install.kts -- --doctor)
+  (cd "$INSTALL_DIR" && kotlinc -script "$INSTALL_SCRIPT" -- --doctor)
 fi
 
 echo "[OK] Maintainer workspace is ready"
