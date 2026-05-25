@@ -7,7 +7,7 @@
  * Command:
  *   koupper run examples/empty-execution.kts
  */
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 
 @Export
 val ping: () -> Unit = {

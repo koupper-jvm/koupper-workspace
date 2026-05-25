@@ -8,7 +8,7 @@
  * Features showcased:
  * - @Export: Tells the Octopus engine which block of code acts as the entry point.
  */
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 
 @Export
 val sayHello: (String) -> Unit = { name ->

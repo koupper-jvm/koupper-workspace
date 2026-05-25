@@ -10,6 +10,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [6.5.0] - 2026-05-24
+
+### Added
+- Migration note for unified `@Export` annotation path in `docs/migrations/2026-05-export-annotation-path.md`.
+- Maintenance branches logic to the `develop` workflow for cleaner `gitignore` and IDE state management.
+
+### Changed
+- **BREAKING**: Moved `@Export` annotation from `com.koupper.octopus.annotations` to `com.koupper.shared.annotations` to support unified classpath resolution.
+- Updated all internal scripts, examples, and CLI templates to use the new `com.koupper.shared.annotations.Export` path.
+- Refactored `koupper-cli` command handlers for jobs, modules, and scripts to generate code with the updated annotation path.
+
+### Fixed
+- Fixed `gitignore` missing patterns for `bin/` directories in Gradle submodules and template projects.
+- Rescued missing bootstrap fixes from `main` back into `develop` in the root workspace repository.
+
+### Release alignment
+- `octopus 6.5.0` / `koupper-cli 4.8.0`
+
+---
+
 ## [6.4.0] - 2026-04-10
 
 ### Added

@@ -13,7 +13,7 @@
  * - koupper run examples/terminal-runtime-demo.kts '{"name":"Jacob"}'
  * - koupper run examples/terminal-runtime-demo.kts '{"askPrompt":true}'
  */
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.io.TerminalIO
 
 data class Input(

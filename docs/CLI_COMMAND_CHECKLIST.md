@@ -51,7 +51,7 @@ koupper job init --force
 
 # Seed one file-driver job (same flow used by full smoke suite)
 @'
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 data class WorkerInput(val payload: String?)
 @Export
 val worker: (WorkerInput) -> String = { input ->
@@ -92,7 +92,7 @@ cd .\smoke-jobs\
 @'
 package tdn.jobs.extensions
 
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.Logger
 import com.koupper.logging.GlobalLogger.log
 
@@ -106,7 +106,7 @@ val myScript: (Input) -> Unit = { input ->
 '@ | Set-Content -Path .\extensions\myScript.kts -Encoding ASCII
 
 @'
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.annotations.JobsListener
 import com.koupper.octopus.process.JobEvent

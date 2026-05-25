@@ -1,6 +1,6 @@
 import com.koupper.container.app
 import com.koupper.container.context
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.aws.deploy.AwsApiSmokeEndpoint
 import com.koupper.providers.aws.deploy.AwsApiSmokeTestRequest
 import com.koupper.providers.aws.deploy.AwsDeployProvider

@@ -1,7 +1,7 @@
 import com.koupper.container.app
 import com.koupper.container.context
 import com.koupper.octopus.ScriptExecutor
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import java.io.File
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit

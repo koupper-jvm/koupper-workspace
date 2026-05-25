@@ -1,5 +1,5 @@
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.process.ProcessListRequest
 import com.koupper.providers.process.ProcessStopManyRequest
 import com.koupper.providers.process.ProcessSupervisor

@@ -1,5 +1,5 @@
 import com.koupper.octopus.ScriptExecutor
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.shared.octopus.dependsOn
 import java.util.concurrent.CompletableFuture
 

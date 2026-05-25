@@ -11,7 +11,7 @@
  * - JSONFileHandler dependency injection.
  */
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.files.JSONFileHandler
 
 data class SalesItem(

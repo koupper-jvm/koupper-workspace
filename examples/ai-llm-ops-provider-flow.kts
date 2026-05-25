@@ -1,5 +1,5 @@
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.aillmops.AILlmOpsProvider
 import com.koupper.providers.aillmops.ChatRequest
 import com.koupper.providers.aillmops.EmbedRequest
