@@ -182,12 +182,17 @@ if ($hasFail) {
     exit 1
 }
 
-if ($Doctor) {
-    Write-Info "Prerequisites are healthy. Running Koupper install doctor..."
-    & kotlinc -script install.kts -- --doctor
-    exit $LASTEXITCODE
+$installScript = "install-workspace.kts"
+if (-not (Test-Path $installScript)) {
+    $installScript = "install.kts"
 }
 
-Write-Info "Prerequisites are healthy. Running Koupper installer..."
-& kotlinc -script install.kts -- --force
+if ($DoctorOnly) {
+    Write-Info "Prerequisites are healthy. Running Koupper install doctor..."
+    & kotlinc -script $installScript -- --doctor
+}
+else {
+    Write-Info "Prerequisites are healthy. Running Koupper installer..."
+    & kotlinc -script $installScript -- --force
+}
 exit $LASTEXITCODE

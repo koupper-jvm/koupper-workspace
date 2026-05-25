@@ -8,7 +8,7 @@
  * - koupper run examples/scheduled/no-config/logger-scheduled-no-config.kts "demo"
  */
 import com.koupper.logging.GlobalLogger.log
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.annotations.Scheduled
 

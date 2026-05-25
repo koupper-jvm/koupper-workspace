@@ -236,11 +236,16 @@ if [[ "$HAS_FAIL" == true ]]; then
   exit 1
 fi
 
+INSTALL_SCRIPT="install-workspace.kts"
+if [[ ! -f "$INSTALL_SCRIPT" ]]; then
+  INSTALL_SCRIPT="install.kts"
+fi
+
 if [[ "$MODE" == "doctor" ]]; then
   info "Prerequisites are healthy. Running Koupper install doctor..."
-  kotlinc -script install.kts -- --doctor
+  kotlinc -script "$INSTALL_SCRIPT" -- --doctor
   exit 0
 fi
 
 info "Prerequisites are healthy. Running Koupper installer..."
-kotlinc -script install.kts -- --force
+kotlinc -script "$INSTALL_SCRIPT" -- --force

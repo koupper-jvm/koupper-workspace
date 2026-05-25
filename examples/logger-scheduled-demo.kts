@@ -15,7 +15,7 @@
  * - Ctrl+C in the CLI process or stop the Octopus daemon session.
  */
 import com.koupper.logging.GlobalLogger.log
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.annotations.Scheduled
 

@@ -6,8 +6,8 @@ These scripts provide one-command prerequisite checks + installer execution.
 
 Installer location is auto-detected:
 
-- legacy layout: `install.kts` in workspace root
-- current layout: `koupper/install.kts`
+- current layout: `install-workspace.kts` in workspace root
+- legacy layout: `install.kts` in workspace root or `koupper/install.kts`
 
 Use these scripts when you want a fresh workspace that includes:
 

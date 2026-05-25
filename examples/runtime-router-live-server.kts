@@ -8,7 +8,7 @@
  *   curl -X POST http://127.0.0.1:18081/api/echo -H "Content-Type: application/json" -d '"hello"'
  */
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.runtime.router.RuntimeRouterProvider
 
 data class Input(

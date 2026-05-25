@@ -89,7 +89,7 @@ fun runDoctorAndExit() {
 
     val hasFail = checks.any { it.startsWith("[FAIL]") }
     if (hasFail) {
-        println("\n${icon("⚠️", "[!] ")}Some checks failed. Run: kotlinc -script install.kts -- --force")
+        println("\n${icon("⚠️", "[!] ")}Some checks failed. Run: kotlinc -script install-workspace.kts -- --force")
         kotlin.system.exitProcess(1)
     }
 
