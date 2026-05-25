@@ -1,5 +1,5 @@
 import com.koupper.container.context
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import java.io.File
 
 data class Input(

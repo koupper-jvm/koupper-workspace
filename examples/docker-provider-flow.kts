@@ -9,7 +9,7 @@
  * - koupper run examples/docker-provider-flow.kts '{"action":"compose-up","composeFile":"docker-compose.yml"}'
  */
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.docker.DockerBuildRequest
 import com.koupper.providers.docker.DockerClient
 import com.koupper.providers.docker.DockerComposeRequest

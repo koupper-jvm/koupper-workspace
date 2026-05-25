@@ -7,7 +7,7 @@
  * Command:
  *   koupper run examples/raw-args-parser.kts '{"arg0": 404, "arg1": "NOT_FOUND"}'
  */
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 
 @Export
 val logRawNetworkStatus: (Int, String) -> Unit = { statusCode, statusMessage ->

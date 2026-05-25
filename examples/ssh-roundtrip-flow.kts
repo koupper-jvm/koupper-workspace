@@ -17,7 +17,7 @@
  * - koupper run examples/ssh-roundtrip-flow.kts --json-file examples/ssh-template-apply.input.json
  */
 import com.koupper.container.app
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.ssh.SSHClient
 import com.koupper.providers.ssh.SSHRoundTripRequest
 import com.koupper.providers.ssh.SSHSyncRequest

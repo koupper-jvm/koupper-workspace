@@ -7,7 +7,7 @@
  * Typical run:
  * - koupper run examples/ssh-tree-root.kts --json-file examples/ssh-tree-root.input.json
  */
-import com.koupper.octopus.annotations.Export
+import com.koupper.shared.annotations.Export
 import com.koupper.providers.io.TerminalIO
 import com.koupper.providers.ssh.JschSSHClient
 import com.koupper.providers.ssh.SSHConnectionConfig
