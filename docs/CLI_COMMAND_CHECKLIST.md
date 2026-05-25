@@ -7,7 +7,7 @@ Public-facing counterpart: `koupper-docs/docs/production/script-execution-checkl
 ## Prerequisites
 
 ```powershell
-kotlinc -script install.kts -- --doctor
+kotlinc -script install-workspace.kts -- --doctor
 koupper help
 ```
 

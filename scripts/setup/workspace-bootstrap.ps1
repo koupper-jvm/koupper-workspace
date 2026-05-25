@@ -134,15 +134,24 @@ Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-cli" -Remote
 Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-document" -RemoteUrl $docsUrl
 
 $installCwd = $workspacePath
-$installScript = Join-Path $installCwd "install.kts"
+$installScript = Join-Path $installCwd "install-workspace.kts"
 if (-not (Test-Path $installScript)) {
-    $installCwd = Join-Path $workspacePath "koupper"
     $installScript = Join-Path $installCwd "install.kts"
 }
 
 if (-not (Test-Path $installScript)) {
-    throw "install.kts not found in workspace root or ./koupper. Ensure this is koupper-workspace."
+    $installCwd = Join-Path $workspacePath "koupper"
+    $installScript = Join-Path $installCwd "install-workspace.kts"
+    if (-not (Test-Path $installScript)) {
+        $installScript = Join-Path $installCwd "install.kts"
+    }
 }
+
+if (-not (Test-Path $installScript)) {
+    throw "Install script (install-workspace.kts or install.kts) not found in workspace root or ./koupper. Ensure this is koupper-workspace."
+}
+
+$installScriptName = Split-Path $installScript -Leaf
 
 Write-Info "Syncing repositories on branch $Branch"
 Update-Repo -RepoPath $workspacePath -BranchName $Branch -Label "koupper-workspace"
@@ -150,23 +159,23 @@ Update-Repo -RepoPath (Join-Path $workspacePath "koupper") -BranchName $Branch -
 Update-Repo -RepoPath (Join-Path $workspacePath "koupper-cli") -BranchName $Branch -Label "koupper-cli"
 Update-Repo -RepoPath (Join-Path $workspacePath "koupper-document") -BranchName $Branch -Label "koupper-document"
 
-Write-Info "Running installer"
+Write-Info "Running installer ($installScriptName)"
 Push-Location $installCwd
 try {
     if ($DoctorOnly) {
-        & kotlinc -script install.kts -- --doctor
+        & kotlinc -script $installScriptName -- --doctor
         if ($LASTEXITCODE -ne 0) { throw "install doctor failed" }
     }
     else {
         if ($NoForce) {
-            & kotlinc -script install.kts
+            & kotlinc -script $installScriptName
         }
         else {
-            & kotlinc -script install.kts -- --force
+            & kotlinc -script $installScriptName -- --force
         }
         if ($LASTEXITCODE -ne 0) { throw "install failed" }
 
-        & kotlinc -script install.kts -- --doctor
+        & kotlinc -script $installScriptName -- --doctor
         if ($LASTEXITCODE -ne 0) { throw "install doctor failed" }
     }
 }
