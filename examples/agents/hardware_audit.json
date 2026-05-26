@@ -1,0 +1,7 @@
+{
+  "last_audit": "2026-05-25",
+  "detected_cpu": "Generic x86_64",
+  "instruction_sets": ["avx2", "avx512_vnni"],
+  "ram_performance": "DDR4 3200MHz",
+  "storage_type": "NVMe"
+}
