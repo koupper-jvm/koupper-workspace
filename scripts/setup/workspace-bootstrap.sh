@@ -173,7 +173,7 @@ ensure_repo_root "$WORKSPACE" "$INFRA_URL"
 
 ensure_child_repo "$WORKSPACE" "koupper" "$KOUPPER_URL"
 ensure_child_repo "$WORKSPACE" "koupper-cli" "$CLI_URL"
-ensure_child_repo "$WORKSPACE" "koupper-document" "$DOCS_URL"
+ensure_child_repo "$WORKSPACE" "koupper-docs" "$DOCS_URL"
 
 INSTALL_DIR="$WORKSPACE"
 INSTALL_SCRIPT="install-workspace.kts"
@@ -198,7 +198,7 @@ echo "[*] Syncing repositories on branch $BRANCH"
 update_repo "$WORKSPACE" "$BRANCH" "koupper-workspace"
 update_repo "$WORKSPACE/koupper" "$BRANCH" "koupper"
 update_repo "$WORKSPACE/koupper-cli" "$BRANCH" "koupper-cli"
-update_repo "$WORKSPACE/koupper-document" "$BRANCH" "koupper-document"
+update_repo "$WORKSPACE/koupper-docs" "$BRANCH" "koupper-docs"
 
 echo "[*] Running installer ($INSTALL_SCRIPT)"
 if [[ "$DOCTOR_ONLY" == true ]]; then
