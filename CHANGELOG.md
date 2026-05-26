@@ -10,7 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [6.5.0] - 2026-05-24
+## [6.5.3] - 2026-05-24
 
 ### Added
 - Migration note for unified `@Export` annotation path in `docs/migrations/2026-05-export-annotation-path.md`.
