@@ -152,3 +152,48 @@ Key internal docs: `docs/MAINTAINER_GUIDE.md`, `docs/DOCUMENTATION_STANDARD.md`,
 - **Async:** Kotlin Coroutines 1.9.0, Vertx 4.5.8
 - **Serialization:** Jackson 2.17.2 with Kotlin module, SnakeYAML 2.2
 - **Build:** Gradle with wrapper
+
+## Skills
+
+Project skills live in `.claude/skills/`. Personal skills in `~/.claude/skills/`. Invoke with `/skill-name`.
+
+### Project skills (invoke explicitly — `disable-model-invocation: true`)
+
+| Skill | Invoke | Purpose |
+|---|---|---|
+| `prime` | `/prime` | Bootstrap session: reads CLAUDE.md + SESSION_STATE + NEXT_FEATURES |
+| `new-provider` | `/new-provider <Name>` | Scaffold a Service Provider following the authoring checklist |
+| `test-gen` | `/test-gen <Class>` | Generate Kotest + Mockk tests for a class or function |
+| `release` | `/release <branch>` | Local checks → fast-lane → CI gates |
+
+### Project skills (auto-loaded by Claude)
+
+| Skill | Trigger | Purpose |
+|---|---|---|
+| `kotlin-jvm` | Any `.kt`, `.kts`, `.gradle` file | K2 compiler rules, FatJar exclusions, Kotest conventions |
+
+### Personal skills (available in all projects)
+
+| Skill | Invoke | Purpose |
+|---|---|---|
+| `ultrathink` | `/ultrathink` | Max reasoning depth before responding |
+| `spec` | `/spec <feature>` | Technical spec before implementation |
+| `architect` | `/architect <module>` | Architecture audit with file:line citations |
+| `checkpoint` | `/checkpoint` | Save session state to `docs/SESSION_STATE.md` |
+| `commit` | `/commit` | Conventional commit with staged-file review |
+| `why` | `/why <symptom>` | Five Whys root cause analysis |
+| `compress` | `/compress` | Dense state snapshot for context re-injection |
+| `deep-research` | `/deep-research <topic>` | Forked Explore agent for codebase research |
+
+### Built-in bundled skills (always available)
+
+`/code-review` `/debug` `/security-review` `/verify` `/run` `/loop` `/batch` — see `/help` for full list.
+
+## Context efficiency
+
+- Start sessions with `/prime` — loads only what matters.
+- Use `/compress` before switching to a new major task in a long session.
+- Use `/checkpoint` at end of session to persist state to `docs/SESSION_STATE.md`.
+- Use `/deep-research` instead of manually reading entire modules.
+- The `kotlin-jvm` skill loads automatically for `.kt`/`.gradle` files; no need to repeat those conventions in prompts.
+- Skill bodies are token-free until invoked — keep procedures in skills, not in CLAUDE.md.
