@@ -10,8 +10,8 @@ val home    = System.getProperty("user.home")
 val jobsDir = File(args.firstOrNull() ?: "$home/.koupper/jobs")
 
 val sessionId  = "cortex-greeting"
-val queueDir   = File(jobsDir, "jobs/cortex").also { it.mkdirs() }
-val logDir     = File(jobsDir, "logs/cortex").also  { it.mkdirs() }
+val queueDir   = File(jobsDir, "cortex").also { it.mkdirs() }
+val logDir     = File(jobsDir, "logs/cortex").also { it.mkdirs() }
 val jobFile    = File(queueDir, "$sessionId.json")
 val logFile    = File(logDir,   "$sessionId.log")
 
