@@ -19,7 +19,7 @@ val agentsDir   = File(home, ".koupper/agents").also { it.mkdirs() }
 val wizardInDir = File(jobsDir, "commands/wizard").also { it.mkdirs() }
 val logDir      = File(jobsDir, "logs/wizard").also { it.mkdirs() }
 val logFile     = File(logDir, "$sessionId.log")
-val queueDir    = File(jobsDir, "jobs/wizard").also { it.mkdirs() }
+val queueDir    = File(jobsDir, "wizard").also { it.mkdirs() }
 val procFile    = File(queueDir, "$sessionId.json.processing")
 
 logFile.writeText("")
