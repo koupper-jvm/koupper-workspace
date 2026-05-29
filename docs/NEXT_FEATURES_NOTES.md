@@ -12,33 +12,51 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
   - `koupper run scripts/release/fast-lane.kts '{"featureBranch":"feature/<name>","enableAutoMerge":true}'`
 - Keep heavy validation for `main`/release.
 
+## Completed in 6.5.3+ wave (2026-05-28)
+
+- ~~`MCPClientProvider` — HTTP + stdio transport to external MCP servers (Playwright, GitHub, filesystem, etc.).~~ Done — `providers/mcp/MCPClientProvider.kt`.
+- ~~`LocalMCPServerProvider` rewrite to JSON-RPC 2.0 (MCP spec 2024-11-05).~~ Done — `POST /` handles full MCP protocol; legacy `/mcp/tools` and `/mcp/call` preserved.
+- ~~`koupper worker` daemon — atomic job claiming + agent execution.~~ Done — `koupper-cli/WorkerCommand.kt`.
+- ~~`InferenceConfig` — configurable inference params for `LlamaServerSidecar`.~~ Done.
+- ~~`EnvironmentProfiler` kill switch — replaced with graceful `LOW_END` degradation.~~ Done.
+- ~~`AgentOrchestrator` stub tool call — replaced with real JSON parsing.~~ Done.
+- ~~`DefaultToolExecutor` fake responses — replaced with real `java.io.File` operations.~~ Done.
+- ~~`optimized` JAR filter — regex-based matching eliminates Grizzly/Jackson leakage; JAR reduced to 1.6MB.~~ Done.
+- ~~`GrizzlyRuntimeRouterProvider` HTML content-type — detects `<!DOCTYPE`/`<html>` and sets `text/html`.~~ Done.
+
 ## Near-term priorities
 
-1. **Provider developer experience**
+1. **MCP ecosystem expansion**
+   - Add `MCPClientProvider` usage examples to `koupper.com/docs` (stdio and HTTP patterns).
+   - Validate compatibility with: `@playwright/mcp`, `@modelcontextprotocol/server-github`, `@modelcontextprotocol/server-filesystem`, `@modelcontextprotocol/server-postgres`.
+   - Add SSE transport support to `MCPClientProvider` for servers that use HTTP+SSE (not just stdio or plain HTTP).
+
+2. **Worker hardening**
+   - Add per-job timeout to `WorkerCommand` (kill subprocess if it runs > N minutes).
+   - Add retry count tracking per job — after N failures, move to `.dead/` instead of `.failed/`.
+   - Add `koupper worker --status` subcommand to show queue sizes without starting the daemon.
+
+3. **Provider developer experience**
    - ~~Add a provider authoring checklist template (`register + catalog + docs + tests`).~~ Done — `docs/PROVIDER_AUTHORING_CHECKLIST.md`.
    - ~~Add test coverage for all providers.~~ Done (6.4.0) — 74 tests across all providers.
    - Add provider scaffold command or script that generates the starter files from the checklist template.
 
-2. **Installer lifecycle hardening**
-   - ~~Fix `install-uninstall-e2e-windows` CI PATH issue.~~ Done (6.4.0) — PATH step added after install.
+4. **Installer lifecycle hardening**
+   - ~~Fix `install-uninstall-e2e-windows` CI PATH issue.~~ Done (6.4.0).
    - Add Linux/macOS uninstall E2E parity to heavy workflow.
-   - Add a lightweight health command (`koupper doctor`) smoke to release checks.
+   - Add `koupper doctor` health command.
 
-3. **Release script ergonomics**
-   - Add a `--no-auto-merge` fallback mode message in fast lane output.
-   - Emit explicit PR URL + next actions at end of every release script.
-
-4. **Observability**
-   - ~~Wire ObservabilityProvider into the Octopus execution monitor chain.~~ Done (6.4.0) — auto emits traces/metrics on every script run.
+5. **Observability**
+   - ~~Wire ObservabilityProvider into the Octopus execution monitor chain.~~ Done (6.4.0).
    - Next evolution: OpenTelemetry / Datadog export (deferred, not blocking).
-   - Track median CI duration for `develop` and `main` checks.
 
-5. **Docs deploy automation**
-   - ~~Add deploy script for `koupper.com/docs`.~~ Done (6.4.0) — `scripts/deploy/deploy-docs.kts`.
-   - Next: wire docs deploy into CI on merge to `koupper-docs` main (auto-deploy on push).
+6. **Docs deploy automation**
+   - ~~Add deploy script for `koupper.com/docs`.~~ Done (6.4.0).
+   - Next: wire docs deploy into CI on merge to `koupper-docs` main.
 
 ## Scope guardrails
 
 - Do not mix provider feature code with unrelated refactors.
 - Keep docs and catalog updates in the same delivery wave as provider changes.
 - If a change touches release scripts, update `scripts/release/README.md` in the same PR.
+- `MCPClientProvider` changes must maintain backward compatibility with `MCPServerProvider` (server side is independent).
