@@ -244,6 +244,8 @@ val HTML = """<!DOCTYPE html>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0d1117;--panel:#161b22;--border:#30363d;--cyan:#79c0ff;--green:#56d364;--yellow:#e3b341;--red:#f85149;--purple:#d2a8ff;--text:#c9d1d9;--muted:#8b949e;--hover:#1f2937;--sel:#21262d}
 body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* Header */
 header{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0}
 header h1{color:var(--cyan);font-size:14px;letter-spacing:2px;font-weight:bold}
 .hdr-right{display:flex;align-items:center;gap:16px}
@@ -252,14 +254,25 @@ header h1{color:var(--cyan);font-size:14px;letter-spacing:2px;font-weight:bold}
 #conn{width:7px;height:7px;border-radius:50%;background:var(--green)}
 #conn.off{background:var(--red)}
 #clock{color:var(--muted);font-size:12px}
+
+/* Metrics */
 .metrics{display:flex;align-items:center;gap:24px;padding:8px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
 .metric{display:flex;flex-direction:column;align-items:center;min-width:50px}
 .metric .lbl{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px}
 .metric .val{font-size:20px;font-weight:bold;margin-top:1px;font-variant-numeric:tabular-nums}
 .val.p{color:var(--yellow)}.val.pr{color:var(--purple)}.val.d{color:var(--green)}.val.f{color:var(--red)}.val.a{color:var(--cyan)}.val.s{color:#6ee7b7}
 .metrics-sep{width:1px;height:32px;background:var(--border);margin:0 4px}
-.main{display:flex;flex:1;overflow:hidden}
-.jobs{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border);overflow:hidden}
+
+/* Main layout */
+.main{display:flex;flex:1;overflow:hidden;position:relative}
+
+/* Resize handle */
+.resize-handle{width:4px;background:var(--border);cursor:col-resize;flex-shrink:0;transition:background .15s;position:relative;z-index:10}
+.resize-handle:hover,.resize-handle.dragging{background:var(--cyan)}
+.resize-handle::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:24px;display:flex;align-items:center;justify-content:center}
+
+/* Jobs panel */
+.jobs{min-width:180px;display:flex;flex-direction:column;overflow:hidden}
 .panel-hdr{padding:8px 16px;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .filters{display:flex;gap:4px}
 .filter-btn{padding:2px 10px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;font-family:inherit}
@@ -276,30 +289,51 @@ tr.sel td{background:var(--sel)}
 .badge.DONE{background:#0d2b0d;color:var(--green)}
 .badge.FAILED{background:#2b0d0d;color:var(--red)}
 .badge.DEAD{background:#1a1a1a;color:#555}
-.log{width:380px;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+
+/* Log panel */
+.log{min-width:120px;display:flex;flex-direction:column;overflow:hidden}
 #log-body{flex:1;overflow-y:auto;padding:10px 14px;font-size:12px;line-height:1.7;white-space:pre-wrap;background:var(--panel)}
 .l-w{color:var(--red)}.l-ok{color:var(--green)}.l-info{color:var(--purple)}.l-dim{color:#4b5563}
-.sidebar{width:260px;display:flex;flex-direction:column;overflow:hidden}
-.side-section{border-bottom:1px solid var(--border)}
-.side-section:last-child{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+/* Sidebar */
+.sidebar{min-width:180px;display:flex;flex-direction:column;overflow:hidden}
+.side-section{border-bottom:1px solid var(--border);display:flex;flex-direction:column}
 .side-items{overflow-y:auto;flex:1}
-.side-item{padding:7px 14px;border-bottom:1px solid #0d1117;font-size:12px;cursor:default}
+.side-item{padding:8px 14px;border-bottom:1px solid #0d1117;font-size:12px;display:flex;align-items:center;gap:10px}
 .side-item:hover{background:var(--hover)}
-.side-item .name{color:var(--text)}
-.side-item .desc{color:var(--muted);font-size:10px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;position:relative}
+.agent-dot::after{content:'';position:absolute;inset:-3px;border-radius:50%;opacity:.4}
+.agent-dot.c0{background:#56d364;box-shadow:0 0 6px #56d364}.agent-dot.c0::after{background:#56d364}
+.agent-dot.c1{background:#79c0ff;box-shadow:0 0 6px #79c0ff}.agent-dot.c1::after{background:#79c0ff}
+.agent-dot.c2{background:#d2a8ff;box-shadow:0 0 6px #d2a8ff}.agent-dot.c2::after{background:#d2a8ff}
+.agent-dot.c3{background:#e3b341;box-shadow:0 0 6px #e3b341}.agent-dot.c3::after{background:#e3b341}
+.agent-dot.c4{background:#6ee7b7;box-shadow:0 0 6px #6ee7b7}.agent-dot.c4::after{background:#6ee7b7}
+.agent-info .name{color:var(--text);font-size:12px}
+.agent-info .desc{color:var(--muted);font-size:10px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
 .side-item .badge-s{font-size:9px;padding:1px 5px;border-radius:8px}
 .cron-badge{background:#0a2a1a;color:var(--green)}.rate-badge{background:#1a1a0a;color:var(--yellow)}.once-badge{background:#0a1a2a;color:var(--cyan)}
-.chat-area{display:flex;flex-direction:column;flex:1;overflow:hidden}
-#chat-log{flex:1;overflow-y:auto;padding:10px 14px;font-size:12px;line-height:1.6;background:var(--bg)}
-.chat-input-row{display:flex;padding:8px;border-top:1px solid var(--border);background:var(--panel);gap:6px}
-#chat-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 10px;color:var(--text);font-family:inherit;font-size:12px;outline:none}
-#chat-input:focus{border-color:var(--cyan)}
-#chat-send{padding:6px 12px;background:#0a1929;border:1px solid var(--cyan);border-radius:4px;color:var(--cyan);cursor:pointer;font-family:inherit;font-size:11px}
-#chat-send:hover{background:#0f2640}
-.msg-u{color:var(--cyan)}.msg-c{color:var(--text)}
+
+/* CORTEX chat — magic glow */
+.cortex-section{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.cortex-glow-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;margin:6px;border-radius:8px;position:relative}
+.cortex-glow-wrap::before{content:'';position:absolute;inset:-1px;border-radius:9px;background:linear-gradient(135deg,#7c3aed,#2563eb,#06b6d4,#7c3aed);background-size:300% 300%;animation:gradientShift 4s ease infinite;z-index:0;opacity:.9}
+.cortex-glow-wrap::after{content:'';position:absolute;inset:-4px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#2563eb,#06b6d4,#7c3aed);background-size:300% 300%;animation:gradientShift 4s ease infinite;filter:blur(8px);z-index:-1;opacity:.5}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.cortex-inner{position:relative;z-index:1;background:#0d1117;border-radius:7px;flex:1;display:flex;flex-direction:column;overflow:hidden}
+#chat-log{flex:1;overflow-y:auto;padding:10px 14px;font-size:12px;line-height:1.6}
+.chat-input-row{display:flex;padding:8px;border-top:1px solid #1e1e3a;gap:6px;background:#0d0f1a}
+#chat-input{flex:1;background:#0d1117;border:1px solid #2d2060;border-radius:4px;padding:6px 10px;color:var(--text);font-family:inherit;font-size:12px;outline:none;transition:border-color .2s}
+#chat-input:focus{border-color:#7c3aed;box-shadow:0 0 8px rgba(124,58,237,.3)}
+#chat-send{padding:6px 12px;background:linear-gradient(135deg,#3b1d8a,#1d4ed8);border:none;border-radius:4px;color:#e0d7ff;cursor:pointer;font-family:inherit;font-size:11px;transition:opacity .2s}
+#chat-send:hover{opacity:.85}
+.msg-u{color:var(--cyan);margin-bottom:4px}.msg-c{color:var(--text)}
 .empty{padding:20px;color:#30363d;text-align:center;font-size:12px}
+
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .pulse{animation:pulse 1.5s infinite}
+@keyframes dotPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)}}
+.agent-dot{animation:dotPulse 2.5s ease-in-out infinite}
+.agent-dot.c1{animation-delay:.4s}.agent-dot.c2{animation-delay:.8s}.agent-dot.c3{animation-delay:1.2s}.agent-dot.c4{animation-delay:1.6s}
 </style>
 </head>
 <body>
@@ -320,9 +354,10 @@ tr.sel td{background:var(--sel)}
   <div class="metric"><span class="lbl">Agents</span><span class="val a" id="m-a">0</span></div>
   <div class="metric"><span class="lbl">Schedules</span><span class="val s" id="m-s">0</span></div>
 </div>
-<div class="main">
 
-  <div class="jobs">
+<div class="main" id="main">
+  <!-- Jobs -->
+  <div class="jobs" id="pane-jobs" style="width:35%">
     <div class="panel-hdr">
       <span>Jobs</span>
       <div class="filters">
@@ -340,7 +375,10 @@ tr.sel td{background:var(--sel)}
     </div>
   </div>
 
-  <div class="log">
+  <div class="resize-handle" id="rh1"></div>
+
+  <!-- Log -->
+  <div class="log" id="pane-log" style="width:30%">
     <div class="panel-hdr">
       <span id="log-title" style="color:var(--text)">Log</span>
       <span style="cursor:pointer;color:var(--muted)" onclick="refreshLog()" title="Refresh">↺</span>
@@ -348,22 +386,32 @@ tr.sel td{background:var(--sel)}
     <div id="log-body"><span class="empty" style="display:block;text-align:center;padding:30px">Select a job to view its log</span></div>
   </div>
 
-  <div class="sidebar">
-    <div class="side-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+  <div class="resize-handle" id="rh2"></div>
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="pane-sidebar" style="flex:1">
+    <!-- CORTEX chat -->
+    <div class="cortex-section" style="min-height:180px;flex:1">
       <div class="panel-hdr">CORTEX</div>
-      <div class="chat-area">
-        <div id="chat-log"><span class="empty" style="display:block;padding:20px">CORTEX chat — messages appear in the TUI log panel</span></div>
-        <div class="chat-input-row">
-          <input id="chat-input" placeholder="Ask CORTEX..." onkeydown="if(event.key==='Enter')sendChat()">
-          <button id="chat-send" onclick="sendChat()">Send</button>
+      <div class="cortex-glow-wrap">
+        <div class="cortex-inner">
+          <div id="chat-log"><span class="empty" style="display:block;padding:20px;color:#4a3a6a">Ask CORTEX anything…</span></div>
+          <div class="chat-input-row">
+            <input id="chat-input" placeholder="Message CORTEX..." onkeydown="if(event.key==='Enter')sendChat()">
+            <button id="chat-send" onclick="sendChat()">⚡ Send</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Available Agents -->
     <div class="side-section" style="max-height:35%">
-      <div class="panel-hdr">Agent Store (<span id="a-count">0</span>)</div>
+      <div class="panel-hdr">Available Agents (<span id="a-count">0</span>)</div>
       <div class="side-items" id="agents-list"></div>
     </div>
-    <div class="side-section" style="max-height:30%">
+
+    <!-- Schedules -->
+    <div class="side-section" style="max-height:28%">
       <div class="panel-hdr">Schedules (<span id="s-count">0</span>)</div>
       <div class="side-items" id="sched-list"></div>
     </div>
@@ -375,17 +423,56 @@ let selectedJob = null;
 let jobFilter   = 'all';
 let allJobs     = [];
 
+// ── SSE ───────────────────────────────────────────────────────────────────────
 const es = new EventSource('/events');
 es.onopen  = () => document.getElementById('conn').className = '';
 es.onerror = () => document.getElementById('conn').className = 'off';
 es.onmessage = e => { const d = JSON.parse(e.data); if (d.type === 'snapshot') updateUI(d); };
 
+// ── Clock ─────────────────────────────────────────────────────────────────────
 setInterval(() => {
   const n = new Date();
   document.getElementById('clock').textContent =
     String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0');
 }, 1000);
 
+// ── Resize handles ────────────────────────────────────────────────────────────
+function makeResizable(handleId, leftPaneId, rightPaneId) {
+  const handle    = document.getElementById(handleId);
+  const leftPane  = document.getElementById(leftPaneId);
+  const rightPane = document.getElementById(rightPaneId);
+  const main      = document.getElementById('main');
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    handle.classList.add('dragging');
+    const startX    = e.clientX;
+    const startLeft = leftPane.getBoundingClientRect().width;
+    const startRight= rightPane.getBoundingClientRect().width;
+    const total     = startLeft + startRight;
+
+    function onMove(e) {
+      const dx      = e.clientX - startX;
+      const newLeft = Math.max(180, Math.min(total - 180, startLeft + dx));
+      leftPane.style.width  = newLeft + 'px';
+      leftPane.style.flex   = 'none';
+      rightPane.style.width = (total - newLeft) + 'px';
+      rightPane.style.flex  = 'none';
+    }
+    function onUp() {
+      handle.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+makeResizable('rh1', 'pane-jobs', 'pane-log');
+makeResizable('rh2', 'pane-log',  'pane-sidebar');
+
+// ── UI update ─────────────────────────────────────────────────────────────────
 function updateUI(d) {
   document.getElementById('m-p').textContent  = d.metrics.pending;
   document.getElementById('m-pr').textContent = d.metrics.processing;
@@ -395,10 +482,7 @@ function updateUI(d) {
   document.getElementById('m-s').textContent  = d.schedules.length;
   document.getElementById('a-count').textContent = d.agents.length;
   document.getElementById('s-count').textContent = d.schedules.length;
-
-  const badge = document.getElementById('cortex-badge');
-  badge.className = d.cortexActive ? 'active' : '';
-
+  document.getElementById('cortex-badge').className = d.cortexActive ? 'active' : '';
   allJobs = d.jobs;
   renderJobs();
   renderAgents(d.agents);
@@ -428,37 +512,41 @@ function renderJobs() {
       '<td title="' + j.id + '">' + j.id + '</td>' +
       '<td style="color:var(--muted)">' + j.queue + '</td>' +
       '<td><span class="badge' + pulse + ' ' + j.status + '">' + j.status + '</span></td>' +
-      '<td style="color:var(--muted)">' + (j.time||'') + '</td>' +
-      '</tr>';
+      '<td style="color:var(--muted)">' + (j.time||'') + '</td></tr>';
   }).join('');
 }
 
+const agentColors = ['c0','c1','c2','c3','c4'];
 function renderAgents(agents) {
   const el = document.getElementById('agents-list');
   if (!agents.length) { el.innerHTML = '<div class="empty">No agents installed</div>'; return; }
-  el.innerHTML = agents.map(a =>
-    '<div class="side-item"><div class="name">' + a.name + '</div>' +
-    (a.description ? '<div class="desc">' + a.description + '</div>' : '') +
-    '</div>'
-  ).join('');
+  el.innerHTML = agents.map((a, i) => {
+    const col = agentColors[i % agentColors.length];
+    return '<div class="side-item">' +
+      '<div class="agent-dot ' + col + '"></div>' +
+      '<div class="agent-info">' +
+        '<div class="name">' + a.name + '</div>' +
+        (a.description ? '<div class="desc">' + a.description + '</div>' : '') +
+      '</div></div>';
+  }).join('');
 }
 
 function renderSchedules(scheds) {
   const el = document.getElementById('sched-list');
-  if (!scheds.length) { el.innerHTML = '<div class="empty">No schedules — use koupper schedule add</div>'; return; }
+  if (!scheds.length) { el.innerHTML = '<div class="empty" style="font-size:11px">No schedules<br><span style="color:#30363d">koupper schedule add</span></div>'; return; }
   el.innerHTML = scheds.map(s => {
     const type = s.type || 'cron';
     const info = type === 'cron' ? s.cron : type === 'rate' ? 'every ' + Math.round((s.rateMs||0)/1000) + 's' : s.runAt || '';
     const cls  = type === 'cron' ? 'cron-badge' : type === 'rate' ? 'rate-badge' : 'once-badge';
     const dot  = s.enabled === false ? '○' : '●';
     const color= s.enabled === false ? 'var(--muted)' : 'var(--green)';
-    return '<div class="side-item">' +
-      '<div class="name"><span style="color:' + color + '">' + dot + '</span> ' + s.agent + '</div>' +
-      '<div class="desc"><span class="badge-s ' + cls + '">' + type + '</span> ' + info + '</div>' +
-      '</div>';
+    return '<div class="side-item" style="flex-direction:column;align-items:flex-start;gap:3px">' +
+      '<div style="color:' + color + ';font-size:12px">' + dot + ' ' + s.agent + '</div>' +
+      '<div style="color:var(--muted);font-size:10px"><span class="badge-s ' + cls + '">' + type + '</span> ' + info + '</div></div>';
   }).join('');
 }
 
+// ── Log ───────────────────────────────────────────────────────────────────────
 function selectJob(id) {
   selectedJob = id;
   document.getElementById('log-title').textContent = id;
@@ -486,26 +574,24 @@ function refreshLog() {
       el.scrollTop = el.scrollHeight;
     }).catch(() => {});
 }
-
 setInterval(() => { if (selectedJob) refreshLog(); }, 2000);
 
+// ── CORTEX chat ───────────────────────────────────────────────────────────────
 function sendChat() {
   const input = document.getElementById('chat-input');
   const msg   = input.value.trim();
   if (!msg) return;
   input.value = '';
-
   const log = document.getElementById('chat-log');
   log.innerHTML += '<div class="msg-u">▶ ' + msg.replace(/</g,'&lt;') + '</div>';
   log.scrollTop = log.scrollHeight;
-
   fetch('/api/cortex', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type':'application/json'},
     body: JSON.stringify({message: msg})
   }).then(r => r.json()).then(d => {
     if (d.ok) {
-      log.innerHTML += '<div style="color:var(--muted);font-size:10px">→ sent to CORTEX. See log panel for response.</div>';
+      log.innerHTML += '<div style="color:#4a3a6a;font-size:10px;margin-bottom:4px">→ sent. watching log…</div>';
       selectJob('cortex-session');
     }
     log.scrollTop = log.scrollHeight;
