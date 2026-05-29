@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-29 — Sesión de fixes, UI y estabilización_
+_Last updated: 2026-05-29 — Sesión de refactoring y nuevo SP_
 
 ---
 
@@ -13,18 +13,18 @@ Construir IGLY CORTEX — un runtime de agentes AI local usando Koupper como fra
 
 | Repo | Branch | Estado |
 |---|---|---|
-| `koupper` | `develop` | Framework limpio, pusheado |
+| `koupper` | `develop` | Framework con CommandBridgeProvider, pusheado |
 | `koupper` | `igly/cortex` | Producto CORTEX completo, pusheado |
 | `koupper-cli` | `develop` | CLI sin monitor/start (open-source) |
 | `koupper-cli` | `igly/cortex` | CLI con monitor/start/schedule |
-| `workspace` | `develop` | Agentes y docs actualizados |
+| `workspace` | `develop` | Agentes refactorizados, docs actualizados |
 
 ---
 
 ## Stack funcionando HOY
 
 ```bash
-# Setup inicial (una vez) — ya está en ~/.bashrc
+# Variables ya en ~/.bashrc
 export KOUPPER_LLM_MODEL_PATH=/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf
 export KOUPPER_LLM_EXECUTABLE=/home/tdn-dell/develop/llama.cpp/build/bin/llama-server
 
@@ -32,51 +32,50 @@ export KOUPPER_LLM_EXECUTABLE=/home/tdn-dell/develop/llama.cpp/build/bin/llama-s
 koupper start
 ```
 
-Levanta:
-- **Worker** daemon (`~/.koupper/logs/worker.log`)
-- **Web UI** en http://localhost:18083 (`~/.koupper/logs/webui.log`)
-- **Monitor TUI** en terminal
-- **MCP server** en http://localhost:18082 (9 tools)
-- **CORTEX** via `CortexAgent.kts` (InferenceEngine SP, SSE streaming, MCP tools)
+Levanta: Worker daemon · Web UI :18083 · Monitor TUI · MCP server :18082 · CORTEX
 
 ---
 
 ## Archivos instalados en ~/.koupper/
 
 ```
-agents/CortexAgent.kts        — agente CORTEX (InferenceEngine + MCP + streaming)
-agents/CortexWebUiAgent.kts   — dashboard web (Grizzly, SSE, chat, schedules, history)
-agents/GreetingAgent.kts      — análisis de swarm al arrancar (@Export, compatible con worker)
-agents/AgentCreatorAgent.kts  — wizard interactivo para crear nuevos agentes
-libs/octopus.jar              — runtime con todos los SPs incluyendo MCPClientProvider
+agents/CortexAgent.kts        — agente CORTEX (InferenceEngine + MCPClient + CommandBridge)
+agents/CortexWebUiAgent.kts   — dashboard web (Grizzly, SSE, historial, resize, glow)
+agents/GreetingAgent.kts      — análisis de swarm (@Export, compatible con worker)
+agents/AgentCreatorAgent.kts  — wizard interactivo (@Export, CommandBridgeProvider)
+libs/octopus-6.5.3.jar        — runtime con CommandBridgeProvider incluido
+libs/octopus.jar              — symlink al anterior
 libs/koupper-cli.jar          — CLI con start/worker/schedule/monitor
 libs/koupper-monitor.jar      — TUI Lanterna
 ```
 
 ---
 
-## Features completados (2026-05-29)
+## Features completados (2026-05-29 — sesión actual)
+
+### Nuevo Service Provider: CommandBridgeProvider
+- Interfaz: `watch(dir)` → `drain()` → `nextCommand(timeoutMs)` → `close()`
+- Encapsula el patrón WatchService + `.response` files usado en 3 agentes
+- Registrado en `ServiceProviderManager` y `providers-catalog.json`
+- Verificado end-to-end: wizard recibe respuestas, procesa state machine, genera agente
+
+### Refactoring de agentes
+- `CortexAgent.kts` — usa `HtppClient` SP en vez de `java.net.http.*` (GET/POST al MCP local)
+- `CortexAgent.kts` — usa `CommandBridgeProvider` en vez de WatchService manual
+- `AgentCreatorAgent.kts` — usa `CommandBridgeProvider`, migrado a `@Export val setup`
+- `GreetingAgent.kts` — migrado a `@Export val setup` (sesión anterior)
 
 ### Web UI dashboard
-- Historial de jobs — WatchService detecta DONE/DEAD, escribe a `.history.jsonl` (max 500)
-- Historial persiste entre reinicios vía `loadHistory()` al arrancar
+- Historial de jobs (DONE/DEAD) persistido en `.history.jsonl`
 - Métricas: Pending / Processing / Done / Failed
-- Jobs DEAD visibles en tabla y guardados en historial
-- Paneles redimensionables (Jobs / Log / Sidebar) con drag handles
-- Available Agents con puntos de color pulsantes por agente
-- CORTEX chat con glow degradado animado (purple→blue→cyan)
+- Paneles redimensionables (Jobs / Log / Sidebar)
+- Available Agents con puntos de color pulsantes
+- CORTEX chat con glow degradado animado
 - Filtros: All / Active / Done / Failed
-- `/api/history` endpoint
 
 ### Worker
 - Detecta errores de script cuando exit code es 0 (`logContainsScriptError`)
-  - `No function annotated with @Export was found`
-  - `Script error:`, `<ERROR::>`, `error: unresolved reference`, `Exception in thread "main"`
-- Jobs con errores de script van a `.failed/` en vez de marcarse como DONE
-
-### Agentes
-- `GreetingAgent.kts` — migrado a `@Export val setup` para compatibilidad con worker
-- `CortexWebUiAgent.kts` — en workspace repo `examples/agents/`
+- Jobs con errores van a `.failed/` correctamente
 
 ---
 
@@ -84,53 +83,45 @@ libs/koupper-monitor.jar      — TUI Lanterna
 
 ### develop (framework open-source)
 - `MCPClientProvider` — HTTP + stdio para servidores MCP externos
-- `LocalMCPServerProvider` reescrito a JSON-RPC 2.0 (spec 2024-11-05)
+- `LocalMCPServerProvider` reescrito a JSON-RPC 2.0
 - `InferenceConfig` — params configurables para LlamaServerSidecar
-- `EnvironmentProfiler` — degradación graceful (no más kill switch)
+- `EnvironmentProfiler` — degradación graceful
 - `AgentOrchestrator` — parseo real de tool calls
 - `DefaultToolExecutor` — operaciones reales de archivo
-- `optimized` JAR filter — regex preciso, sin leakage externo
-- `GrizzlyRuntimeRouterProvider` — content-type HTML correcto
 - `LlamaServerSidecar` — fix null content node en SSE
-- `koupper worker` — daemon con timeout, dead-letter queue, `--enable-scheduling`
+- `koupper worker` — daemon con timeout, dead-letter, `--enable-scheduling`
 - `koupper schedule` — add/list/remove/enable/disable (cron/rate/once)
-- `CronMatcher` — evaluador cron 5 campos, zero deps
+- `CronMatcher` — evaluador cron 5 campos
 
-### igly/cortex (producto privado)
+### igly/cortex
 - `CortexMcpServer` — 9 tools incluyendo `swarm_run`
-- Monitor refactored — display layer puro, lanza `CortexAgent.kts` externamente
-- `CortexAgent.kts` — InferenceEngine SP + TokenListener + MCP HTTP + external MCPs
-- `CortexMemoryStore` — memoria persistente TF-IDF + embeddings
-- Pipeline visualization TUI
-- `swarm_run` — conecta CORTEX a `SwarmCoordinator.runSequence()`
-- Web UI 3 columnas: jobs + log + sidebar (chat CORTEX, agents, schedules)
-- WatchService registra subdirectorios creados después del arranque
+- `CortexAgent.kts` — InferenceEngine + TokenListener + MCP + streaming
+- Web UI 3 columnas con SSE
 - `koupper start` — un solo comando para todo
-- `QUICKSTART.md` en workspace
 
 ---
 
 ## Bugs conocidos
 
-1. **Merge develop→igly/cortex en CLI elimina `MonitorCommand.kt`** — usar cherry-pick en vez de merge completo
-2. **Octopus cachea scripts compilados** — matar daemon para forzar recompilación al cambiar un .kts
-3. **CLI crash con CoroutinesInternalError** — ocurre en algunos reinicios; usar `nohup` para que octopus sobreviva al crash del CLI
+1. **Merge develop→igly/cortex en CLI** elimina `MonitorCommand.kt` — usar cherry-pick
+2. **Octopus cachea scripts compilados** — matar daemon al cambiar un .kts
+3. **CLI crash con CoroutinesInternalError** — usar `nohup` para que octopus sobreviva
 
 ---
 
 ## Próximos features (roadmap)
 
 ### Alta prioridad
-1. **`koupper doctor`** — diagnóstico: octopus, llama-server, modelo, puertos, schedules activos
+1. **`koupper doctor`** — diagnóstico: octopus, llama-server, modelo, puertos, schedules
 2. **Observability** — métricas jobs/min, success rate, latencia P95 en web UI
 3. **`koupper worker --status`** — muestra queues sin arrancar daemon
 
 ### Media prioridad
-4. **Agent marketplace** — `koupper agent list/install/publish`
-5. **AgentCreatorAgent con LLM** — que el wizard use CORTEX para generar el código real del agente (hoy solo genera scaffold con TODOs)
+4. **AgentCreatorAgent con LLM** — usar CORTEX para generar el código real del agente (hoy solo genera scaffold con TODOs)
+5. **Agent marketplace** — `koupper agent list/install/publish`
 
 ### igly/cortex
-6. Sync limpio de develop → igly/cortex usando cherry-pick
+6. Sync limpio develop → igly/cortex con cherry-pick
 7. `CortexMemoryStore` → `VectorDbProvider` real
 8. CORTEX multimodal con Playwright MCP
 
