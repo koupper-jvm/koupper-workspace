@@ -1,188 +1,159 @@
 // AgentCreatorAgent.kts — CORTEX Wizard
-// Interactive agent creator. Driven by the CommandBridge:
-//   - Writes questions to logs/wizard/<sessionId>.log  (TUI reads via LOG panel)
-//   - Reads answers from commands/wizard/<ts>.response (TUI writes via command bar)
-// Args: [jobsDir] [sessionId]
+// Interactive agent creator driven by CommandBridgeProvider.
+// Reads answers from commands/wizard/*.response files written by the TUI or web UI.
 
+import com.koupper.container.app
+import com.koupper.providers.commandbridge.CommandBridgeProvider
+import com.koupper.shared.annotations.Export
 import java.io.File
-import java.nio.file.*
-import java.nio.file.StandardWatchEventKinds.*
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
-val home      = System.getProperty("user.home")
-val jobsDir   = File(args.getOrNull(0) ?: "$home/.koupper/jobs")
-val sessionId = args.getOrNull(1) ?: "wizard-${System.currentTimeMillis()}"
+enum class WizardStep { NAME, ROLE, OBJECTIVE, DONE }
 
-val agentsDir   = File(home, ".koupper/agents").also { it.mkdirs() }
-val wizardInDir = File(jobsDir, "commands/wizard").also { it.mkdirs() }
-val logDir      = File(jobsDir, "logs/wizard").also { it.mkdirs() }
-val logFile     = File(logDir, "$sessionId.log")
-val queueDir    = File(jobsDir, "wizard").also { it.mkdirs() }
-val procFile    = File(queueDir, "$sessionId.json.processing")
+@Export
+val setup: () -> Unit = {
+    val home      = System.getProperty("user.home")!!
+    val jobsDir   = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
+    val sessionId = "wizard-${System.currentTimeMillis()}"
 
-logFile.writeText("")
+    val agentsDir   = File(home, ".koupper/agents").also { it.mkdirs() }
+    val wizardInDir = File(jobsDir, "commands/wizard").also { it.mkdirs() }
+    val logDir      = File(jobsDir, "logs/wizard").also { it.mkdirs() }
+    val logFile     = File(logDir, "$sessionId.log")
+    val queueDir    = File(jobsDir, "wizard").also { it.mkdirs() }
+    val procFile    = File(queueDir, "$sessionId.json.processing")
 
-fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n")
-fun ask(msg: String) = logFile.appendText("[${ts()}] [?] $msg\n")
+    logFile.writeText("")
 
-// Create job entry in .processing state so monitor shows it immediately
-procFile.writeText("""{"id":"$sessionId","fileName":"AgentCreatorAgent","functionName":"run","scriptPath":"agents/AgentCreatorAgent.kts","sourceType":"script"}""")
+    fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n")
+    fun ask(msg: String) = logFile.appendText("[${ts()}] [?] $msg\n")
 
-// ── State machine ─────────────────────────────────────────────────────────────
+    procFile.writeText("""{"id":"$sessionId","fileName":"AgentCreatorAgent","functionName":"setup","scriptPath":"agents/AgentCreatorAgent.kts","sourceType":"script"}""")
 
-enum class Step { NAME, ROLE, OBJECTIVE, DONE }
-var step = Step.NAME
-val draft = mutableMapOf<String, String>()
+    // ── State machine ─────────────────────────────────────────────────────────
 
-fun nextQuestion() {
-    when (step) {
-        Step.NAME      -> ask("What is the agent name? (e.g. DataSyncAgent)")
-        Step.ROLE      -> ask("What is the agent role / specialty?")
-        Step.OBJECTIVE -> ask("What is the agent objective / goal?")
-        Step.DONE      -> {}
-    }
-}
+    var step = WizardStep.NAME
+    val draft = mutableMapOf<String, String>()
 
-fun processAnswer(answer: String) {
-    val trimmed = answer.trim()
-    when (step) {
-        Step.NAME -> {
-            val name = trimmed.replace(" ", "").let { if (it.endsWith("Agent")) it else "${it}Agent" }
-            draft["name"] = name
-            log("  ✓ Name      : $name")
-            step = Step.ROLE
-            nextQuestion()
-        }
-        Step.ROLE -> {
-            draft["role"] = trimmed
-            log("  ✓ Role      : $trimmed")
-            step = Step.OBJECTIVE
-            nextQuestion()
-        }
-        Step.OBJECTIVE -> {
-            draft["objective"] = trimmed
-            log("  ✓ Objective : $trimmed")
-            step = Step.DONE
-            generateAgent()
-        }
-        Step.DONE -> {}
-    }
-}
+    fun generateAgent() {
+        val name      = draft["name"]      ?: "UnnamedAgent"
+        val role      = draft["role"]      ?: "General purpose"
+        val objective = draft["objective"] ?: "Execute tasks"
 
-fun generateAgent() {
-    val name      = draft["name"]      ?: "UnnamedAgent"
-    val role      = draft["role"]      ?: "General purpose"
-    val objective = draft["objective"] ?: "Execute tasks"
-    val className = name.replaceFirstChar { it.uppercaseChar() }
+        // Split @Export so octopus annotation scanner doesn't find a second one here
+        val exportLine = "@" + "Export"
 
-    // Save draft metadata
-    val draftFile = File(agentsDir, "draft_$name.json")
-    draftFile.writeText("""
-{
-  "name": "$name",
-  "role": "$role",
-  "objective": "$objective",
-  "createdAt": "${ts()}"
-}
-""".trimIndent())
+        File(agentsDir, "draft_$name.json").writeText(
+            """{"name":"$name","role":"$role","objective":"$objective","createdAt":"${ts()}"}"""
+        )
 
-    // Generate .kts scaffold
-    val agentFile = File(agentsDir, "$name.kts")
-    agentFile.writeText("""
+        File(agentsDir, "$name.kts").writeText("""
 // $name.kts
 // Role      : $role
 // Objective : $objective
 // Generated by CORTEX WIZARD — ${ts()}
 
+import com.koupper.shared.annotations.Export
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-val home    = System.getProperty("user.home")
-val jobsDir = File(args.firstOrNull() ?: "${'$'}home/.koupper/jobs")
-val jobId   = args.getOrNull(1) ?: "$name-${'$'}{System.currentTimeMillis()}"
+$exportLine
+val setup: () -> Unit = {
+    val home    = System.getProperty("user.home")!!
+    val jobsDir = File(System.getenv("CORTEX_JOBS_DIR") ?: "${'$'}home/.koupper/jobs")
+    val jobId   = "$name-${'$'}{System.currentTimeMillis()}"
+    val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
+    val logFile = File(logDir, "${'$'}jobId.log")
+    fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    fun log(msg: String) = logFile.appendText("[${'$'}{ts()}] ${'$'}msg\n")
 
-val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
-val logFile = File(logDir, "${'$'}jobId.log")
-fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-fun log(msg: String) = logFile.appendText("[${"\${ts()}"}] \$msg\n")
+    // TODO: Implement agent behavior
+    // Role:      $role
+    // Objective: $objective
 
-// ── $name logic ───────────────────────────────────────────────────────────────
-// TODO: Implement agent behavior
-// Role:      $role
-// Objective: $objective
-
-log("$name started")
-log("Role: $role")
-log("Objective: $objective")
-log("$name completed — READY")
+    log("$name started")
+    log("Role: $role")
+    log("Objective: $objective")
+    log("$name completed — READY")
+}
 """.trimIndent())
 
-    log("")
-    log("┌─────────────────────────────────────┐")
-    log("│   AGENT READY FOR DEPLOYMENT        │")
-    log("└─────────────────────────────────────┘")
-    log("  NAME       : $name")
-    log("  ROLE       : $role")
-    log("  OBJECTIVE  : $objective")
-    log("  FILE       : ~/.koupper/agents/$name.kts")
-    log("  DRAFT      : ~/.koupper/agents/draft_$name.json")
-    log("")
-    log("  Run: koupper run ~/.koupper/agents/$name.kts")
-    log("")
-    log("  Press ESC to return to watch mode.")
+        log("")
+        log("┌─────────────────────────────────────┐")
+        log("│   AGENT READY FOR DEPLOYMENT        │")
+        log("└─────────────────────────────────────┘")
+        log("  NAME       : $name")
+        log("  ROLE       : $role")
+        log("  OBJECTIVE  : $objective")
+        log("  FILE       : ~/.koupper/agents/$name.kts")
+        log("")
+        log("  Run: koupper run ~/.koupper/agents/$name.kts")
 
-    // Mark job done
-    Thread.sleep(300)
-    procFile.delete()
-}
+        step = WizardStep.DONE
+        Thread.sleep(300)
+        procFile.delete()
+    }
 
-// ── Watch for wizard responses ────────────────────────────────────────────────
-
-// Drain any stale response files from before this session
-wizardInDir.listFiles { f -> f.name.endsWith(".response") }?.forEach { it.delete() }
-
-log("┌─────────────────────────────────────┐")
-log("│   CORTEX WIZARD — AGENT CREATOR     │")
-log("└─────────────────────────────────────┘")
-log("  Session: $sessionId")
-log("  Type your answers in the command bar.")
-log("  Press ESC to cancel at any time.")
-log("")
-nextQuestion()
-
-val ws       = FileSystems.getDefault().newWatchService()
-val deadline = System.currentTimeMillis() + 10 * 60 * 1000L  // 10-min timeout
-
-wizardInDir.toPath().register(ws, ENTRY_CREATE)
-
-while (step != Step.DONE && System.currentTimeMillis() < deadline) {
-    val key = ws.poll(500, TimeUnit.MILLISECONDS) ?: continue
-
-    for (ev in key.pollEvents()) {
-        if (ev.kind() == OVERFLOW) continue
-        @Suppress("UNCHECKED_CAST")
-        val fname = (ev as WatchEvent<Path>).context().fileName.toString()
-        if (!fname.endsWith(".response")) continue
-
-        val responseFile = File(wizardInDir, fname)
-        val answer = runCatching { responseFile.readText().trim() }.getOrDefault("")
-        responseFile.delete()
-
-        if (answer.isNotEmpty() && step != Step.DONE) {
-            processAnswer(answer)
+    fun nextQuestion() {
+        when (step) {
+            WizardStep.NAME      -> ask("What is the agent name? (e.g. DataSyncAgent)")
+            WizardStep.ROLE      -> ask("What is the agent role / specialty?")
+            WizardStep.OBJECTIVE -> ask("What is the agent objective / goal?")
+            WizardStep.DONE      -> {}
         }
     }
-    key.reset()
-}
 
-if (step != Step.DONE) {
+    fun processAnswer(answer: String) {
+        when (step) {
+            WizardStep.NAME -> {
+                val name = answer.replace(" ", "").let { if (it.endsWith("Agent")) it else "${it}Agent" }
+                draft["name"] = name
+                log("  ✓ Name      : $name")
+                step = WizardStep.ROLE
+                nextQuestion()
+            }
+            WizardStep.ROLE -> {
+                draft["role"] = answer
+                log("  ✓ Role      : $answer")
+                step = WizardStep.OBJECTIVE
+                nextQuestion()
+            }
+            WizardStep.OBJECTIVE -> {
+                draft["objective"] = answer
+                log("  ✓ Objective : $answer")
+                generateAgent()
+            }
+            WizardStep.DONE -> {}
+        }
+    }
+
+    // ── Command loop ──────────────────────────────────────────────────────────
+
+    log("┌─────────────────────────────────────┐")
+    log("│   CORTEX WIZARD — AGENT CREATOR     │")
+    log("└─────────────────────────────────────┘")
+    log("  Type your answers in the command bar.")
     log("")
-    log("[!] Session timed out or cancelled.")
-    procFile.delete()
-}
+    nextQuestion()
 
-ws.close()
+    val bridge   = app.getInstance(CommandBridgeProvider::class)
+    val deadline = System.currentTimeMillis() + 10 * 60 * 1000L
+
+    bridge.watch(wizardInDir).drain()
+
+    while (step != WizardStep.DONE && System.currentTimeMillis() < deadline) {
+        val answer = bridge.nextCommand() ?: continue
+        if (answer.isNotBlank()) processAnswer(answer)
+    }
+
+    if (step != WizardStep.DONE) {
+        log("")
+        log("[!] Session timed out or cancelled.")
+        procFile.delete()
+    }
+
+    bridge.close()
+}
