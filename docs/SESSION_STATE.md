@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-29 — koupper doctor + CommandBridgeProvider + refactoring_
+_Last updated: 2026-05-29 — koupper doctor + worker --status + CommandBridgeProvider + refactoring_
 
 ---
 
@@ -52,6 +52,11 @@ libs/koupper-monitor.jar      — TUI Lanterna
 ---
 
 ## Features completados (2026-05-29 — sesión actual)
+
+### koupper worker --status
+- Muestra pending/processing/failed/dead por queue y sale inmediatamente sin levantar el daemon
+- Indicadores visuales: `▶` activo · `⚠` failed · `☠` dead-letter
+- Disponible en `develop` y `igly/cortex`
 
 ### koupper doctor
 - Diagnostica el runtime completo en un comando: env vars, JARs, puertos, queues, agentes, schedules
@@ -119,7 +124,7 @@ libs/koupper-monitor.jar      — TUI Lanterna
 ### Alta prioridad
 1. ~~**`koupper doctor`**~~ — Done ✓
 2. **Observability** — métricas jobs/min, success rate, latencia P95 en web UI
-3. **`koupper worker --status`** — muestra queues sin arrancar daemon
+3. ~~**`koupper worker --status`**~~ — Done ✓
 
 ### Media prioridad
 4. **AgentCreatorAgent con LLM** — usar CORTEX para generar el código real del agente (hoy solo genera scaffold con TODOs)
