@@ -1,0 +1,23 @@
+{
+  "name": "RssFeedAgent",
+  "version": "1.0.0",
+  "description": "Fetches configured RSS feeds, extracts latest items, and optionally generates an AI summary using the local LLM",
+  "role": "RSS aggregator and summarizer",
+  "entrypoint": "setup",
+  "inputs": ["~/.koupper/agents/rss-feeds.json (optional config)"],
+  "outputs": ["logs/default/rss-digest-<date>.log"],
+  "envVars": [
+    { "name": "KOUPPER_LLM_MODEL_PATH", "required": false, "description": "If set, generates AI summary of fetched items" },
+    { "name": "CORTEX_JOBS_DIR",        "required": false, "description": "Jobs directory (default: ~/.koupper/jobs)" }
+  ],
+  "providers": ["RSSReader", "InferenceEngine"],
+  "triggers": ["manual", "worker-job", "schedule-daily"],
+  "tags": ["rss", "news", "aggregator", "llm", "summarizer"],
+  "persistent": false,
+  "config": {
+    "file": "~/.koupper/agents/rss-feeds.json",
+    "format": "[{\"name\": \"Feed Name\", \"url\": \"https://feed.url/rss\"}]",
+    "default": ["Hacker News: https://news.ycombinator.com/rss", "The Verge: https://www.theverge.com/rss/index.xml"]
+  },
+  "docs": "https://koupper.com/docs/agents/rss-feed"
+}
