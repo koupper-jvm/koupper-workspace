@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-29 — Sesión de refactoring y nuevo SP_
+_Last updated: 2026-05-29 — koupper doctor + CommandBridgeProvider + refactoring_
 
 ---
 
@@ -52,6 +52,11 @@ libs/koupper-monitor.jar      — TUI Lanterna
 ---
 
 ## Features completados (2026-05-29 — sesión actual)
+
+### koupper doctor
+- Diagnostica el runtime completo en un comando: env vars, JARs, puertos, queues, agentes, schedules
+- Output ✓/⚠/✗ con colores ANSI y resumen de errores/warnings al final
+- Disponible en `develop` y `igly/cortex`
 
 ### Nuevo Service Provider: CommandBridgeProvider
 - Interfaz: `watch(dir)` → `drain()` → `nextCommand(timeoutMs)` → `close()`
@@ -112,7 +117,7 @@ libs/koupper-monitor.jar      — TUI Lanterna
 ## Próximos features (roadmap)
 
 ### Alta prioridad
-1. **`koupper doctor`** — diagnóstico: octopus, llama-server, modelo, puertos, schedules
+1. ~~**`koupper doctor`**~~ — Done ✓
 2. **Observability** — métricas jobs/min, success rate, latencia P95 en web UI
 3. **`koupper worker --status`** — muestra queues sin arrancar daemon
 
