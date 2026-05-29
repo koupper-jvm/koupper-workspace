@@ -126,6 +126,11 @@ fun swarmSnapshot(): Map<String, Any> {
                     "queue" to qDir.name, "status" to "FAILED",
                     "time" to ts())
             }
+            File(qDir, ".dead").listFiles { f -> f.name.endsWith(".json") }?.forEach { f ->
+                jobs += mapOf("id" to f.nameWithoutExtension,
+                    "queue" to qDir.name, "status" to "DEAD",
+                    "time" to ts())
+            }
         }
 
     // Append history (DONE + DEAD), most recent first
@@ -209,11 +214,11 @@ fun startWatcher() = Thread {
                         failedFile.exists() -> "FAILED"
                         else                -> "DONE"
                     }
-                    if (finalStatus == "DONE") {
+                    if (finalStatus != "FAILED") {
                         appendHistory(HistoryEntry(
                             id         = jobId,
                             queue      = dir.name,
-                            status     = "DONE",
+                            status     = finalStatus,
                             time       = ts(),
                             finishedAt = isoNow()
                         ))
