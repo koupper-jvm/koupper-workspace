@@ -1,0 +1,18 @@
+{
+  "name": "AgentCreatorAgent",
+  "version": "2.0.0",
+  "description": "Interactive wizard that collects name, role and objective then uses the local LLM to generate a working Koupper agent script",
+  "role": "Agent factory",
+  "entrypoint": "setup",
+  "inputs": ["user answers via CommandBridge (commands/wizard/*.response)"],
+  "outputs": ["~/.koupper/agents/<Name>.kts", "~/.koupper/agents/draft_<Name>.json", "logs/wizard/<session>.log"],
+  "envVars": [
+    { "name": "KOUPPER_LLM_MODEL_PATH", "required": true,  "description": "Path to .gguf model file (needed for LLM code generation)" },
+    { "name": "CORTEX_JOBS_DIR",        "required": false, "description": "Jobs directory (default: ~/.koupper/jobs)" }
+  ],
+  "providers": ["InferenceEngine", "CommandBridgeProvider"],
+  "triggers": ["manual", "worker-job"],
+  "tags": ["wizard", "agent-creation", "llm", "meta"],
+  "persistent": false,
+  "docs": "https://koupper.com/docs/agents/agent-creator"
+}
