@@ -12,6 +12,7 @@ import com.koupper.shared.annotations.Export
 import com.koupper.providers.agent.AgentMessage
 import com.koupper.providers.agent.InferenceEngine
 import com.koupper.providers.agent.TokenListener
+import com.koupper.providers.commandbridge.CommandBridgeProvider
 import com.koupper.providers.http.HtppClient
 import com.koupper.providers.http.Post
 import com.koupper.providers.mcp.MCPClientProvider
@@ -22,11 +23,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import kotlinx.coroutines.runBlocking
 import java.io.File
-import java.nio.file.*
-import java.nio.file.StandardWatchEventKinds.*
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -220,10 +218,6 @@ fun inferWithTools(
     return reply
 }
 
-// ── Drain stale responses ─────────────────────────────────────────────────────
-
-cmdInDir.listFiles { f -> f.name.endsWith(".response") }?.forEach { it.delete() }
-
 // ── Main entry point ──────────────────────────────────────────────────────────
 
 @Export
@@ -263,48 +257,36 @@ val cortex: () -> Unit = {
         log("  Press Enter on this job to open the command bar.")
         log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-        val ws       = FileSystems.getDefault().newWatchService()
+        val bridge   = app.getInstance(CommandBridgeProvider::class)
         val deadline = System.currentTimeMillis() + 60 * 60 * 1000L
-        cmdInDir.toPath().register(ws, ENTRY_CREATE)
+
+        bridge.watch(cmdInDir).drain()
 
         while (System.currentTimeMillis() < deadline) {
-            val key = ws.poll(500, TimeUnit.MILLISECONDS) ?: continue
+            val userMsg = bridge.nextCommand() ?: continue
 
-            for (ev in key.pollEvents()) {
-                if (ev.kind() == OVERFLOW) continue
-                @Suppress("UNCHECKED_CAST")
-                val fname = (ev as WatchEvent<Path>).context().fileName.toString()
-                if (!fname.endsWith(".response")) continue
+            log("▶ $userMsg")
+            log("")
 
-                val responseFile = File(cmdInDir, fname)
-                val userMsg      = runCatching { responseFile.readText().trim() }.getOrDefault("")
-                responseFile.delete()
-                if (userMsg.isBlank()) continue
+            history.add(AgentMessage("user", userMsg))
+            val reply = inferWithTools(history, engine, externalServers)
+            history.add(AgentMessage("assistant", reply))
 
-                log("▶ $userMsg")
-                log("")
-
-                history.add(AgentMessage("user", userMsg))
-                val reply = inferWithTools(history, engine, externalServers)
-                history.add(AgentMessage("assistant", reply))
-
-                val scriptMatch = Regex("```kotlin(.*?)```", RegexOption.DOT_MATCHES_ALL).find(reply)
-                if (scriptMatch != null) {
-                    val script    = scriptMatch.groupValues[1].trim()
-                    val agentName = Regex("//\\s*Agent:\\s*(.+)").find(script)
-                        ?.groupValues?.get(1)?.trim()?.replace(" ", "")
-                        ?: "Agent${System.currentTimeMillis() % 1000}"
-                    File(agentsDir, "$agentName.kts").writeText(script)
-                    log("[✓ Saved → ~/.koupper/agents/$agentName.kts]")
-                    log("[  Use run_agent to execute it]")
-                }
-                log("")
+            val scriptMatch = Regex("```kotlin(.*?)```", RegexOption.DOT_MATCHES_ALL).find(reply)
+            if (scriptMatch != null) {
+                val script    = scriptMatch.groupValues[1].trim()
+                val agentName = Regex("//\\s*Agent:\\s*(.+)").find(script)
+                    ?.groupValues?.get(1)?.trim()?.replace(" ", "")
+                    ?: "Agent${System.currentTimeMillis() % 1000}"
+                File(agentsDir, "$agentName.kts").writeText(script)
+                log("[✓ Saved → ~/.koupper/agents/$agentName.kts]")
+                log("[  Use run_agent to execute it]")
             }
-            key.reset()
+            log("")
         }
 
         log("[!] Session expired after 1 hour.")
-        ws.close()
+        bridge.close()
     }
     procFile.delete()
 }
