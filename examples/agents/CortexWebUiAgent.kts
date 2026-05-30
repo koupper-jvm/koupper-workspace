@@ -171,7 +171,7 @@ fun computeObservability(): Map<String, Any> {
 // ── Swarm snapshot ────────────────────────────────────────────────────────────
 
 fun swarmSnapshot(): Map<String, Any> {
-    val jobs = mutableListOf<Map<String, Any>>()
+    val jobs = mutableListOf<Map<String, Any?>>()
     var pending = 0; var processing = 0; var failed = 0
 
     jobsDir.listFiles()
@@ -748,6 +748,32 @@ function sendChat() {
     log.scrollTop = log.scrollHeight;
   }).catch(() => {});
 }
+
+// ── Keyboard navigation ───────────────────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  // Don't intercept if user is typing in chat input
+  if (document.activeElement === document.getElementById('chat-input')) return;
+
+  const jobs = allJobs.filter(j =>
+    jobFilter === 'all'    ? true :
+    jobFilter === 'active' ? (j.status === 'PROCESSING' || j.status === 'PENDING') :
+    jobFilter === 'done'   ? j.status === 'DONE' :
+    jobFilter === 'failed' ? (j.status === 'FAILED' || j.status === 'DEAD') : true
+  );
+  if (!jobs.length) return;
+
+  const idx = jobs.findIndex(j => j.id === selectedJob);
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    const next = idx < jobs.length - 1 ? idx + 1 : 0;
+    selectJob(jobs[next].id);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    const prev = idx > 0 ? idx - 1 : jobs.length - 1;
+    selectJob(jobs[prev].id);
+  }
+});
 </script>
 </body>
 </html>"""
