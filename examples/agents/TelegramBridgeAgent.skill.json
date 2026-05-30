@@ -1,0 +1,34 @@
+{
+  "name": "TelegramBridgeAgent",
+  "version": "1.0.0",
+  "description": "Bidirectional bridge between Telegram and CortexAgent. Forwards Telegram messages to CortexAgent via CommandBridge and sends responses back to the user.",
+  "role": "Telegram ↔ CORTEX channel bridge",
+  "entrypoint": "setup",
+  "inputs": [
+    "Telegram messages from configured chat IDs",
+    "~/.koupper/telegram.json OR env vars KOUPPER_TELEGRAM_TOKEN / KOUPPER_TELEGRAM_CHAT_IDS"
+  ],
+  "outputs": [
+    "commands/wizard/*.response (to CortexAgent)",
+    "logs/default/telegram-bridge.log",
+    "Telegram messages sent back to user"
+  ],
+  "envVars": [
+    { "name": "KOUPPER_TELEGRAM_TOKEN",    "required": true,  "description": "Telegram Bot API token from BotFather" },
+    { "name": "KOUPPER_TELEGRAM_CHAT_IDS", "required": false, "description": "Comma-separated allowed chat IDs. Empty = accept all." },
+    { "name": "CORTEX_JOBS_DIR",           "required": false, "description": "Jobs directory (default: ~/.koupper/jobs)" }
+  ],
+  "providers": ["TelegramChannelProvider", "CommandBridgeProvider"],
+  "triggers": ["manual", "koupper-start"],
+  "tags": ["telegram", "channel", "bridge", "cortex", "messaging"],
+  "persistent": true,
+  "requires": ["CortexAgent running (cortex-session job in PROCESSING)"],
+  "setup": [
+    "Create bot at https://t.me/BotFather",
+    "Add token to ~/.koupper/telegram.json",
+    "Get chat ID from https://api.telegram.org/bot<TOKEN>/getUpdates",
+    "Add chat ID to allowedChatIds in telegram.json",
+    "Run: koupper run ~/.koupper/agents/TelegramBridgeAgent.kts"
+  ],
+  "docs": "https://koupper.com/docs/agents/telegram-bridge"
+}
