@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-30 — Fase 1 completada: agentes útiles, skill.json, HeartbeatAgent, RssFeedAgent_
+_Last updated: 2026-05-30 — Fase 1 + documentación pública de comandos y agentes_
 
 ---
 
@@ -134,6 +134,11 @@ libs/koupper-monitor.jar         — TUI Lanterna
 - ~~`koupper doctor`~~ ✓
 - ~~`koupper worker --status`~~ ✓
 - ~~Fase 1: skill.json, AgentCreatorAgent v2, RssFeedAgent, HeartbeatAgent~~ ✓
+
+### Documentación pública (2026-05-30)
+- `koupper-docs` actualizado con sección **Agent Runtime**: `worker`, `schedule`, `doctor`
+- Nueva sección **Agents**: overview + docs individuales de GreetingAgent, AgentCreatorAgent, RssFeedAgent, HeartbeatAgent
+- Sidebar de VitePress actualizado, mergeado a `main` de `koupper-docs`
 
 ### Próximo
 1. **Observability** — métricas jobs/min, success rate, latencia P95 en web UI
