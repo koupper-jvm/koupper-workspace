@@ -19,6 +19,7 @@ import java.nio.file.StandardWatchEventKinds.*
 import java.nio.file.WatchKey
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 
@@ -95,6 +96,75 @@ fun broadcast(data: String) {
     sseClients.removeAll(dead.toSet())
 }
 
+// ── Observability ─────────────────────────────────────────────────────────────
+
+fun parseDurationMs(logFile: File): Long? = runCatching {
+    logFile.readLines().lastOrNull { "[DONE]" in it || "[FAILED]" in it }
+        ?.let { Regex("(\\d+)ms").find(it)?.groupValues?.get(1)?.toLongOrNull() }
+}.getOrNull()
+
+fun computeObservability(): Map<String, Any> {
+    val now        = LocalDateTime.now()
+    val isoFmt     = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+    val oneHourAgo = now.minusHours(1)
+
+    // Filter history to last hour
+    val recent = jobHistory.filter { entry ->
+        runCatching {
+            LocalDateTime.parse(entry.finishedAt, isoFmt).isAfter(oneHourAgo)
+        }.getOrDefault(false)
+    }
+
+    val total   = recent.size
+    val done    = recent.count { it.status == "DONE" }
+    val failed  = recent.count { it.status == "FAILED" || it.status == "DEAD" }
+    val successRate = if (total > 0) (done * 100.0 / total) else 100.0
+    val jobsPerMin  = total / 60.0
+
+    // Extract durations from log files
+    val durations = recent
+        .filter { it.status == "DONE" }
+        .mapNotNull { entry ->
+            val logFile = File(jobsDir, "logs/${entry.queue}/${entry.id}.log")
+            if (logFile.exists()) parseDurationMs(logFile) else null
+        }
+        .sorted()
+
+    val p50 = if (durations.isNotEmpty()) durations[durations.size / 2] else 0L
+    val p95 = if (durations.isNotEmpty())
+        durations[(durations.size * 0.95).toInt().coerceAtMost(durations.size - 1)] else 0L
+
+    // Sparkline: 12 buckets of 5 minutes = 1 hour, [done, failed] per bucket
+    val buckets = (0 until 12).map { i ->
+        val bucketEnd   = now.minusMinutes(((11 - i) * 5).toLong())
+        val bucketStart = bucketEnd.minusMinutes(5)
+        val bucketDone   = recent.count { e ->
+            runCatching {
+                val t = LocalDateTime.parse(e.finishedAt, isoFmt)
+                (t.isAfter(bucketStart) || t.isEqual(bucketStart)) && t.isBefore(bucketEnd)
+            }.getOrDefault(false) && e.status == "DONE"
+        }
+        val bucketFailed = recent.count { e ->
+            runCatching {
+                val t = LocalDateTime.parse(e.finishedAt, isoFmt)
+                (t.isAfter(bucketStart) || t.isEqual(bucketStart)) && t.isBefore(bucketEnd)
+            }.getOrDefault(false) && (e.status == "FAILED" || e.status == "DEAD")
+        }
+        listOf(bucketDone, bucketFailed)
+    }
+
+    return mapOf(
+        "jobsPerMin"     to String.format("%.2f", jobsPerMin),
+        "successRate"    to String.format("%.1f", successRate),
+        "p50Ms"          to p50,
+        "p95Ms"          to p95,
+        "totalLastHour"  to total,
+        "doneLastHour"   to done,
+        "failedLastHour" to failed,
+        "sparkline"      to buckets
+    )
+}
+
 // ── Swarm snapshot ────────────────────────────────────────────────────────────
 
 fun swarmSnapshot(): Map<String, Any> {
@@ -156,13 +226,14 @@ fun swarmSnapshot(): Map<String, Any> {
     val cortexActive = jobs.any { it["id"] == "cortex-session" && it["status"] == "PROCESSING" }
 
     return mapOf(
-        "type"         to "snapshot",
-        "jobs"         to jobs,
-        "metrics"      to mapOf("pending" to pending, "processing" to processing, "done" to done, "failed" to failed),
-        "agents"       to agents,
-        "schedules"    to schedules,
-        "cortexActive" to cortexActive,
-        "time"         to ts()
+        "type"          to "snapshot",
+        "jobs"          to jobs,
+        "metrics"       to mapOf("pending" to pending, "processing" to processing, "done" to done, "failed" to failed),
+        "observability" to computeObservability(),
+        "agents"        to agents,
+        "schedules"     to schedules,
+        "cortexActive"  to cortexActive,
+        "time"          to ts()
     )
 }
 
@@ -262,6 +333,18 @@ header h1{color:var(--cyan);font-size:14px;letter-spacing:2px;font-weight:bold}
 .metric .val{font-size:20px;font-weight:bold;margin-top:1px;font-variant-numeric:tabular-nums}
 .val.p{color:var(--yellow)}.val.pr{color:var(--purple)}.val.d{color:var(--green)}.val.f{color:var(--red)}.val.a{color:var(--cyan)}.val.s{color:#6ee7b7}
 .metrics-sep{width:1px;height:32px;background:var(--border);margin:0 4px}
+/* Observability bar */
+.obs-bar{display:flex;align-items:center;gap:20px;padding:6px 20px;border-bottom:1px solid var(--border);background:#0a0d12;flex-shrink:0;overflow-x:auto}
+.obs-item{display:flex;flex-direction:column;align-items:center;min-width:70px}
+.obs-lbl{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:1px;white-space:nowrap}
+.obs-val{font-size:16px;font-weight:bold;font-variant-numeric:tabular-nums;margin-top:1px}
+.obs-sub{font-size:9px;color:var(--muted);margin-top:1px}
+.obs-sep{width:1px;height:28px;background:#1a2030;margin:0 4px;flex-shrink:0}
+.obs-spark{display:flex;align-items:flex-end;gap:2px;height:28px}
+.obs-spark-col{display:flex;flex-direction:column;align-items:center;gap:1px;justify-content:flex-end}
+.obs-spark-done{background:var(--green);min-height:2px;width:8px;border-radius:1px 1px 0 0;transition:height .3s}
+.obs-spark-fail{background:var(--red);min-height:0;width:8px;border-radius:1px 1px 0 0}
+.sr-good{color:var(--green)}.sr-warn{color:var(--yellow)}.sr-bad{color:var(--red)}
 
 /* Main layout */
 .main{display:flex;flex:1;overflow:hidden;position:relative}
@@ -353,6 +436,20 @@ tr.sel td{background:var(--sel)}
   <div class="metrics-sep"></div>
   <div class="metric"><span class="lbl">Agents</span><span class="val a" id="m-a">0</span></div>
   <div class="metric"><span class="lbl">Schedules</span><span class="val s" id="m-s">0</span></div>
+</div>
+
+<div class="obs-bar" id="obs-bar">
+  <div class="obs-item"><span class="obs-lbl">Jobs/min</span><span class="obs-val" id="o-jpm" style="color:var(--cyan)">—</span><span class="obs-sub">last 60m</span></div>
+  <div class="obs-sep"></div>
+  <div class="obs-item"><span class="obs-lbl">Success rate</span><span class="obs-val sr-good" id="o-sr">—</span><span class="obs-sub" id="o-sr-sub">—</span></div>
+  <div class="obs-sep"></div>
+  <div class="obs-item"><span class="obs-lbl">P50 latency</span><span class="obs-val" id="o-p50" style="color:var(--purple)">—</span><span class="obs-sub">median</span></div>
+  <div class="obs-item"><span class="obs-lbl">P95 latency</span><span class="obs-val" id="o-p95" style="color:var(--yellow)">—</span><span class="obs-sub">95th pct</span></div>
+  <div class="obs-sep"></div>
+  <div class="obs-item" style="align-items:flex-start">
+    <span class="obs-lbl" style="margin-bottom:4px">Activity (1h)</span>
+    <div class="obs-spark" id="o-spark"></div>
+  </div>
 </div>
 
 <div class="main" id="main">
@@ -483,10 +580,49 @@ function updateUI(d) {
   document.getElementById('a-count').textContent = d.agents.length;
   document.getElementById('s-count').textContent = d.schedules.length;
   document.getElementById('cortex-badge').className = d.cortexActive ? 'active' : '';
+  if (d.observability) updateObservability(d.observability);
   allJobs = d.jobs;
   renderJobs();
   renderAgents(d.agents);
   renderSchedules(d.schedules);
+}
+
+function fmtMs(ms) {
+  if (!ms || ms === 0) return '—';
+  if (ms < 1000) return ms + 'ms';
+  if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+  return Math.round(ms / 60000) + 'm';
+}
+
+function updateObservability(o) {
+  document.getElementById('o-jpm').textContent = o.jobsPerMin || '0.00';
+
+  const sr    = parseFloat(o.successRate) || 100;
+  const srEl  = document.getElementById('o-sr');
+  const srSub = document.getElementById('o-sr-sub');
+  srEl.textContent = sr.toFixed(1) + '%';
+  srEl.className   = 'obs-val ' + (sr >= 95 ? 'sr-good' : sr >= 80 ? 'sr-warn' : 'sr-bad');
+  srSub.textContent = (o.doneLastHour || 0) + 'd / ' + (o.failedLastHour || 0) + 'f';
+
+  document.getElementById('o-p50').textContent = fmtMs(o.p50Ms);
+  document.getElementById('o-p95').textContent = fmtMs(o.p95Ms);
+
+  // Sparkline
+  const spark   = document.getElementById('o-spark');
+  const buckets = o.sparkline || [];
+  if (!buckets.length) return;
+  const maxVal  = Math.max(1, ...buckets.map(b => (b[0] || 0) + (b[1] || 0)));
+  spark.innerHTML = buckets.map(b => {
+    const done   = b[0] || 0;
+    const failed = b[1] || 0;
+    const total  = done + failed;
+    const doneH  = Math.round((done / maxVal) * 24);
+    const failH  = Math.round((failed / maxVal) * 24);
+    return '<div class="obs-spark-col" title="' + done + ' done, ' + failed + ' failed">' +
+      (failH > 0 ? '<div class="obs-spark-fail" style="height:' + failH + 'px"></div>' : '') +
+      '<div class="obs-spark-done" style="height:' + Math.max(2, doneH) + 'px;' + (total === 0 ? 'opacity:.2' : '') + '"></div>' +
+      '</div>';
+  }).join('');
 }
 
 function setFilter(f, btn) {
