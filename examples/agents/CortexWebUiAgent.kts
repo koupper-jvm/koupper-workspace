@@ -39,7 +39,8 @@ data class HistoryEntry(
     val queue: String,
     val status: String,
     val time: String,
-    val finishedAt: String
+    val finishedAt: String,
+    val result: String? = null   // null for old entries — backward compatible
 )
 
 val jobHistory = CopyOnWriteArrayList<HistoryEntry>()
@@ -56,7 +57,8 @@ fun loadHistory() {
                     queue      = m["queue"] ?: "",
                     status     = m["status"] ?: "DONE",
                     time       = m["time"] ?: "",
-                    finishedAt = m["finishedAt"] ?: ""
+                    finishedAt = m["finishedAt"] ?: "",
+                    result     = m["result"]
                 ))
             }
         }
@@ -74,7 +76,8 @@ fun appendHistory(entry: HistoryEntry) {
                 "queue"      to entry.queue,
                 "status"     to entry.status,
                 "time"       to entry.time,
-                "finishedAt" to entry.finishedAt
+                "finishedAt" to entry.finishedAt,
+                "result"     to entry.result
             )) + "\n"
         )
         // Trim file to last 500 lines
@@ -206,7 +209,7 @@ fun swarmSnapshot(): Map<String, Any> {
     // Append history (DONE + DEAD), most recent first
     val done = jobHistory.size
     jobHistory.asReversed().take(200).forEach { e ->
-        jobs += mapOf("id" to e.id, "queue" to e.queue, "status" to e.status, "time" to e.time)
+        jobs += mapOf("id" to e.id, "queue" to e.queue, "status" to e.status, "time" to e.time, "result" to e.result)
     }
 
     val agentsDir = File(home, ".koupper/agents")
@@ -286,12 +289,22 @@ fun startWatcher() = Thread {
                         else                -> "DONE"
                     }
                     if (finalStatus != "FAILED") {
+                        val result = runCatching {
+                            val resultFile = File(dir, ".done/$jobId.result.json")
+                            if (resultFile.exists()) {
+                                val raw = mapper.readValue<Map<String, Any?>>(resultFile.readText())
+                                val r = raw["result"]?.toString()?.take(500)
+                                resultFile.delete()
+                                r
+                            } else null
+                        }.getOrNull()
                         appendHistory(HistoryEntry(
                             id         = jobId,
                             queue      = dir.name,
                             status     = finalStatus,
                             time       = ts(),
-                            finishedAt = isoNow()
+                            finishedAt = isoNow(),
+                            result     = result
                         ))
                     }
                 }
@@ -466,7 +479,7 @@ tr.sel td{background:var(--sel)}
     </div>
     <div class="jobs-table">
       <table>
-        <thead><tr><th>Job ID</th><th>Queue</th><th>Status</th><th>Time</th></tr></thead>
+        <thead><tr><th>Job ID</th><th>Queue</th><th>Status</th><th>Time</th><th>Result</th></tr></thead>
         <tbody id="jobs-tbody"><tr><td colspan="4" class="empty">— no jobs —</td></tr></tbody>
       </table>
     </div>
@@ -640,15 +653,17 @@ function renderJobs() {
     jobFilter === 'failed' ? (j.status === 'FAILED' || j.status === 'DEAD') : true
   );
   const tbody = document.getElementById('jobs-tbody');
-  if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">— no jobs —</td></tr>'; return; }
+  if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">— no jobs —</td></tr>'; return; }
   tbody.innerHTML = jobs.map(j => {
     const sel   = j.id === selectedJob ? 'sel' : '';
     const pulse = j.status === 'PROCESSING' ? ' pulse' : '';
+    const res   = j.result ? ('<span title="' + j.result.replace(/"/g,'&quot;') + '" style="color:var(--green);cursor:pointer">' + j.result.substring(0,60) + (j.result.length>60?'…':'') + '</span>') : '<span style="color:var(--muted)">—</span>';
     return '<tr class="' + sel + '" onclick="selectJob(\'' + j.id.replace(/'/g,"\\'") + '\')">' +
       '<td title="' + j.id + '">' + j.id + '</td>' +
       '<td style="color:var(--muted)">' + j.queue + '</td>' +
       '<td><span class="badge' + pulse + ' ' + j.status + '">' + j.status + '</span></td>' +
-      '<td style="color:var(--muted)">' + (j.time||'') + '</td></tr>';
+      '<td style="color:var(--muted)">' + (j.time||'') + '</td>' +
+      '<td style="max-width:220px;overflow:hidden;white-space:nowrap">' + res + '</td></tr>';
   }).join('');
 }
 
@@ -774,7 +789,7 @@ val setup: () -> Unit = {
             path { "/api/history" }
             script { {
                 mapper.writeValueAsString(mapOf("entries" to jobHistory.asReversed().take(200).map { e ->
-                    mapOf("id" to e.id, "queue" to e.queue, "status" to e.status, "time" to e.time, "finishedAt" to e.finishedAt)
+                    mapOf("id" to e.id, "queue" to e.queue, "status" to e.status, "time" to e.time, "finishedAt" to e.finishedAt, "result" to e.result)
                 }))
             } }
         }
