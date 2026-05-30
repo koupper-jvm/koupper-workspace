@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-29 — koupper doctor + worker --status + CommandBridgeProvider + refactoring_
+_Last updated: 2026-05-30 — Fase 1 completada: agentes útiles, skill.json, HeartbeatAgent, RssFeedAgent_
 
 ---
 
@@ -39,19 +39,28 @@ Levanta: Worker daemon · Web UI :18083 · Monitor TUI · MCP server :18082 · C
 ## Archivos instalados en ~/.koupper/
 
 ```
-agents/CortexAgent.kts        — agente CORTEX (InferenceEngine + MCPClient + CommandBridge)
-agents/CortexWebUiAgent.kts   — dashboard web (Grizzly, SSE, historial, resize, glow)
-agents/GreetingAgent.kts      — análisis de swarm (@Export, compatible con worker)
-agents/AgentCreatorAgent.kts  — wizard interactivo (@Export, CommandBridgeProvider)
-libs/octopus-6.5.3.jar        — runtime con CommandBridgeProvider incluido
-libs/octopus.jar              — symlink al anterior
-libs/koupper-cli.jar          — CLI con start/worker/schedule/monitor
-libs/koupper-monitor.jar      — TUI Lanterna
+agents/CortexAgent.kts           — agente CORTEX (InferenceEngine + MCPClient + CommandBridge)
+agents/CortexWebUiAgent.kts      — dashboard web (Grizzly, SSE, historial, resize, glow)
+agents/GreetingAgent.kts         — análisis de swarm (@Export, compatible con worker)
+agents/AgentCreatorAgent.kts     — wizard v2 (@Export, LLM code gen, skill.json auto)
+agents/RssFeedAgent.kts          — fetch RSS + resumen LLM opcional
+agents/HeartbeatAgent.kts        — monitor proactivo de condiciones
+agents/*.skill.json              — metadatos portables por agente
+libs/octopus-6.5.3.jar           — runtime con CommandBridgeProvider incluido
+libs/octopus.jar                 — symlink al anterior
+libs/koupper-cli.jar             — CLI con start/worker/schedule/monitor/doctor
+libs/koupper-monitor.jar         — TUI Lanterna
 ```
 
 ---
 
 ## Features completados (2026-05-29 — sesión actual)
+
+### Fase 1 — Agentes útiles (2026-05-30)
+- **`skill.json`** — formato de metadatos portable para todos los agentes: name, version, description, role, providers, triggers, tags, env vars. Base para marketplace futuro.
+- **`AgentCreatorAgent` v2** — usa `InferenceEngine` SP para generar código real (no TODOs). Prompt estructurado con convenciones Koupper + SPs disponibles. Streaming al log con `TokenListener`. Genera `skill.json` automáticamente para cada agente creado.
+- **`RssFeedAgent`** — fetch RSS real (Hacker News, The Verge por default; configurable en `rss-feeds.json`). Resume con LLM si disponible. Probado en producción.
+- **`HeartbeatAgent`** — autonomía proactiva. Lee `~/.koupper/heartbeat.md`, evalúa condiciones (`file_exists`, `queue_empty`, `queue_has_failed`, `time_after`, `always`), despacha agentes con cooldown. Probado: disparó 2 agentes automáticamente.
 
 ### koupper worker --status
 - Muestra pending/processing/failed/dead por queue y sale inmediatamente sin levantar el daemon
@@ -121,14 +130,16 @@ libs/koupper-monitor.jar      — TUI Lanterna
 
 ## Próximos features (roadmap)
 
-### Alta prioridad
-1. ~~**`koupper doctor`**~~ — Done ✓
-2. **Observability** — métricas jobs/min, success rate, latencia P95 en web UI
-3. ~~**`koupper worker --status`**~~ — Done ✓
+### Completado
+- ~~`koupper doctor`~~ ✓
+- ~~`koupper worker --status`~~ ✓
+- ~~Fase 1: skill.json, AgentCreatorAgent v2, RssFeedAgent, HeartbeatAgent~~ ✓
 
-### Media prioridad
-4. **AgentCreatorAgent con LLM** — usar CORTEX para generar el código real del agente (hoy solo genera scaffold con TODOs)
-5. **Agent marketplace** — `koupper agent list/install/publish`
+### Próximo
+1. **Observability** — métricas jobs/min, success rate, latencia P95 en web UI
+2. **Fase 2: TelegramChannelProvider** — mensajes Telegram → CommandBridge → CortexAgent
+3. **Fase 3: Marketplace** — `koupper agent list/install/publish`, spec skill.json
+4. **Fase 4: Memory + VectorDb** — `VectorDbProvider` real, `memory.md` human-readable
 
 ### igly/cortex
 6. Sync limpio develop → igly/cortex con cherry-pick
