@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-30 — Fase 4 completa: Memory + VectorDb + Qwen2.5-7B operativo_
+_Last updated: 2026-05-30 — Job result en dashboard + nav teclado + Qwen2.5-7B_
 
 ---
 
@@ -13,11 +13,9 @@ Construir IGLY CORTEX — un runtime de agentes AI local usando Koupper como fra
 
 | Repo | Branch | Estado |
 |---|---|---|
-| `koupper` | `develop` | Fase 4 mergeada (`3d0a40a`), pusheado |
-| `koupper` | `feature/phase-4-memory` | Mergeada a develop, pusheada |
-| `koupper-cli` | `develop` | CLI sin monitor/start (open-source) |
-| `koupper-cli` | `igly/cortex` | CLI con monitor/start/schedule |
-| `workspace` | `develop` | CortexAgent con memoria + A3 retry (`f151115`), pusheado |
+| `koupper` | `develop` | resultFn en orchestrator (`55c3212`), pusheado |
+| `koupper-cli` | `igly/cortex` | Worker escribe result a `.done/` (`5f4d58b`), pusheado |
+| `workspace` | `develop` | Dashboard result column + ArrowUp/Down nav (`3419a1e`), pusheado |
 
 ---
 
@@ -95,6 +93,13 @@ vectordb/memory.json             — colección de vectores persistida en disco
   - Responde en español automáticamente (modelo multilingual)
 - Modelo anterior (`modelo_prueba.gguf`, 469MB) descartado — no tenía instruction tuning
 
+### Job result en dashboard + nav teclado (2026-05-30 tarde)
+- **`WorkerCommand.kt`** (`igly/cortex` `5f4d58b`) — extrae última línea del log (retorno `@Export`) y escribe `.done/<id>.result.json` antes de `ack()`. Todo `runCatching`, nunca bloquea el job.
+- **`JobResult.Ok`** (`koupper/develop` `55c3212`) — campo `resultFn: ((Any?) -> Unit)? = null` para path `JobsOrchestrator` (backward compat SQS/Redis).
+- **`CortexWebUiAgent`** (`workspace/develop` `3419a1e`) — `HistoryEntry.result: String? = null`; watcher lee y borra `.result.json`; columna **Result** en tabla (60 chars + hover); `Map<String,Any?>` fix.
+- **ArrowUp/Down** — navegación de teclado en tabla de jobs del web dashboard.
+- **TUI monitor** — flechas pendiente: fuente en `igly/cortex`, sin código fuente visible en workspace actual.
+
 ---
 
 ## Features completados (2026-05-30 — sesión mañana)
@@ -132,9 +137,12 @@ vectordb/memory.json             — colección de vectores persistida en disco
 2. ~~Fase 2: TelegramChannelProvider~~ ✓
 3. ~~Fase 3: Marketplace~~ ✓
 4. ~~Fase 4: Memory + VectorDb~~ ✓
-5. **Sync develop → igly/cortex** — cherry-pick Fase 4 + CortexAgent actualizado
-6. **`CortexMemoryStore` en igly/cortex** → reemplazar por `MemoryProvider` real
-7. **CORTEX multimodal** — Playwright MCP
+5. ~~**Job result visible en dashboard**~~ ✓ (columna Result + hover full value)
+6. ~~**Navegación teclado web dashboard**~~ ✓ (ArrowUp/Down en tabla de jobs)
+7. **Flechas TUI monitor** — fuente en `igly/cortex`, pendiente verificar
+8. **Sync develop → igly/cortex** — cherry-pick Fase 4 + CortexAgent + result
+9. **`CortexMemoryStore` en igly/cortex** → reemplazar por `MemoryProvider` real
+10. **CORTEX multimodal** — Playwright MCP
 
 ---
 
