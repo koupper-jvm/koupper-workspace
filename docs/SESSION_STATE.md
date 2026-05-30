@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-30 — Fase 2: TelegramChannelProvider SP + TelegramBridgeAgent_
+_Last updated: 2026-05-30 — Fase 3: koupper agent marketplace (list/info/install/remove)_
 
 ---
 
@@ -136,6 +136,13 @@ libs/koupper-monitor.jar         — TUI Lanterna
 - ~~`koupper worker --status`~~ ✓
 - ~~Fase 1: skill.json, AgentCreatorAgent v2, RssFeedAgent, HeartbeatAgent~~ ✓
 
+### Fase 3 — Agent Marketplace (2026-05-30)
+- **`koupper agent list`** — tabla de agentes instalados con nombre, rol, versión, persistent (lee `*.skill.json`)
+- **`koupper agent info <name>`** — detalles completos: descripción, triggers, providers, env vars, docs URL
+- **`koupper agent install <url|github:user/repo/Agent.kts>`** — descarga `.kts` + `.skill.json` desde URL directa o shorthand GitHub
+- **`koupper agent remove <name>`** — elimina `.kts`, `.skill.json` y `draft_*.json`
+- Commiteado en `igly/cortex` y `develop` del CLI
+
 ### Fase 2 — TelegramChannelProvider (2026-05-30)
 - **`TelegramChannelProvider`** SP — long-polling Bot API, sin webhooks, sin SDK externo. `startPolling()` con whitelist de chat IDs, `sendMessage()` / `sendLongMessage()` (chunks para límite de 4096 chars). Mergeado a `koupper/develop`.
 - **`TelegramBridgeAgent.kts`** — conecta Telegram ↔ CortexAgent. Lee config de `~/.koupper/telegram.json` o env vars. Detecta si CORTEX está corriendo, manda "typing...", monitorea `cortex-session.log`, limpia ANSI, divide respuestas largas. Instalado en `~/.koupper/agents/`.
@@ -150,7 +157,7 @@ libs/koupper-monitor.jar         — TUI Lanterna
 ### Próximo
 1. **Observability** — métricas jobs/min, success rate, latencia P95 en web UI
 2. ~~**Fase 2: TelegramChannelProvider**~~ — Done ✓
-3. **Fase 3: Marketplace** — `koupper agent list/install/publish`, spec skill.json
+3. ~~**Fase 3: Marketplace**~~ — Done ✓ (list/info/install/remove)
 4. **Fase 4: Memory + VectorDb** — `VectorDbProvider` real, `memory.md` human-readable
 
 ### Para probar Telegram
