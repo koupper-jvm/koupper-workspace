@@ -388,8 +388,8 @@ tr.sel td{background:var(--sel)}
 
 /* Log panel */
 .log{min-width:120px;display:flex;flex-direction:column;overflow:hidden}
-#log-body{flex:1;overflow-y:auto;padding:10px 14px;font-size:12px;line-height:1.7;white-space:pre-wrap;background:var(--panel)}
-.l-w{color:var(--red)}.l-ok{color:var(--green)}.l-info{color:var(--purple)}.l-dim{color:#4b5563}
+#log-body{flex:1;overflow-y:auto;padding:10px 14px;font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-all;background:var(--panel);color:var(--text)}
+.l-w{color:var(--red)}.l-ok{color:var(--green)}.l-info{color:var(--purple)}.l-dim{color:var(--muted)}
 
 /* Sidebar */
 .sidebar{min-width:180px;display:flex;flex-direction:column;overflow:hidden}
@@ -416,7 +416,7 @@ tr.sel td{background:var(--sel)}
 .cortex-glow-wrap::after{content:'';position:absolute;inset:-4px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#2563eb,#06b6d4,#7c3aed);background-size:300% 300%;animation:gradientShift 4s ease infinite;filter:blur(8px);z-index:-1;opacity:.5}
 @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 .cortex-inner{position:relative;z-index:1;background:#0d1117;border-radius:7px;flex:1;display:flex;flex-direction:column;overflow:hidden}
-#chat-log{flex:1;overflow-y:auto;padding:10px 14px;font-size:12px;line-height:1.6}
+#chat-log{flex:1;overflow-y:auto;padding:10px 14px;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text)}
 .chat-input-row{display:flex;padding:8px;border-top:1px solid #1e1e3a;gap:6px;background:#0d0f1a}
 #chat-input{flex:1;background:#0d1117;border:1px solid #2d2060;border-radius:4px;padding:6px 10px;color:var(--text);font-family:inherit;font-size:12px;outline:none;transition:border-color .2s}
 #chat-input:focus{border-color:#7c3aed;box-shadow:0 0 8px rgba(124,58,237,.3)}
@@ -715,10 +715,10 @@ function refreshLog() {
         return;
       }
       document.getElementById('log-body').innerHTML = d.lines.map(l => {
-        const cls = l.includes('ERROR')||l.includes('FAIL')||l.includes('[!]') ? 'l-w' :
-                    l.includes('DONE')||l.includes('[✓]')||l.includes('✓')    ? 'l-ok' :
-                    l.includes('▶')||l.includes('[?]')||l.includes('CORTEX')  ? 'l-info' :
-                    l.startsWith('[') && l.includes(']') ? 'l-dim' : '';
+        const cls = l.includes('ERROR')||l.includes('FAIL')||l.includes('[!]')||l.includes('[FAILED]')||l.includes('[TIMEOUT]') ? 'l-w' :
+                    l.includes('[DONE]')||l.includes('[✓]')||l.includes('✓')||l.includes('[OK]') ? 'l-ok' :
+                    l.includes('▶')||l.includes('[?]')||l.includes('CORTEX')||l.includes('[WORKER]') ? 'l-info' :
+                    l.startsWith('[DEBUG]') ? 'l-dim' : '';
         return '<span class="' + cls + '">' + l.replace(/</g,'&lt;') + '</span>';
       }).join('\n');
       const el = document.getElementById('log-body');
