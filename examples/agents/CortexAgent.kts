@@ -19,6 +19,7 @@ import com.koupper.providers.mcp.MCPClientProvider
 import com.koupper.providers.mcp.MCPConnectedServer
 import com.koupper.providers.mcp.MCPServerConfig
 import com.koupper.providers.mcp.MCPToolDescriptor
+import com.koupper.providers.memory.MemoryProvider
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import kotlinx.coroutines.runBlocking
@@ -33,6 +34,8 @@ val jobsDir   = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
 val agentsDir = File(home, ".koupper/agents").also { it.mkdirs() }
 val mapper    = jacksonObjectMapper()
 val http      = app.getInstance(HtppClient::class)
+
+val memory = runCatching { app.getInstance(MemoryProvider::class) }.getOrNull()
 
 val SESSION_ID = "cortex-session"
 val queueDir   = File(jobsDir, "cortex").also { it.mkdirs() }
@@ -129,6 +132,14 @@ fun buildSystemPrompt(
             }
         }
 
+    val memoryLines = if (memory != null) buildString {
+        appendLine()
+        appendLine("MEMORY TOOLS (always pass the full text inside args):")
+        appendLine("""  • memory.remember — example: CORTEX_TOOL: {"tool":"memory.remember","args":{"text":"the exact fact to store"}}""")
+        appendLine("""  • memory.recall   — example: CORTEX_TOOL: {"tool":"memory.recall","args":{"query":"what to search","topK":5}}""")
+        append("""  • memory.forget   — example: CORTEX_TOOL: {"tool":"memory.forget","args":{"id":"abc123"}}""")
+    } else ""
+
     return buildString {
         appendLine("You are CORTEX, the AI orchestrator of a Koupper automation swarm.")
         appendLine("You run entirely on local LLM infrastructure — no cloud, no remote APIs.")
@@ -136,10 +147,12 @@ fun buildSystemPrompt(
         appendLine("BUILT-IN TOOLS:")
         appendLine(localLines)
         if (externalLines.isNotBlank()) append(externalLines)
+        if (memoryLines.isNotBlank()) append(memoryLines)
         appendLine()
         appendLine("TOOL CALLING: When you need to use a tool, output EXACTLY this on its own line:")
         appendLine("""  CORTEX_TOOL: {"tool":"<name>","args":{<arguments>}}""")
         appendLine("For external tools use the prefix: playwright.screenshot, github.create_pr, etc.")
+        appendLine("For memory tools use: memory.remember, memory.recall, memory.forget.")
         appendLine("You will receive: TOOL_RESULT: <json>. Continue your response after it.")
         appendLine("Only use CORTEX_TOOL when taking action. Regular answers need no prefix.")
         appendLine()
@@ -170,6 +183,13 @@ fun infer(history: List<AgentMessage>, engine: InferenceEngine): String {
     return sb.toString()
 }
 
+// Returns true if the reply looks like a tool call attempt that missed the format.
+// Catches patterns like: funcName(...), tool.name(...), {"tool":...}, memory.remember(...)
+fun looksLikeToolCall(reply: String): Boolean {
+    val lower = reply.lowercase()
+    return lower.contains(Regex("""(memory\.|cortex_tool|\"tool\"\s*:|\w+\s*\(\s*[\"{\w])"""))
+}
+
 fun inferWithTools(
     history: MutableList<AgentMessage>,
     engine: InferenceEngine,
@@ -181,7 +201,23 @@ fun inferWithTools(
     var iters = 0
 
     while (iters < maxIters) {
-        val toolLine = reply.lines().firstOrNull { it.trimStart().startsWith("CORTEX_TOOL:") } ?: break
+        var toolLine = reply.lines().firstOrNull { it.trimStart().startsWith("CORTEX_TOOL:") }
+
+        // A3: if the model tried to call a tool but used wrong format, give it one retry
+        if (toolLine == null && looksLikeToolCall(reply)) {
+            log("  [retry] reformatting tool call...")
+            history.add(AgentMessage("assistant", reply))
+            history.add(AgentMessage("user",
+                "Use the tool with EXACTLY this format on a single line — no code blocks, no extra text:\n" +
+                """CORTEX_TOOL: {"tool":"<name>","args":{<arguments>}}""" + "\nExample: " +
+                """CORTEX_TOOL: {"tool":"memory.remember","args":{"text":"the fact to store"}}"""
+            ))
+            logFile.appendText("[${ts()}] ")
+            reply = infer(history, engine)
+            toolLine = reply.lines().firstOrNull { it.trimStart().startsWith("CORTEX_TOOL:") }
+        }
+
+        toolLine ?: break
         val jsonStr  = toolLine.trimStart().removePrefix("CORTEX_TOOL:").trim()
 
         val result = runCatching {
@@ -190,9 +226,30 @@ fun inferWithTools(
             @Suppress("UNCHECKED_CAST")
             val toolArgs = parsed["args"] as? Map<String, Any?> ?: emptyMap()
 
-            // Route: "playwright.screenshot" → playwright server, "list_agents" → local MCP
+            // Route: memory.* → local MemoryProvider, "playwright.*" → external MCP, else → local MCP
             val dotIdx = fullName.indexOf('.')
-            if (dotIdx > 0) {
+            if (fullName.startsWith("memory.") && memory != null) {
+                val action = fullName.removePrefix("memory.")
+                when (action) {
+                    "remember" -> {
+                        val text = toolArgs["text"]?.toString() ?: return@runCatching "missing 'text'"
+                        val id = memory.remember(text)
+                        """{"id":"$id","status":"stored"}"""
+                    }
+                    "recall" -> {
+                        val query = toolArgs["query"]?.toString() ?: return@runCatching "missing 'query'"
+                        val topK  = (toolArgs["topK"] as? Number)?.toInt() ?: 5
+                        val matches = memory.recall(query, topK)
+                        mapper.writeValueAsString(matches)
+                    }
+                    "forget" -> {
+                        val id = toolArgs["id"]?.toString() ?: return@runCatching "missing 'id'"
+                        val ok = memory.forget(id)
+                        """{"id":"$id","removed":$ok}"""
+                    }
+                    else -> "Unknown memory action: $action"
+                }
+            } else if (dotIdx > 0) {
                 val serverName = fullName.substring(0, dotIdx)
                 val actualTool = fullName.substring(dotIdx + 1)
                 val srv = externalServers.firstOrNull { it.namePrefix == serverName }
@@ -268,7 +325,15 @@ val cortex: () -> Unit = {
             log("▶ $userMsg")
             log("")
 
-            history.add(AgentMessage("user", userMsg))
+            val contextMsg = if (memory != null) {
+                val recalls = memory.recall(userMsg, topK = 3)
+                if (recalls.isNotEmpty()) {
+                    val recallText = recalls.joinToString("\n") { "- [${it.score.let { s -> "%.2f".format(s) }}] ${it.text}" }
+                    "[MEMORY CONTEXT]\n$recallText\n\n[USER]\n$userMsg"
+                } else userMsg
+            } else userMsg
+
+            history.add(AgentMessage("user", contextMsg))
             val reply = inferWithTools(history, engine, externalServers)
             history.add(AgentMessage("assistant", reply))
 
