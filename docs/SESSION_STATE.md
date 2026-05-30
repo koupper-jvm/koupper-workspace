@@ -160,11 +160,17 @@ libs/koupper-monitor.jar         — TUI Lanterna
 - Nueva sección **Agents**: overview + docs individuales de GreetingAgent, AgentCreatorAgent, RssFeedAgent, HeartbeatAgent
 - Sidebar de VitePress actualizado, mergeado a `main` de `koupper-docs`
 
+### Fase 4 — Memory + VectorDb (2026-05-30)
+- **`LocalVectorDbProvider`** — ahora persistente a disco en `~/.koupper/vectordb/<collection>.json`; carga automática al inicio. Retrocompatible (null dataDir = in-memory).
+- **`HashEmbedder`** — texto → vector 512-dims determinista (hash trick + bigrams + normalización). Sin dependencias externas.
+- **`MemoryProvider`** SP — `remember(text)`, `recall(query, topK, minScore)`, `forget(id)`, `list()`. Persiste textos en `~/.koupper/memory/memory-texts.json` y genera `~/.koupper/memory/memory.md` human-readable.
+- **`CortexAgent`** — importa `MemoryProvider`; herramientas `memory.remember/recall/forget` expuestas al LLM; inyecta memorias relevantes como contexto antes de cada turno del usuario.
+
 ### Próximo
 1. ~~**Observability**~~ — Done ✓ (jobs/min, success rate, P50/P95, sparkline)
 2. ~~**Fase 2: TelegramChannelProvider**~~ — Done ✓
 3. ~~**Fase 3: Marketplace**~~ — Done ✓ (list/info/install/remove)
-4. **Fase 4: Memory + VectorDb** — `VectorDbProvider` real, `memory.md` human-readable
+4. ~~**Fase 4: Memory + VectorDb**~~ — Done ✓ (persistencia disco, HashEmbedder, MemoryProvider SP, CortexAgent integrado)
 
 ### Para probar Telegram
 ```bash
