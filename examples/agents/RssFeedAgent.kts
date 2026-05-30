@@ -59,7 +59,8 @@ val setup: () -> Unit = {
 
     feeds.forEach { feed ->
         val name = feed["name"] ?: "Feed"
-        val url  = feed["url"]  ?: return@forEach
+        val url  = feed["url"]
+        if (url.isNullOrBlank()) return@forEach
 
         log("  Fetching: $name")
 
@@ -81,13 +82,14 @@ val setup: () -> Unit = {
         log("")
     }
 
-    if (allItems.isEmpty()) {
+    val hasItems = allItems.isNotEmpty()
+    if (!hasItems) {
         log("No items fetched from any feed. Check network or feed URLs.")
-        return@setup
     }
 
     // ── Summarize with LLM (optional) ─────────────────────────────────────────
 
+    if (hasItems) {
     val engine = runCatching { app.getInstance(InferenceEngine::class) }.getOrNull()
 
     if (engine != null) {
@@ -127,4 +129,5 @@ val setup: () -> Unit = {
     log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     log("  Digest saved to: $logFile")
     log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    } // end if (hasItems)
 }
