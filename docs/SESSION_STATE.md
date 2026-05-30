@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-30 — Fase 3: koupper agent marketplace (list/info/install/remove)_
+_Last updated: 2026-05-30 — Observability panel en dashboard + Fase 3 marketplace_
 
 ---
 
@@ -136,6 +136,12 @@ libs/koupper-monitor.jar         — TUI Lanterna
 - ~~`koupper worker --status`~~ ✓
 - ~~Fase 1: skill.json, AgentCreatorAgent v2, RssFeedAgent, HeartbeatAgent~~ ✓
 
+### Observability panel (2026-05-30)
+- Barra permanente encima de los paneles en el dashboard con: **Jobs/min**, **Success rate** (color-coded: verde ≥95%, amarillo ≥80%, rojo <80% + contador done/failed), **P50**, **P95** (parseados de `[DONE] Xms` en los logs)
+- **Sparkline** — 12 barras de 5min mostrando actividad de la última hora (verde=done, rojo=failed)
+- `computeObservability()` lee `jobHistory` + archivos de log; se incluye en cada SSE snapshot
+- Probado: `totalLastHour=7`, `successRate=100%`, `p50Ms=3103ms` con jobs reales
+
 ### Fase 3 — Agent Marketplace (2026-05-30)
 - **`koupper agent list`** — tabla de agentes instalados con nombre, rol, versión, persistent (lee `*.skill.json`)
 - **`koupper agent info <name>`** — detalles completos: descripción, triggers, providers, env vars, docs URL
@@ -155,7 +161,7 @@ libs/koupper-monitor.jar         — TUI Lanterna
 - Sidebar de VitePress actualizado, mergeado a `main` de `koupper-docs`
 
 ### Próximo
-1. **Observability** — métricas jobs/min, success rate, latencia P95 en web UI
+1. ~~**Observability**~~ — Done ✓ (jobs/min, success rate, P50/P95, sparkline)
 2. ~~**Fase 2: TelegramChannelProvider**~~ — Done ✓
 3. ~~**Fase 3: Marketplace**~~ — Done ✓ (list/info/install/remove)
 4. **Fase 4: Memory + VectorDb** — `VectorDbProvider` real, `memory.md` human-readable
