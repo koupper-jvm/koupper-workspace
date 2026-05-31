@@ -126,11 +126,10 @@ fun buildSystemPrompt(
     externalServers: List<ExternalMcpServer>
 ): String {
     val localLines = if (localTools.isEmpty()) "  (none)"
-    else localTools.joinToString("\n") { t -> 
+    else localTools.joinToString("\n") { t ->
         val name = t["name"]?.toString() ?: "unknown"
         val desc = t["description"]?.toString() ?: ""
-        val params = mapper.writeValueAsString(t["parameters"] ?: emptyMap<String,Any>())
-        "  • $name: $desc (params: $params)"
+        "  • $name: $desc"
     }
 
     val externalLines = if (externalServers.isEmpty()) ""
@@ -141,26 +140,56 @@ fun buildSystemPrompt(
             }
         }
 
-    val memoryLines = if (memory != null) buildString {
-        appendLine()
-        appendLine("MEMORY TOOLS (always pass the full text inside args):")
-        appendLine("""  • memory.remember — example: CORTEX_TOOL: {"tool":"memory.remember","args":{"text":"the exact fact to store"}}""")
-        appendLine("""  • memory.recall   — example: CORTEX_TOOL: {"tool":"memory.recall","args":{"query":"what to search","topK":5}}""")
-        append("""  • memory.forget   — example: CORTEX_TOOL: {"tool":"memory.forget","args":{"id":"abc123"}}""")
-    } else ""
+    val memoryLines = if (memory != null) """
+
+MEMORY TOOLS:
+  • memory.remember — CORTEX_TOOL: {"tool":"memory.remember","args":{"text":"fact to store"}}
+  • memory.recall   — CORTEX_TOOL: {"tool":"memory.recall","args":{"query":"what","topK":5}}
+  • memory.forget   — CORTEX_TOOL: {"tool":"memory.forget","args":{"id":"abc123"}}""" else ""
 
     return buildString {
-        appendLine("You are CORTEX, an autonomous engineer. BE FAST.")
-        appendLine("Every agent YOU create must have this EXACT structure:")
-        appendLine("import com.koupper.shared.annotations.Export")
-        appendLine("@" + "Export val setup: ()->Unit = { println(\"YOUR_MESSAGE\") }")
+        appendLine("You are CORTEX, an autonomous Koupper engineer.")
         appendLine()
-        appendLine("COMMAND FLOW:")
-        appendLine("If asked to create and run, you MUST output TWO tool calls:")
-        appendLine("1. CORTEX_TOOL: {\"tool\":\"create_agent\",\"args\":{\"name\":\"X\",\"content\":\"...\"}}")
-        appendLine("2. CORTEX_TOOL: {\"tool\":\"run_agent\",\"args\":{\"name\":\"X\"}}")
+        appendLine("AVAILABLE TOOLS:")
+        appendLine(localLines)
+        append(externalLines)
+        append(memoryLines)
         appendLine()
-        appendLine("Rules: Never explain code, just EXECUTE. No // comments.")
+        appendLine()
+        appendLine("TOOL CALL FORMAT — one per line, no markdown:")
+        appendLine("""CORTEX_TOOL: {"tool":"<name>","args":{<arguments>}}""")
+        appendLine()
+        appendLine("WHEN A URL IS MENTIONED: always call fetch_url first, then respond.")
+        appendLine("""Example: CORTEX_TOOL: {"tool":"fetch_url","args":{"url":"https://example.com"}}""")
+        appendLine()
+        appendLine("KOUPPER SCRIPT CONTRACT — every .kts script must follow this:")
+        appendLine("  import com.koupper.shared.annotations.Export")
+        appendLine("  import com.koupper.container.app")
+        appendLine("  @Export val setup: () -> Unit = { /* your logic */ }")
+        appendLine()
+        appendLine("PROVIDER EXAMPLES:")
+        appendLine("  // HTTP client")
+        appendLine("  val http = app.getInstance(com.koupper.providers.http.HtppClient::class)")
+        appendLine("  val resp = http.get { url = \"https://api.example.com\" }")
+        appendLine("  println(resp?.asString())")
+        appendLine()
+        appendLine("  // HTTP endpoint server")
+        appendLine("  val router = app.getInstance(com.koupper.providers.runtime.router.GrizzlyRuntimeRouterProvider::class)")
+        appendLine("  router.registerRouter {")
+        appendLine("    get<String> { path { \"/hello\" }; script { { -> \"Hello World\" } } }")
+        appendLine("  }")
+        appendLine("  router.start(8080)")
+        appendLine()
+        appendLine("  // Web reader (JS rendered, images, links)")
+        appendLine("  val web = app.getInstance(com.koupper.providers.web.WebReaderProvider::class)")
+        appendLine("  val page = web.fetch(\"https://example.com\")")
+        appendLine("  println(page.title); println(page.text)")
+        appendLine()
+        appendLine("CREATE + RUN FLOW — output both tool calls in sequence:")
+        appendLine("""  CORTEX_TOOL: {"tool":"create_agent","args":{"name":"MyAgent","content":"<full .kts content>"}}""")
+        appendLine("""  CORTEX_TOOL: {"tool":"run_agent","args":{"name":"MyAgent"}}""")
+        appendLine()
+        appendLine("Rules: answer concisely, use tools when needed, generate valid Kotlin.")
     }
 }
 
@@ -197,7 +226,7 @@ fun inferWithTools(
     history: MutableList<AgentMessage>,
     engine: InferenceEngine,
     externalServers: List<ExternalMcpServer> = emptyList(),
-    maxIters: Int = 5
+    maxIters: Int = 15
 ): String {
     logFile.appendText("[${ts()}] ")
     var reply = infer(history, engine)
@@ -329,23 +358,11 @@ val cortex: () -> Unit = {
             log("▶ $userMsg")
             log("")
 
-            // 1. REASONING STEP: Determine if memory or tools are needed
-            val isTechnical = userMsg.lowercase().let { it.contains("script") || it.contains("koupper") || it.contains("create") || it.contains("agent") }
-            
-            val contextMsg = if (memory != null && isTechnical) {
+            val contextMsg = if (memory != null) {
                 val recalls = memory.recall(userMsg, topK = 1)
-                if (recalls.isNotEmpty()) {
-                    val recallText = recalls.first().text.take(100)
-                    "[CONTEXT: $recallText...]\n$userMsg"
-                } else userMsg
+                if (recalls.isNotEmpty()) "[CONTEXT: ${recalls.first().text.take(100)}...]\n$userMsg"
+                else userMsg
             } else userMsg
-
-            // 2. ORCHESTRATION DIRECTIVE
-            val finalPrompt = if (!isTechnical) {
-                "User says: $userMsg. Respond fluidly and concisely like a human."
-            } else {
-                "User command: $userMsg. DELEGATE heavy work. Use create_agent/run_agent for scripts. Use external tools if available. Do NOT print the full code in chat."
-            }
 
             history.add(AgentMessage("user", contextMsg))
             val reply = inferWithTools(history, engine, externalServers)
