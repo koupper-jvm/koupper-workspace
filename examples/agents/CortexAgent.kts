@@ -337,12 +337,12 @@ val cortex: () -> Unit = {
 
         history.add(AgentMessage("user",
             "System state: $agentCount agents deployed, $pending jobs pending. " +
-            "Greet the user (2 lines max) and ask what they need built today."
+            "Greet the user warmly in 2 lines max and ask what they need built today."
         ))
 
-        val greeting = "Hello! We have $agentCount agents deployed and $pending jobs pending. Ready to execute commands."
+        logFile.appendText("[${ts()}] ")
+        val greeting = infer(history, engine)
         history.add(AgentMessage("assistant", greeting))
-        log("▶ [System] $greeting")
         log("")
         log("  Press Enter on this job to open the command bar.")
         log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
