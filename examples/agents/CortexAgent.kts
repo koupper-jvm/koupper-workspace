@@ -91,38 +91,47 @@ fun loadExternalMcpServers(): List<ExternalMcpServer> {
 
 // ── MCP client (calls CortexMcpServer on port 18082) ─────────────────────────
 
-fun listMcpTools(): List<Map<String, String>> = runCatching {
+fun listMcpTools(): List<Map<String, Any>> = runCatching {
     val resp = http.get { url = "http://127.0.0.1:18082/mcp/tools" }
     @Suppress("UNCHECKED_CAST")
     val body = mapper.readValue<Map<String, Any>>(resp?.asString() ?: return emptyList())
-    (body["tools"] as? List<Map<String, String>>) ?: emptyList()
+    (body["tools"] as? List<Map<String, Any>>) ?: emptyList()
 }.getOrDefault(emptyList())
 
 fun callMcpTool(toolName: String, args: Map<String, Any?>): String = runCatching {
     val payload = mapper.writeValueAsString(mapOf(
-        "jsonrpc" to "2.0", "id" to 1,
-        "method"  to "tools/call",
-        "params"  to mapOf("name" to toolName, "arguments" to args)
+        "name" to toolName,
+        "arguments" to args
     ))
     val resp = http.post {
-        url = "http://127.0.0.1:18082/"
+        url = "http://127.0.0.1:18082/mcp/call"
         headers["Content-Type"] = "application/json"
         body { json(payload) }
     }
     val tree = mapper.readTree(resp.asString() ?: "{}")
-    tree.get("result")?.get("content")?.get(0)?.get("text")?.asText()
-        ?: tree.get("result")?.toString()
+    val result = tree.get("result")
+    
+    // If it follows MCP format content[0].text
+    result?.get("content")?.get(0)?.get("text")?.asText()
+        // If it's the custom Koupper MCP format
+        ?: result?.toString()
+        ?: tree.get("error")?.toString()
         ?: "no result"
 }.getOrElse { e -> "Error calling $toolName: ${e.message?.take(80)}" }
 
 // ── System prompt with live tool list ────────────────────────────────────────
 
 fun buildSystemPrompt(
-    localTools: List<Map<String, String>>,
+    localTools: List<Map<String, Any>>,
     externalServers: List<ExternalMcpServer>
 ): String {
     val localLines = if (localTools.isEmpty()) "  (none)"
-    else localTools.joinToString("\n") { "  • ${it["name"]}: ${it["description"]}" }
+    else localTools.joinToString("\n") { t -> 
+        val name = t["name"]?.toString() ?: "unknown"
+        val desc = t["description"]?.toString() ?: ""
+        val params = mapper.writeValueAsString(t["parameters"] ?: emptyMap<String,Any>())
+        "  • $name: $desc (params: $params)"
+    }
 
     val externalLines = if (externalServers.isEmpty()) ""
     else "\nEXTERNAL MCP TOOLS (prefix: serverName.toolName):\n" +
@@ -141,23 +150,17 @@ fun buildSystemPrompt(
     } else ""
 
     return buildString {
-        appendLine("You are CORTEX, the AI orchestrator of a Koupper automation swarm.")
-        appendLine("You run entirely on local LLM infrastructure — no cloud, no remote APIs.")
+        appendLine("You are CORTEX, an autonomous engineer. BE FAST.")
+        appendLine("Every agent YOU create must have this EXACT structure:")
+        appendLine("import com.koupper.shared.annotations.Export")
+        appendLine("@" + "Export val setup: ()->Unit = { println(\"YOUR_MESSAGE\") }")
         appendLine()
-        appendLine("BUILT-IN TOOLS:")
-        appendLine(localLines)
-        if (externalLines.isNotBlank()) append(externalLines)
-        if (memoryLines.isNotBlank()) append(memoryLines)
+        appendLine("COMMAND FLOW:")
+        appendLine("If asked to create and run, you MUST output TWO tool calls:")
+        appendLine("1. CORTEX_TOOL: {\"tool\":\"create_agent\",\"args\":{\"name\":\"X\",\"content\":\"...\"}}")
+        appendLine("2. CORTEX_TOOL: {\"tool\":\"run_agent\",\"args\":{\"name\":\"X\"}}")
         appendLine()
-        appendLine("TOOL CALLING: When you need to use a tool, output EXACTLY this on its own line:")
-        appendLine("""  CORTEX_TOOL: {"tool":"<name>","args":{<arguments>}}""")
-        appendLine("For external tools use the prefix: playwright.screenshot, github.create_pr, etc.")
-        appendLine("For memory tools use: memory.remember, memory.recall, memory.forget.")
-        appendLine("You will receive: TOOL_RESULT: <json>. Continue your response after it.")
-        appendLine("Only use CORTEX_TOOL when taking action. Regular answers need no prefix.")
-        appendLine()
-        appendLine("For agent code, wrap in a kotlin code block with '// Agent: Name' as first comment.")
-        append("Be concise — terminal UI. Under 8 lines unless generating code.")
+        appendLine("Rules: Never explain code, just EXECUTE. No // comments.")
     }
 }
 
@@ -308,8 +311,9 @@ val cortex: () -> Unit = {
             "Greet the user (2 lines max) and ask what they need built today."
         ))
 
-        val greeting = inferWithTools(history, engine, externalServers)
+        val greeting = "Hello! We have $agentCount agents deployed and $pending jobs pending. Ready to execute commands."
         history.add(AgentMessage("assistant", greeting))
+        log("▶ [System] $greeting")
         log("")
         log("  Press Enter on this job to open the command bar.")
         log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -325,13 +329,23 @@ val cortex: () -> Unit = {
             log("▶ $userMsg")
             log("")
 
-            val contextMsg = if (memory != null) {
-                val recalls = memory.recall(userMsg, topK = 3)
+            // 1. REASONING STEP: Determine if memory or tools are needed
+            val isTechnical = userMsg.lowercase().let { it.contains("script") || it.contains("koupper") || it.contains("create") || it.contains("agent") }
+            
+            val contextMsg = if (memory != null && isTechnical) {
+                val recalls = memory.recall(userMsg, topK = 1)
                 if (recalls.isNotEmpty()) {
-                    val recallText = recalls.joinToString("\n") { "- [${it.score.let { s -> "%.2f".format(s) }}] ${it.text}" }
-                    "[MEMORY CONTEXT]\n$recallText\n\n[USER]\n$userMsg"
+                    val recallText = recalls.first().text.take(100)
+                    "[CONTEXT: $recallText...]\n$userMsg"
                 } else userMsg
             } else userMsg
+
+            // 2. ORCHESTRATION DIRECTIVE
+            val finalPrompt = if (!isTechnical) {
+                "User says: $userMsg. Respond fluidly and concisely like a human."
+            } else {
+                "User command: $userMsg. DELEGATE heavy work. Use create_agent/run_agent for scripts. Use external tools if available. Do NOT print the full code in chat."
+            }
 
             history.add(AgentMessage("user", contextMsg))
             val reply = inferWithTools(history, engine, externalServers)
