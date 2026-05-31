@@ -1,0 +1,6 @@
+{
+  "id": "local-file",
+  "driver": "file",
+  "queue": "agent-swarm",
+  "for-all-projects": true
+}

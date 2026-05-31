@@ -177,39 +177,39 @@ fun swarmSnapshot(): Map<String, Any> {
     jobsDir.listFiles()
         ?.filter { it.isDirectory && !it.name.startsWith(".") && it.name !in excluded }
         ?.forEach { qDir ->
+            // Active
             qDir.listFiles()?.forEach { f ->
                 when {
                     f.name.endsWith(".json.processing") -> {
                         processing++
                         jobs += mapOf("id" to f.name.removeSuffix(".json.processing"),
-                            "queue" to qDir.name, "status" to "PROCESSING",
-                            "time" to ts())
+                            "queue" to qDir.name, "status" to "PROCESSING", "time" to ts())
                     }
                     f.name.endsWith(".json") -> {
                         pending++
                         jobs += mapOf("id" to f.nameWithoutExtension,
-                            "queue" to qDir.name, "status" to "PENDING",
-                            "time" to ts())
+                            "queue" to qDir.name, "status" to "PENDING", "time" to ts())
                     }
                 }
             }
-            File(qDir, ".failed").listFiles { f -> f.name.endsWith(".json") }?.forEach { f ->
-                failed++
-                jobs += mapOf("id" to f.nameWithoutExtension,
-                    "queue" to qDir.name, "status" to "FAILED",
-                    "time" to ts())
-            }
-            File(qDir, ".dead").listFiles { f -> f.name.endsWith(".json") }?.forEach { f ->
-                jobs += mapOf("id" to f.nameWithoutExtension,
-                    "queue" to qDir.name, "status" to "DEAD",
-                    "time" to ts())
+            // Finished
+            listOf(".done" to "DONE", ".failed" to "FAILED", ".dead" to "DEAD").forEach { (folder, status) ->
+                File(qDir, folder).listFiles { f -> f.name.endsWith(".json") || f.name.endsWith(".result.json") }?.forEach { f ->
+                    val id = f.name.removeSuffix(".json").removeSuffix(".result")
+                    if (status == "FAILED") failed++
+                    jobs += mapOf("id" to id, "queue" to qDir.name, "status" to status, "time" to "-")
+                }
             }
         }
 
-    // Append history (DONE + DEAD), most recent first
+    // Unify with live history (keep unique)
+    val seenIds = jobs.map { it["id"] }.toMutableSet()
     val done = jobHistory.size
-    jobHistory.asReversed().take(200).forEach { e ->
-        jobs += mapOf("id" to e.id, "queue" to e.queue, "status" to e.status, "time" to e.time, "result" to e.result)
+    jobHistory.asReversed().take(100).forEach { e ->
+        if (e.id !in seenIds) {
+            jobs += mapOf("id" to e.id, "queue" to e.queue, "status" to e.status, "time" to e.time, "result" to e.result)
+            seenIds.add(e.id)
+        }
     }
 
     val agentsDir = File(home, ".koupper/agents")
@@ -655,10 +655,11 @@ function renderJobs() {
   const tbody = document.getElementById('jobs-tbody');
   if (!jobs.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">— no jobs —</td></tr>'; return; }
   tbody.innerHTML = jobs.map(j => {
-    const sel   = j.id === selectedJob ? 'sel' : '';
+    const key   = j.queue + ':' + j.id;
+    const sel   = key === selectedJob ? 'sel' : '';
     const pulse = j.status === 'PROCESSING' ? ' pulse' : '';
     const res   = j.result ? ('<span title="' + j.result.replace(/"/g,'&quot;') + '" style="color:var(--green);cursor:pointer">' + j.result.substring(0,60) + (j.result.length>60?'…':'') + '</span>') : '<span style="color:var(--muted)">—</span>';
-    return '<tr class="' + sel + '" onclick="selectJob(\'' + j.id.replace(/'/g,"\\'") + '\')">' +
+    return '<tr class="' + sel + '" onclick="selectJob(\'' + j.queue + '\',\'' + j.id.replace(/'/g,"\\'") + '\')">' +
       '<td title="' + j.id + '">' + j.id + '</td>' +
       '<td style="color:var(--muted)">' + j.queue + '</td>' +
       '<td><span class="badge' + pulse + ' ' + j.status + '">' + j.status + '</span></td>' +
@@ -698,8 +699,8 @@ function renderSchedules(scheds) {
 }
 
 // ── Log ───────────────────────────────────────────────────────────────────────
-function selectJob(id) {
-  selectedJob = id;
+function selectJob(queue, id) {
+  selectedJob = queue + ':' + id;
   document.getElementById('log-title').textContent = id;
   renderJobs();
   refreshLog();
@@ -707,7 +708,8 @@ function selectJob(id) {
 
 function refreshLog() {
   if (!selectedJob) return;
-  fetch('/api/logs/' + selectedJob)
+  const [queue, id] = selectedJob.split(':');
+  fetch('/api/logs/' + id + '?queue=' + queue)
     .then(r => r.json())
     .then(d => {
       if (d.error || !d.lines.length) {
@@ -762,16 +764,16 @@ document.addEventListener('keydown', function(e) {
   );
   if (!jobs.length) return;
 
-  const idx = jobs.findIndex(j => j.id === selectedJob);
+  const idx = jobs.findIndex(j => (j.queue + ':' + j.id) === selectedJob);
 
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     const next = idx < jobs.length - 1 ? idx + 1 : 0;
-    selectJob(jobs[next].id);
+    selectJob(jobs[next].queue, jobs[next].id);
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     const prev = idx > 0 ? idx - 1 : jobs.length - 1;
-    selectJob(jobs[prev].id);
+    selectJob(jobs[prev].queue, jobs[prev].id);
   }
 });
 </script>
