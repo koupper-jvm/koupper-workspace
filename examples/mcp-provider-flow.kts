@@ -7,10 +7,7 @@
 import com.koupper.container.app
 import com.koupper.shared.annotations.Export
 import com.koupper.providers.mcp.MCPServerProvider
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
+import com.koupper.providers.http.HtppClient
 
 data class Input(
     val port: Int = 18082
@@ -32,28 +29,22 @@ val mcpDemo: (Input) -> Map<String, Any?> = { input ->
 
     val server = mcp.startHttp(port = input.port)
 
-    val client = HttpClient.newHttpClient()
-    val listRequest = HttpRequest.newBuilder()
-        .uri(URI.create("http://127.0.0.1:${input.port}/mcp/tools"))
-        .GET()
-        .build()
-    val listResponse = client.send(listRequest, HttpResponse.BodyHandlers.ofString())
+    val http = app.getInstance(HtppClient::class)
 
-    val callRequest = HttpRequest.newBuilder()
-        .uri(URI.create("http://127.0.0.1:${input.port}/mcp/call"))
-        .header("Content-Type", "application/json")
-        .POST(HttpRequest.BodyPublishers.ofString("{\"name\":\"sum\",\"arguments\":{\"a\":2,\"b\":5}}"))
-        .build()
-    val callResponse = client.send(callRequest, HttpResponse.BodyHandlers.ofString())
+    val listResponse = http.get { url = "http://127.0.0.1:${input.port}/mcp/tools" }
+    val callResponse = http.post {
+        url = "http://127.0.0.1:${input.port}/mcp/call"
+        body { json("""{"name":"sum","arguments":{"a":2,"b":5}}""") }
+    }
 
     mcp.stop()
 
     mapOf(
-        "ok" to (listResponse.statusCode() == 200 && callResponse.statusCode() == 200),
-        "server" to server,
-        "toolsStatus" to listResponse.statusCode(),
-        "toolsPayload" to listResponse.body(),
-        "callStatus" to callResponse.statusCode(),
-        "callPayload" to callResponse.body()
+        "ok"          to (listResponse?.isSuccessful() == true && callResponse.isSuccessful()),
+        "server"      to server,
+        "toolsStatus" to (listResponse?.code() ?: -1),
+        "toolsPayload" to listResponse?.asString(),
+        "callStatus"  to callResponse.code(),
+        "callPayload" to callResponse.asString()
     )
 }
