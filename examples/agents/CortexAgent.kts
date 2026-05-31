@@ -222,6 +222,59 @@ fun looksLikeToolCall(reply: String): Boolean {
     return lower.contains(Regex("""(memory\.|cortex_tool|\"tool\"\s*:|\w+\s*\(\s*[\"{\w])"""))
 }
 
+// ── Job verification loop ─────────────────────────────────────────────────────
+
+fun waitForJob(jobId: String, queue: String, timeoutMs: Long = 300_000): String {
+    val jobLog  = File(jobsDir, "logs/$queue/$jobId.log")
+    val deadline = System.currentTimeMillis() + timeoutMs
+    // Wait for log file to appear (worker may not have started yet)
+    while (!jobLog.exists() && System.currentTimeMillis() < deadline) Thread.sleep(500)
+
+    while (System.currentTimeMillis() < deadline) {
+        val content = runCatching { jobLog.readText() }.getOrDefault("")
+        when {
+            "[DONE]"    in content -> return "DONE"
+            "[FAILED]"  in content -> return "FAILED"
+            "[TIMEOUT]" in content -> return "TIMEOUT"
+        }
+        Thread.sleep(1_000)
+    }
+    return "TIMEOUT"
+}
+
+fun jobOutput(jobId: String, queue: String, tail: Int = 40): String =
+    runCatching {
+        val lines = File(jobsDir, "logs/$queue/$jobId.log").readLines()
+        lines.takeLast(tail).joinToString("\n")
+    }.getOrDefault("(log not found)")
+
+fun verifyJobResult(runAgentResult: String): String {
+    val data  = runCatching { mapper.readValue<Map<String, Any?>>(runAgentResult) }.getOrNull()
+    val jobId = data?.get("jobId")?.toString() ?: return runAgentResult
+    val queue = data["queue"]?.toString() ?: "default"
+
+    log("  ⏳ waiting for job $jobId [$queue]...")
+    val status = waitForJob(jobId, queue)
+    val output = jobOutput(jobId, queue)
+
+    return when (status) {
+        "DONE" -> {
+            log("  ✓ $jobId completed")
+            "JOB_DONE(jobId=$jobId)\n$output"
+        }
+        "FAILED" -> {
+            log("  ✗ $jobId FAILED — feeding error back")
+            "JOB_FAILED(jobId=$jobId)\n$output\n\nThe script failed. Read the error above, fix it, and call create_agent with the corrected content followed by run_agent."
+        }
+        else -> {
+            log("  ⏱ $jobId timed out")
+            "JOB_TIMEOUT(jobId=$jobId) — job exceeded 5 minutes"
+        }
+    }
+}
+
+// ── Inference + tool loop ─────────────────────────────────────────────────────
+
 fun inferWithTools(
     history: MutableList<AgentMessage>,
     engine: InferenceEngine,
@@ -235,7 +288,6 @@ fun inferWithTools(
     while (iters < maxIters) {
         var toolLine = reply.lines().firstOrNull { it.trimStart().startsWith("CORTEX_TOOL:") }
 
-        // A3: if the model tried to call a tool but used wrong format, give it one retry
         if (toolLine == null && looksLikeToolCall(reply)) {
             log("  [retry] reformatting tool call...")
             history.add(AgentMessage("assistant", reply))
@@ -250,15 +302,17 @@ fun inferWithTools(
         }
 
         toolLine ?: break
-        val jsonStr  = toolLine.trimStart().removePrefix("CORTEX_TOOL:").trim()
+        val jsonStr = toolLine.trimStart().removePrefix("CORTEX_TOOL:").trim()
 
-        val result = runCatching {
+        var executedTool: String? = null
+
+        val rawResult = runCatching {
             val parsed   = mapper.readValue<Map<String, Any?>>(jsonStr)
             val fullName = parsed["tool"]?.toString() ?: return@runCatching "missing 'tool' field"
+            executedTool = fullName
             @Suppress("UNCHECKED_CAST")
             val toolArgs = parsed["args"] as? Map<String, Any?> ?: emptyMap()
 
-            // Route: memory.* → local MemoryProvider, "playwright.*" → external MCP, else → local MCP
             val dotIdx = fullName.indexOf('.')
             if (fullName.startsWith("memory.") && memory != null) {
                 val action = fullName.removePrefix("memory.")
@@ -271,8 +325,7 @@ fun inferWithTools(
                     "recall" -> {
                         val query = toolArgs["query"]?.toString() ?: return@runCatching "missing 'query'"
                         val topK  = (toolArgs["topK"] as? Number)?.toInt() ?: 5
-                        val matches = memory.recall(query, topK)
-                        mapper.writeValueAsString(matches)
+                        mapper.writeValueAsString(memory.recall(query, topK))
                     }
                     "forget" -> {
                         val id = toolArgs["id"]?.toString() ?: return@runCatching "missing 'id'"
@@ -292,6 +345,9 @@ fun inferWithTools(
                 callMcpTool(fullName, toolArgs)
             }
         }.getOrElse { e -> "error: ${e.message?.take(80)}" }
+
+        // Verification loop: intercept run_agent, wait for job, feed real result back
+        val result = if (executedTool == "run_agent") verifyJobResult(rawResult) else rawResult
 
         log("  ↳ ${result.take(200)}")
         log("")
