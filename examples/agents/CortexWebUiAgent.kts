@@ -787,7 +787,7 @@ val setup: () -> Unit = {
     loadHistory()
     startWatcher()
 
-    val router = GrizzlyRuntimeRouterProvider()
+    val router = app.getInstance(GrizzlyRuntimeRouterProvider::class)
 
     router.registerRouter {
         get<Unit> {
