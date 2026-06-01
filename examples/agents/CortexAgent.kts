@@ -165,7 +165,7 @@ MEMORY TOOLS:
         appendLine("KOUPPER SCRIPT CONTRACT — every .kts script must follow this:")
         appendLine("  import com.koupper.shared.annotations.Export")
         appendLine("  import com.koupper.container.app")
-        appendLine("  @Export val setup: () -> Unit = { /* your logic */ }")
+        appendLine("  @" + "Export val setup: () -> Unit = { /* your logic */ }")
         appendLine()
         appendLine("PROVIDER EXAMPLES:")
         appendLine("  // HTTP client")
