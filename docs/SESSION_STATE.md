@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-05-30 — Job result en dashboard + nav teclado + Qwen2.5-7B_
+_Last updated: 2026-05-31 — Dashboard agent viewer + multi-tool fix + chat UX_
 
 ---
 
@@ -15,7 +15,7 @@ Construir IGLY CORTEX — un runtime de agentes AI local usando Koupper como fra
 |---|---|---|
 | `koupper` | `develop` | resultFn en orchestrator (`55c3212`), pusheado |
 | `koupper-cli` | `igly/cortex` | Worker escribe result a `.done/` (`5f4d58b`), pusheado |
-| `workspace` | `develop` | Dashboard result column + ArrowUp/Down nav (`3419a1e`), pusheado |
+| `workspace` | `develop` | Multi-CORTEX_TOOL + dashboard chat UX (`5fe501c`), pusheado |
 
 ---
 
@@ -43,8 +43,8 @@ Levanta: Worker daemon · Web UI :18083 · Monitor TUI · MCP server :18082 · C
 ## Archivos instalados en ~/.koupper/
 
 ```
-agents/CortexAgent.kts           — CORTEX con MemoryProvider + A3 retry integrados
-agents/CortexWebUiAgent.kts      — dashboard web (Grizzly, SSE, historial, resize, glow)
+agents/CortexAgent.kts           — CORTEX con MemoryProvider + A3 retry + multi-tool integrados
+agents/CortexWebUiAgent.kts      — dashboard web (Grizzly, SSE, historial, resize, glow, agent viewer)
 agents/GreetingAgent.kts         — análisis de swarm (@Export, compatible con worker)
 agents/AgentCreatorAgent.kts     — wizard v2 (@Export, LLM code gen, skill.json auto)
 agents/RssFeedAgent.kts          — fetch RSS + resumen LLM opcional
@@ -62,63 +62,59 @@ vectordb/memory.json             — colección de vectores persistida en disco
 
 ---
 
-## Features completados hoy (2026-05-30 — sesión tarde)
+## Features completados hoy (2026-05-31)
 
-### Fase 4 — Memory + VectorDb
+### Dashboard — Agent Script Viewer + Chat UX
 
-**`koupper/providers` — commit `9cae060` → mergeado `3d0a40a` en develop:**
+**`workspace/examples/agents/CortexWebUiAgent.kts`:**
 
-- **`LocalVectorDbProvider` persistente** — escribe `~/.koupper/vectordb/<collection>.json` en cada upsert/delete; carga automática al iniciar. `VectorDbServiceProvider` pasa `dataDir` por defecto. Retrocompatible (null = in-memory).
-- **`HashEmbedder`** — `HashEmbedder.embed(text)`: texto → vector 512-dims determinista. Tokeniza, genera bigrams, acumula en 2 buckets por hash, normaliza L2. Sin dependencias externas.
-- **`MemoryProvider` interface + `LocalMemoryProvider`** — `remember(text)`, `recall(query, topK, minScore)`, `forget(id)`, `list()`. Internamente usa VectorDbProvider. Persiste textos en `memory-texts.json` y genera `memory.md` human-readable tras cada operación.
-- **`MemoryServiceProvider`** — registrado en `ServiceProviderManager` y `providers-catalog.json`. Bind a `~/.koupper/memory/`.
-- **Prueba directa** (`koupper run test-memory.kts`): `remember` × 3, `recall("qué es IGLY CORTEX")` → match correcto con score `0.423`. Archivos generados verificados.
+- **`GET /api/agent/{name}`** — endpoint que devuelve el contenido `.kts` de un agente
+- **Sidebar clickable** — cada agente en la lista abre su script en el panel de log con syntax coloring básico: imports → verde, @Export → cyan, val/fun → amarillo, // → dim
+- **`viewingAgent` flag** — el refresh cada 2s pausa mientras se ve un script; hacer click en el título (`AgentName.kts  ×`) cierra la vista y reanuda el log normal
+- **`watchForResponse()`** — polling del log de cortex-session cada 2s para extraer líneas de respuesta LLM y mostrarlas como burbujas `msg-c`; detecta estabilización (sin cambio en 2 polls = 4s) en lugar de esperar la línea vacía final (~54s)
+- **Auto-scroll inteligente** — solo hace scroll al fondo si el usuario ya estaba dentro de 60px del fondo
+- **`selectJob(queue, id)`** — corregido (antes llamaba con 1 arg → `/api/logs/undefined`)
 
-**`workspace/examples/agents/CortexAgent.kts` — commit `f151115`:**
+### CortexAgent — Multi-tool processing
 
-- Importa `MemoryProvider`; instancia lazy con fallback si no disponible
-- Herramientas `memory.remember`, `memory.recall`, `memory.forget` expuestas al LLM con ejemplos concretos en el system prompt
-- Dispatch nativo: `memory.*` → `LocalMemoryProvider` directamente (sin MCP hop)
-- Inyección de contexto: antes de cada turno del usuario, hace `recall(userMsg, topK=3)` e inyecta bloque `[MEMORY CONTEXT]` si hay matches
-- **A3 retry**: `looksLikeToolCall()` detecta intentos malformados (Kotlin syntax, JSON suelto, `func(...)`) y reintenta con ejemplo explícito antes de rendirse
+**`workspace/examples/agents/CortexAgent.kts` — commit `5fe501c`:**
 
-### Modelo LLM — Qwen2.5-7B-Instruct
+- `inferWithTools` ahora encuentra **todos** los `CORTEX_TOOL:` por respuesta (filter, no firstOrNull)
+- Agrega el reply del assistant **una sola vez** para todo el batch de tool calls
+- Ejecuta cada tool secuencialmente y agrega cada `TOOL_RESULT` al historial
+- Re-infiere una sola vez con todos los resultados en contexto
+- Extraído `executeTool()` helper para reducir anidamiento
+- Caso de uso arreglado: `create_agent` + `run_agent` en la misma respuesta ya no pierde el segundo
 
-- Descargado `qwen2.5-7b-instruct-q4_k_m` (2 partes, ~4.4GB) de HuggingFace
-- `.bashrc` actualizado para apuntar a la parte 1 (llama-server carga ambas)
-- **Resultado de prueba con Qwen2.5:**
-  - `memory.remember` → `CORTEX_TOOL: {"tool":"memory.remember","args":{"text":"..."}}` ✓ en primer intento
-  - `memory.recall` → `CORTEX_TOOL: {"tool":"memory.recall","args":{"query":"IGLY CORTEX","topK":3}}` ✓
-  - `memory.forget` → activó A3 retry y ejecutó correctamente
-  - Responde en español automáticamente (modelo multilingual)
-- Modelo anterior (`modelo_prueba.gguf`, 469MB) descartado — no tenía instruction tuning
+### Catalog fix — WebReaderServiceProvider + PDFReaderServiceProvider
 
-### Job result en dashboard + nav teclado (2026-05-30 tarde)
-- **`WorkerCommand.kt`** (`igly/cortex` `5f4d58b`) — extrae última línea del log (retorno `@Export`) y escribe `.done/<id>.result.json` antes de `ack()`. Todo `runCatching`, nunca bloquea el job.
-- **`JobResult.Ok`** (`koupper/develop` `55c3212`) — campo `resultFn: ((Any?) -> Unit)? = null` para path `JobsOrchestrator` (backward compat SQS/Redis).
-- **`CortexWebUiAgent`** (`workspace/develop` `3419a1e`) — `HistoryEntry.result: String? = null`; watcher lee y borra `.result.json`; columna **Result** en tabla (60 chars + hover); `Map<String,Any?>` fix.
-- **ArrowUp/Down** — navegación de teclado en tabla de jobs del web dashboard.
-- **TUI monitor** — flechas pendiente: fuente en `igly/cortex`, sin código fuente visible en workspace actual.
+**`koupper/providers/src/main/resources/providers-catalog.json`:**
+
+- Agregados `web-reader` y `pdf-reader` al catálogo (estaban registrados en `ServiceProviderManager` pero faltaban en el JSON)
+- Tests `ProviderCatalogConsistencyTest` pasan ✓
 
 ---
 
-## Features completados (2026-05-30 — sesión mañana)
+## Features completados (2026-05-30 — sesión tarde)
 
-### Observability panel
-- Barra permanente en dashboard: **Jobs/min**, **Success rate** (color-coded), **P50**, **P95**, **Sparkline** (12 barras × 5min)
-- Probado: `totalLastHour=7`, `successRate=100%`, `p50Ms=3103ms`
+### Job result en dashboard + nav teclado
+- **`WorkerCommand.kt`** (`igly/cortex` `5f4d58b`) — extrae última línea del log y escribe `.done/<id>.result.json`
+- **`JobResult.Ok`** (`koupper/develop` `55c3212`) — campo `resultFn`
+- **`CortexWebUiAgent`** — columna Result en tabla (60 chars + hover); ArrowUp/Down nav
+
+### Fase 4 — Memory + VectorDb
+- `LocalVectorDbProvider` persistente, `HashEmbedder`, `MemoryProvider` + `LocalMemoryProvider`
+- `MemoryServiceProvider` registrado en catálogo
+- `CortexAgent.kts` con dispatch nativo de memory.*, A3 retry
 
 ### Fase 3 — Agent Marketplace
 - `koupper agent list/info/install/remove`
-- Commiteado en `igly/cortex` y `develop` del CLI
 
 ### Fase 2 — TelegramChannelProvider
 - `TelegramChannelProvider` SP + `TelegramBridgeAgent.kts`
-- Mergeado a `koupper/develop`
 
-### Documentación pública
-- `koupper-docs` con sección Agent Runtime + Agents individuales
-- Mergeado a `koupper-docs/main`
+### Fase 1 — Observability panel
+- Jobs/min, Success rate, P50, P95, Sparkline
 
 ---
 
@@ -137,12 +133,16 @@ vectordb/memory.json             — colección de vectores persistida en disco
 2. ~~Fase 2: TelegramChannelProvider~~ ✓
 3. ~~Fase 3: Marketplace~~ ✓
 4. ~~Fase 4: Memory + VectorDb~~ ✓
-5. ~~**Job result visible en dashboard**~~ ✓ (columna Result + hover full value)
-6. ~~**Navegación teclado web dashboard**~~ ✓ (ArrowUp/Down en tabla de jobs)
-7. **Flechas TUI monitor** — fuente en `igly/cortex`, pendiente verificar
-8. **Sync develop → igly/cortex** — cherry-pick Fase 4 + CortexAgent + result
-9. **`CortexMemoryStore` en igly/cortex** → reemplazar por `MemoryProvider` real
-10. **CORTEX multimodal** — Playwright MCP
+5. ~~Job result visible en dashboard~~ ✓
+6. ~~Navegación teclado web dashboard~~ ✓
+7. ~~Agent script viewer en dashboard~~ ✓
+8. ~~Chat response display + watchForResponse~~ ✓
+9. ~~Multi CORTEX_TOOL processing en CortexAgent~~ ✓
+10. ~~Catalog fix: WebReader + PDFReader~~ ✓
+11. **Flechas TUI monitor** — fuente en `igly/cortex`, pendiente verificar
+12. **Sync develop → igly/cortex** — cherry-pick Fase 4 + CortexAgent + result
+13. **`CortexMemoryStore` en igly/cortex** → reemplazar por `MemoryProvider` real
+14. **CORTEX multimodal** — Playwright MCP
 
 ---
 
