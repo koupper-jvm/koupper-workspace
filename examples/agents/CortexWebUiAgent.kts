@@ -674,13 +674,34 @@ function renderAgents(agents) {
   if (!agents.length) { el.innerHTML = '<div class="empty">No agents installed</div>'; return; }
   el.innerHTML = agents.map((a, i) => {
     const col = agentColors[i % agentColors.length];
-    return '<div class="side-item">' +
+    return '<div class="side-item" style="cursor:pointer" onclick="viewAgent(\'' + a.name + '\')" title="View script">' +
       '<div class="agent-dot ' + col + '"></div>' +
       '<div class="agent-info">' +
         '<div class="name">' + a.name + '</div>' +
         (a.description ? '<div class="desc">' + a.description + '</div>' : '') +
       '</div></div>';
   }).join('');
+}
+
+function viewAgent(name) {
+  document.getElementById('log-title').textContent = name + '.kts';
+  fetch('/api/agent/' + name)
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) {
+        document.getElementById('log-body').innerHTML = '<span class="l-w">' + d.error + '</span>';
+        return;
+      }
+      const lines = d.content.split('\n');
+      document.getElementById('log-body').innerHTML = lines.map(l => {
+        const cls = l.trimStart().startsWith('//') ? 'l-dim' :
+                    l.includes('@Export') || l.includes('@JobsListener') ? 'l-info' :
+                    l.includes('import ') ? 'l-ok' :
+                    l.includes('fun ') || l.includes('val ') || l.includes('var ') ? 'l-w' : '';
+        return '<span class="' + cls + '">' + l.replace(/</g,'&lt;') + '</span>';
+      }).join('\n');
+      document.getElementById('log-body').scrollTop = 0;
+    }).catch(() => {});
 }
 
 function renderSchedules(scheds) {
@@ -810,6 +831,18 @@ val setup: () -> Unit = {
                     mapper.writeValueAsString(mapOf("jobId" to jobId, "lines" to logFile.readLines().takeLast(300)))
                 else
                     mapper.writeValueAsString(mapOf("jobId" to jobId, "lines" to emptyList<String>(), "error" to "log not found"))
+            } }
+        }
+
+        get<String> {
+            path { "/api/agent/{name}" }
+            script { {
+                name: String ->
+                val file = File(home, ".koupper/agents/$name.kts")
+                if (file.exists())
+                    mapper.writeValueAsString(mapOf("name" to name, "content" to file.readText()))
+                else
+                    mapper.writeValueAsString(mapOf("name" to name, "error" to "agent not found"))
             } }
         }
 
