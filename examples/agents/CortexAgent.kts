@@ -275,6 +275,44 @@ fun verifyJobResult(runAgentResult: String): String {
 
 // ── Inference + tool loop ─────────────────────────────────────────────────────
 
+fun executeTool(
+    fullName: String,
+    toolArgs: Map<String, Any?>,
+    externalServers: List<ExternalMcpServer>
+): String {
+    val dotIdx = fullName.indexOf('.')
+    return if (fullName.startsWith("memory.") && memory != null) {
+        val action = fullName.removePrefix("memory.")
+        when (action) {
+            "remember" -> {
+                val text = toolArgs["text"]?.toString() ?: return "missing 'text'"
+                val id = memory.remember(text)
+                """{"id":"$id","status":"stored"}"""
+            }
+            "recall" -> {
+                val query = toolArgs["query"]?.toString() ?: return "missing 'query'"
+                val topK  = (toolArgs["topK"] as? Number)?.toInt() ?: 5
+                mapper.writeValueAsString(memory.recall(query, topK))
+            }
+            "forget" -> {
+                val id = toolArgs["id"]?.toString() ?: return "missing 'id'"
+                val ok = memory.forget(id)
+                """{"id":"$id","removed":$ok}"""
+            }
+            else -> "Unknown memory action: $action"
+        }
+    } else if (dotIdx > 0) {
+        val serverName = fullName.substring(0, dotIdx)
+        val actualTool = fullName.substring(dotIdx + 1)
+        val srv = externalServers.firstOrNull { it.namePrefix == serverName }
+            ?: return "Unknown external MCP server: $serverName"
+        val mcpClient = app.getInstance(MCPClientProvider::class)
+        mcpClient.callTool(srv.connected, actualTool, toolArgs).toString()
+    } else {
+        callMcpTool(fullName, toolArgs)
+    }
+}
+
 fun inferWithTools(
     history: MutableList<AgentMessage>,
     engine: InferenceEngine,
@@ -286,9 +324,10 @@ fun inferWithTools(
     var iters = 0
 
     while (iters < maxIters) {
-        var toolLine = reply.lines().firstOrNull { it.trimStart().startsWith("CORTEX_TOOL:") }
+        var toolLines = reply.lines().filter { it.trimStart().startsWith("CORTEX_TOOL:") }
 
-        if (toolLine == null && looksLikeToolCall(reply)) {
+        // Retry once if it looks like a tool call but wrong format
+        if (toolLines.isEmpty() && looksLikeToolCall(reply)) {
             log("  [retry] reformatting tool call...")
             history.add(AgentMessage("assistant", reply))
             history.add(AgentMessage("user",
@@ -298,62 +337,34 @@ fun inferWithTools(
             ))
             logFile.appendText("[${ts()}] ")
             reply = infer(history, engine)
-            toolLine = reply.lines().firstOrNull { it.trimStart().startsWith("CORTEX_TOOL:") }
+            toolLines = reply.lines().filter { it.trimStart().startsWith("CORTEX_TOOL:") }
         }
 
-        toolLine ?: break
-        val jsonStr = toolLine.trimStart().removePrefix("CORTEX_TOOL:").trim()
+        if (toolLines.isEmpty()) break
 
-        var executedTool: String? = null
-
-        val rawResult = runCatching {
-            val parsed   = mapper.readValue<Map<String, Any?>>(jsonStr)
-            val fullName = parsed["tool"]?.toString() ?: return@runCatching "missing 'tool' field"
-            executedTool = fullName
-            @Suppress("UNCHECKED_CAST")
-            val toolArgs = parsed["args"] as? Map<String, Any?> ?: emptyMap()
-
-            val dotIdx = fullName.indexOf('.')
-            if (fullName.startsWith("memory.") && memory != null) {
-                val action = fullName.removePrefix("memory.")
-                when (action) {
-                    "remember" -> {
-                        val text = toolArgs["text"]?.toString() ?: return@runCatching "missing 'text'"
-                        val id = memory.remember(text)
-                        """{"id":"$id","status":"stored"}"""
-                    }
-                    "recall" -> {
-                        val query = toolArgs["query"]?.toString() ?: return@runCatching "missing 'query'"
-                        val topK  = (toolArgs["topK"] as? Number)?.toInt() ?: 5
-                        mapper.writeValueAsString(memory.recall(query, topK))
-                    }
-                    "forget" -> {
-                        val id = toolArgs["id"]?.toString() ?: return@runCatching "missing 'id'"
-                        val ok = memory.forget(id)
-                        """{"id":"$id","removed":$ok}"""
-                    }
-                    else -> "Unknown memory action: $action"
-                }
-            } else if (dotIdx > 0) {
-                val serverName = fullName.substring(0, dotIdx)
-                val actualTool = fullName.substring(dotIdx + 1)
-                val srv = externalServers.firstOrNull { it.namePrefix == serverName }
-                    ?: return@runCatching "Unknown external MCP server: $serverName"
-                val mcpClient = app.getInstance(MCPClientProvider::class)
-                mcpClient.callTool(srv.connected, actualTool, toolArgs).toString()
-            } else {
-                callMcpTool(fullName, toolArgs)
-            }
-        }.getOrElse { e -> "error: ${e.message?.take(80)}" }
-
-        // Verification loop: intercept run_agent, wait for job, feed real result back
-        val result = if (executedTool == "run_agent") verifyJobResult(rawResult) else rawResult
-
-        log("  ↳ ${result.take(200)}")
-        log("")
-
+        // Add the assistant reply ONCE for all tool calls in this response
         history.add(AgentMessage("assistant", reply))
-        history.add(AgentMessage("user", "TOOL_RESULT: $result"))
+
+        // Execute ALL tool calls sequentially before re-inferring
+        for (toolLine in toolLines) {
+            val jsonStr = toolLine.trimStart().removePrefix("CORTEX_TOOL:").trim()
+
+            var executedTool: String? = null
+            val rawResult = runCatching {
+                val parsed   = mapper.readValue<Map<String, Any?>>(jsonStr)
+                val fullName = parsed["tool"]?.toString() ?: return@runCatching "missing 'tool' field"
+                executedTool = fullName
+                @Suppress("UNCHECKED_CAST")
+                val toolArgs = parsed["args"] as? Map<String, Any?> ?: emptyMap()
+                executeTool(fullName, toolArgs, externalServers)
+            }.getOrElse { e -> "error: ${e.message?.take(80)}" }
+
+            val result = if (executedTool == "run_agent") verifyJobResult(rawResult) else rawResult
+
+            log("  ↳ ${result.take(200)}")
+            log("")
+            history.add(AgentMessage("user", "TOOL_RESULT($executedTool): $result"))
+        }
 
         logFile.appendText("[${ts()}] ")
         reply = infer(history, engine)
