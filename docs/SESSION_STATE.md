@@ -40,10 +40,19 @@ Levanta: Worker daemon · Web UI :18083 · Monitor TUI · MCP server :18082 · C
 
 ---
 
+## Próximo (post-Playwright)
+
+No hay items pendientes del roadmap original. Próximas ideas:
+- Probar CORTEX con Playwright: "abre koupper.com y dime qué ves", "llena este formulario", etc.
+- Conectar más MCPs externos (GitHub MCP, filesystem MCP)
+- Refinar model: probar Qwen2.5-14B o Llama3.1-8B si el hardware lo permite
+
+---
+
 ## Archivos instalados en ~/.koupper/
 
 ```
-agents/CortexAgent.kts           — CORTEX con MemoryProvider + A3 retry + multi-tool integrados
+agents/CortexAgent.kts           — CORTEX con MemoryProvider + A3 retry + multi-tool + Playwright MCP
 agents/CortexWebUiAgent.kts      — dashboard web (Grizzly, SSE, historial, resize, glow, agent viewer)
 agents/GreetingAgent.kts         — análisis de swarm (@Export, compatible con worker)
 agents/AgentCreatorAgent.kts     — wizard v2 (@Export, LLM code gen, skill.json auto)
@@ -142,7 +151,7 @@ vectordb/memory.json             — colección de vectores persistida en disco
 11. ~~**Flechas TUI monitor**~~ ✓ — funcionando en `igly/cortex`
 12. ~~**Sync develop → igly/cortex**~~ ✓ — no era necesario; `igly/cortex` ya tiene todas las features (es el origen)
 13. ~~**`CortexMemoryStore`**~~ ✓ — nunca existió como archivo separado; `CortexAgent.kts` ya usa `MemoryProvider` real
-14. **CORTEX multimodal** — Playwright MCP pendiente: falta crear `~/.koupper/mcp/servers.json`
+14. ~~**CORTEX multimodal**~~ ✓ — Playwright MCP operativo: `~/.koupper/mcp/servers.json` creado, `playwright-mcp` instalado en `~/.local/bin/`, 23 tools disponibles (navigate, click, screenshot, snapshot, fill_form, etc.)
 
 ---
 
