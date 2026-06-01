@@ -139,10 +139,10 @@ vectordb/memory.json             — colección de vectores persistida en disco
 8. ~~Chat response display + watchForResponse~~ ✓
 9. ~~Multi CORTEX_TOOL processing en CortexAgent~~ ✓
 10. ~~Catalog fix: WebReader + PDFReader~~ ✓
-11. **Flechas TUI monitor** — fuente en `igly/cortex`, pendiente verificar
-12. **Sync develop → igly/cortex** — cherry-pick Fase 4 + CortexAgent + result
-13. **`CortexMemoryStore` en igly/cortex** → reemplazar por `MemoryProvider` real
-14. **CORTEX multimodal** — Playwright MCP
+11. ~~**Flechas TUI monitor**~~ ✓ — funcionando en `igly/cortex`
+12. ~~**Sync develop → igly/cortex**~~ ✓ — no era necesario; `igly/cortex` ya tiene todas las features (es el origen)
+13. ~~**`CortexMemoryStore`**~~ ✓ — nunca existió como archivo separado; `CortexAgent.kts` ya usa `MemoryProvider` real
+14. **CORTEX multimodal** — Playwright MCP pendiente: falta crear `~/.koupper/mcp/servers.json`
 
 ---
 
