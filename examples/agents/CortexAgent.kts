@@ -1,25 +1,19 @@
-// CortexAgent.kts — CORTEX Orchestrator
-// Uses Koupper's InferenceEngine SP (LlamaServerSidecar, SSE streaming).
+// CortexAgent.kts — CORTEX Orchestrator (native function calling)
+// Uses OpenAI-compatible function calling when available; falls back to text parsing for local models.
 // Communicates via CommandBridge files and MCP server on port 18082.
-//
-// Required env vars:
-//   KOUPPER_LLM_MODEL_PATH   — path to .gguf model file
-//   KOUPPER_LLM_EXECUTABLE   — path to llama-server binary (default: llama-server)
-//   CORTEX_JOBS_DIR          — jobs dir (default: ~/.koupper/jobs)
 
 import com.koupper.container.app
 import com.koupper.shared.annotations.Export
 import com.koupper.providers.agent.AgentMessage
 import com.koupper.providers.agent.InferenceEngine
-import com.koupper.providers.agent.TokenListener
+import com.koupper.providers.agent.NativeToolCall
+import com.koupper.providers.agent.ToolDefinition
 import com.koupper.providers.commandbridge.CommandBridgeProvider
 import com.koupper.providers.http.HtppClient
 import com.koupper.providers.http.Post
-import com.koupper.providers.mcp.MCPClientProvider
 import com.koupper.providers.mcp.LocalMCPClientProvider
 import com.koupper.providers.mcp.MCPConnectedServer
 import com.koupper.providers.mcp.MCPServerConfig
-import com.koupper.providers.mcp.MCPToolDescriptor
 import com.koupper.providers.memory.MemoryProvider
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -35,8 +29,8 @@ val jobsDir   = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
 val agentsDir = File(home, ".koupper/agents").also { it.mkdirs() }
 val mapper    = jacksonObjectMapper()
 val http      = app.getInstance(HtppClient::class)
-
-val memory = runCatching { app.getInstance(MemoryProvider::class) }.getOrNull()
+val memory    = runCatching { app.getInstance(MemoryProvider::class) }.getOrNull()
+val isCloud   = System.getenv("KOUPPER_LLM_PROVIDER")?.lowercase() == "openai"
 
 val SESSION_ID = "cortex-session"
 val queueDir   = File(jobsDir, "cortex").also { it.mkdirs() }
@@ -50,20 +44,15 @@ logFile.writeText("")
 fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n")
 
-// Register job so monitor table shows CORTEX
 procFile.writeText("""{"id":"$SESSION_ID","fileName":"CortexAgent","functionName":"cortex","scriptPath":"agents/CortexAgent.kts","sourceType":"script"}""")
 
 // ── External MCP servers ──────────────────────────────────────────────────────
-// Config: ~/.koupper/mcp/servers.json
-// Format: [{"name":"playwright","transport":"stdio","command":"npx","args":["@playwright/mcp"]},
-//          {"name":"github","transport":"http","url":"http://localhost:3001"}]
 
 data class ExternalMcpServer(val client: LocalMCPClientProvider, val connected: MCPConnectedServer, val namePrefix: String)
 
 fun loadExternalMcpServers(): List<ExternalMcpServer> {
     val configFile = File(home, ".koupper/mcp/servers.json")
     if (!configFile.exists()) return emptyList()
-
     return runCatching {
         val configs = mapper.readValue<List<Map<String, Any>>>(configFile)
         configs.mapNotNull { cfg ->
@@ -89,7 +78,7 @@ fun loadExternalMcpServers(): List<ExternalMcpServer> {
     }.getOrDefault(emptyList())
 }
 
-// ── MCP client (calls CortexMcpServer on port 18082) ─────────────────────────
+// ── MCP client ────────────────────────────────────────────────────────────────
 
 fun listMcpTools(): List<Map<String, Any>> = runCatching {
     val resp = http.get { url = "http://127.0.0.1:18082/mcp/tools" }
@@ -99,10 +88,7 @@ fun listMcpTools(): List<Map<String, Any>> = runCatching {
 }.getOrDefault(emptyList())
 
 fun callMcpTool(toolName: String, args: Map<String, Any?>): String = runCatching {
-    val payload = mapper.writeValueAsString(mapOf(
-        "name" to toolName,
-        "arguments" to args
-    ))
+    val payload = mapper.writeValueAsString(mapOf("name" to toolName, "arguments" to args))
     val resp = http.post {
         url = "http://127.0.0.1:18082/mcp/call"
         headers["Content-Type"] = "application/json"
@@ -110,120 +96,105 @@ fun callMcpTool(toolName: String, args: Map<String, Any?>): String = runCatching
     }
     val tree = mapper.readTree(resp.asString() ?: "{}")
     val result = tree.get("result")
-    
-    // If it follows MCP format content[0].text
     result?.get("content")?.get(0)?.get("text")?.asText()
-        // If it's the custom Koupper MCP format
         ?: result?.toString()
         ?: tree.get("error")?.toString()
         ?: "no result"
 }.getOrElse { e -> "Error calling $toolName: ${e.message?.take(80)}" }
 
-// ── System prompt with live tool list ────────────────────────────────────────
+// ── Tool definitions for native function calling ──────────────────────────────
 
-fun buildSystemPrompt(
+@Suppress("UNCHECKED_CAST")
+fun buildToolDefinitions(
     localTools: List<Map<String, Any>>,
     externalServers: List<ExternalMcpServer>
-): String {
-    val localLines = if (localTools.isEmpty()) "  (none)"
-    else localTools.joinToString("\n") { t ->
-        val name = t["name"]?.toString() ?: "unknown"
-        val desc = t["description"]?.toString() ?: ""
-        "  • $name: $desc"
+): List<ToolDefinition> {
+    val defs = mutableListOf<ToolDefinition>()
+
+    for (t in localTools) {
+        val name   = t["name"]?.toString() ?: continue
+        val desc   = t["description"]?.toString() ?: ""
+        val schema = (t["inputSchema"] as? Map<String, Any>)
+            ?: mapOf("type" to "object", "properties" to emptyMap<String, Any>())
+        defs.add(ToolDefinition(name, desc, schema))
     }
 
-    val externalLines = if (externalServers.isEmpty()) ""
-    else "\nEXTERNAL MCP TOOLS (prefix: serverName.toolName):\n" +
-        externalServers.joinToString("\n") { srv ->
-            srv.connected.tools.joinToString("\n") { t ->
-                "  • ${srv.namePrefix}.${t.name}: ${t.description}"
+    for (srv in externalServers) {
+        for (t in srv.connected.tools) {
+            val prefixed = "${srv.namePrefix}.${t.name}"
+            val schema   = (t.inputSchema as? Map<String, Any>)
+                ?: mapOf("type" to "object", "properties" to emptyMap<String, Any>())
+            defs.add(ToolDefinition(prefixed, t.description ?: "", schema))
+        }
+    }
+
+    if (memory != null) {
+        defs.add(ToolDefinition("memory.remember", "Store a fact in long-term memory",
+            mapOf("type" to "object", "properties" to mapOf("text" to mapOf("type" to "string", "description" to "Fact to store")), "required" to listOf("text"))))
+        defs.add(ToolDefinition("memory.recall", "Search long-term memory",
+            mapOf("type" to "object", "properties" to mapOf("query" to mapOf("type" to "string"), "topK" to mapOf("type" to "integer")), "required" to listOf("query"))))
+        defs.add(ToolDefinition("memory.forget", "Remove a memory entry by id",
+            mapOf("type" to "object", "properties" to mapOf("id" to mapOf("type" to "string")), "required" to listOf("id"))))
+    }
+
+    return defs
+}
+
+fun buildSystemPrompt(toolDefs: List<ToolDefinition>): String = buildString {
+    appendLine("You are CORTEX, an autonomous engineer and coding assistant.")
+    appendLine("You have access to tools. Use them proactively — don't ask permission to create files or run commands.")
+    appendLine()
+    appendLine("Key tools available:")
+    appendLine("  bash       — run shell commands (mkdir, npm, git, etc.)")
+    appendLine("  write_file — create or overwrite a file (~ supported)")
+    appendLine("  read_file  — read a file")
+    appendLine("  list_dir   — list directory contents")
+    appendLine("  fetch_url  — fetch a URL")
+    appendLine("  create_agent + run_agent — create and run Koupper .kts scripts")
+    appendLine()
+    appendLine("PROJECT FLOW: bash mkdir → write_file each file → bash install → bash build → report.")
+    appendLine("KOUPPER SCRIPTS: import com.koupper.shared.annotations.Export; @" + "Export val setup: () -> Unit = { ... }")
+}
+
+// ── Tool execution ────────────────────────────────────────────────────────────
+
+fun executeToolCall(name: String, args: Map<String, Any?>, externalServers: List<ExternalMcpServer>): String {
+    val dotIdx = name.indexOf('.')
+    return when {
+        name.startsWith("memory.") && memory != null -> {
+            when (name.removePrefix("memory.")) {
+                "remember" -> {
+                    val text = args["text"]?.toString() ?: return "missing 'text'"
+                    """{"id":"${memory.remember(text)}","status":"stored"}"""
+                }
+                "recall" -> {
+                    val query = args["query"]?.toString() ?: return "missing 'query'"
+                    mapper.writeValueAsString(memory.recall(query, (args["topK"] as? Number)?.toInt() ?: 5))
+                }
+                "forget" -> {
+                    val id = args["id"]?.toString() ?: return "missing 'id'"
+                    """{"id":"$id","removed":${memory.forget(id)}}"""
+                }
+                else -> "Unknown memory action"
             }
         }
-
-    val memoryLines = if (memory != null) """
-
-MEMORY TOOLS:
-  • memory.remember — CORTEX_TOOL: {"tool":"memory.remember","args":{"text":"fact to store"}}
-  • memory.recall   — CORTEX_TOOL: {"tool":"memory.recall","args":{"query":"what","topK":5}}
-  • memory.forget   — CORTEX_TOOL: {"tool":"memory.forget","args":{"id":"abc123"}}""" else ""
-
-    return buildString {
-        appendLine("You are CORTEX, an autonomous Koupper engineer.")
-        appendLine()
-        appendLine("AVAILABLE TOOLS:")
-        appendLine(localLines)
-        append(externalLines)
-        append(memoryLines)
-        appendLine()
-        appendLine()
-        appendLine("TOOL CALL FORMAT — one per line, no markdown:")
-        appendLine("""CORTEX_TOOL: {"tool":"<name>","args":{<arguments>}}""")
-        appendLine()
-        appendLine("WHEN A URL IS MENTIONED: always call fetch_url first, then respond.")
-        appendLine("""Example: CORTEX_TOOL: {"tool":"fetch_url","args":{"url":"https://example.com"}}""")
-        appendLine()
-        appendLine("FILE SYSTEM TOOLS — use these to create projects, read files, run commands:")
-        appendLine("""  write_file  : CORTEX_TOOL: {"tool":"write_file","args":{"path":"/abs/path/file.txt","content":"..."}}""")
-        appendLine("""  read_file   : CORTEX_TOOL: {"tool":"read_file","args":{"path":"/abs/path/file.txt"}}""")
-        appendLine("""  list_dir    : CORTEX_TOOL: {"tool":"list_dir","args":{"path":"/abs/path"}}""")
-        appendLine("""  bash        : CORTEX_TOOL: {"tool":"bash","args":{"command":"npm install","cwd":"/project"}}""")
-        appendLine()
-        appendLine("PROJECT SCAFFOLDING FLOW — to create a project:")
-        appendLine("  1. bash: mkdir -p /path/to/project")
-        appendLine("  2. write_file: create each file (package.json, index.ts, etc.)")
-        appendLine("  3. bash: install deps, run build/lint")
-        appendLine("  4. Report what was created")
-        appendLine()
-        appendLine("KOUPPER SCRIPT CONTRACT — every .kts script must follow this:")
-        appendLine("  import com.koupper.shared.annotations.Export")
-        appendLine("  import com.koupper.container.app")
-        appendLine("  @" + "Export val setup: () -> Unit = { /* your logic */ }")
-        appendLine()
-        appendLine("CREATE + RUN FLOW — output both tool calls in sequence:")
-        appendLine("""  CORTEX_TOOL: {"tool":"create_agent","args":{"name":"MyAgent","content":"<full .kts content>"}}""")
-        appendLine("""  CORTEX_TOOL: {"tool":"run_agent","args":{"name":"MyAgent"}}""")
-        appendLine()
-        appendLine("Rules: answer concisely, use tools when needed, be proactive — don't ask permission to create files.")
-    }
-}
-
-// ── Streaming inference with tool loop ────────────────────────────────────────
-
-fun infer(history: List<AgentMessage>, engine: InferenceEngine): String {
-    val sb = StringBuilder()
-    // TokenListener writes each token directly to log file — real-time streaming
-    val listener = object : TokenListener {
-        override fun onToken(token: String, agentId: String) {
-            sb.append(token)
-            logFile.appendText(token)
+        dotIdx > 0 -> {
+            val serverName = name.substring(0, dotIdx)
+            val actualTool = name.substring(dotIdx + 1)
+            val srv = externalServers.firstOrNull { it.namePrefix == serverName }
+                ?: return "Unknown external MCP server: $serverName"
+            srv.client.callTool(srv.connected, actualTool, args).toString()
         }
+        else -> callMcpTool(name, args)
     }
-    runCatching {
-        runBlocking { engine.predict<String>(history, listener = listener) }
-    }.onFailure { e ->
-        val err = "[Error: ${e.message?.take(80)}]"
-        logFile.appendText("$err\n")
-        sb.append(err)
-    }
-    logFile.appendText("\n")
-    return sb.toString()
 }
 
-// Returns true if the reply looks like a tool call attempt that missed the format.
-// Catches patterns like: funcName(...), tool.name(...), {"tool":...}, memory.remember(...)
-fun looksLikeToolCall(reply: String): Boolean {
-    val lower = reply.lowercase()
-    return lower.contains(Regex("""(memory\.|cortex_tool|\"tool\"\s*:|\w+\s*\(\s*[\"{\w])"""))
-}
-
-// ── Job verification loop ─────────────────────────────────────────────────────
+// ── Job verification ──────────────────────────────────────────────────────────
 
 fun waitForJob(jobId: String, queue: String, timeoutMs: Long = 300_000): String {
     val jobLog  = File(jobsDir, "logs/$queue/$jobId.log")
     val deadline = System.currentTimeMillis() + timeoutMs
-    // Wait for log file to appear (worker may not have started yet)
     while (!jobLog.exists() && System.currentTimeMillis() < deadline) Thread.sleep(500)
-
     while (System.currentTimeMillis() < deadline) {
         val content = runCatching { jobLog.readText() }.getOrDefault("")
         when {
@@ -236,145 +207,100 @@ fun waitForJob(jobId: String, queue: String, timeoutMs: Long = 300_000): String 
     return "TIMEOUT"
 }
 
-fun jobOutput(jobId: String, queue: String, tail: Int = 40): String =
-    runCatching {
-        val lines = File(jobsDir, "logs/$queue/$jobId.log").readLines()
-        lines.takeLast(tail).joinToString("\n")
-    }.getOrDefault("(log not found)")
+fun jobOutput(jobId: String, queue: String): String = runCatching {
+    File(jobsDir, "logs/$queue/$jobId.log").readLines().takeLast(40).joinToString("\n")
+}.getOrDefault("(log not found)")
 
-fun verifyJobResult(runAgentResult: String): String {
-    val data  = runCatching { mapper.readValue<Map<String, Any?>>(runAgentResult) }.getOrNull()
-    val jobId = data?.get("jobId")?.toString() ?: return runAgentResult
+fun verifyJobResult(rawResult: String): String {
+    val data  = runCatching { mapper.readValue<Map<String, Any?>>(rawResult) }.getOrNull()
+    val jobId = data?.get("jobId")?.toString() ?: return rawResult
     val queue = data["queue"]?.toString() ?: "default"
-
     log("  ⏳ waiting for job $jobId [$queue]...")
     val status = waitForJob(jobId, queue)
     val output = jobOutput(jobId, queue)
-
     return when (status) {
-        "DONE" -> {
-            log("  ✓ $jobId completed")
-            "JOB_DONE(jobId=$jobId)\n$output"
-        }
-        "FAILED" -> {
-            log("  ✗ $jobId FAILED — feeding error back")
-            "JOB_FAILED(jobId=$jobId)\n$output\n\nThe script failed. Read the error above, fix it, and call create_agent with the corrected content followed by run_agent."
-        }
-        else -> {
-            log("  ⏱ $jobId timed out")
-            "JOB_TIMEOUT(jobId=$jobId) — job exceeded 5 minutes"
-        }
+        "DONE"   -> { log("  ✓ $jobId completed"); "JOB_DONE(jobId=$jobId)\n$output" }
+        "FAILED" -> { log("  ✗ $jobId FAILED"); "JOB_FAILED(jobId=$jobId)\n$output\n\nFix the error and retry." }
+        else     -> { log("  ⏱ $jobId timed out"); "JOB_TIMEOUT(jobId=$jobId)" }
     }
 }
 
-// ── Inference + tool loop ─────────────────────────────────────────────────────
+// ── Native function calling loop ──────────────────────────────────────────────
 
-fun executeTool(
-    fullName: String,
-    toolArgs: Map<String, Any?>,
-    externalServers: List<ExternalMcpServer>
-): String {
-    val dotIdx = fullName.indexOf('.')
-    return if (fullName.startsWith("memory.") && memory != null) {
-        val action = fullName.removePrefix("memory.")
-        when (action) {
-            "remember" -> {
-                val text = toolArgs["text"]?.toString() ?: return "missing 'text'"
-                val id = memory.remember(text)
-                """{"id":"$id","status":"stored"}"""
-            }
-            "recall" -> {
-                val query = toolArgs["query"]?.toString() ?: return "missing 'query'"
-                val topK  = (toolArgs["topK"] as? Number)?.toInt() ?: 5
-                mapper.writeValueAsString(memory.recall(query, topK))
-            }
-            "forget" -> {
-                val id = toolArgs["id"]?.toString() ?: return "missing 'id'"
-                val ok = memory.forget(id)
-                """{"id":"$id","removed":$ok}"""
-            }
-            else -> "Unknown memory action: $action"
-        }
-    } else if (dotIdx > 0) {
-        val serverName = fullName.substring(0, dotIdx)
-        val actualTool = fullName.substring(dotIdx + 1)
-        val srv = externalServers.firstOrNull { it.namePrefix == serverName }
-            ?: return "Unknown external MCP server: $serverName"
-        srv.client.callTool(srv.connected, actualTool, toolArgs).toString()
-    } else {
-        callMcpTool(fullName, toolArgs)
-    }
-}
-
-fun inferWithTools(
+fun inferWithNativeTools(
     history: MutableList<AgentMessage>,
     engine: InferenceEngine,
-    externalServers: List<ExternalMcpServer> = emptyList(),
-    maxIters: Int = 15
+    toolDefs: List<ToolDefinition>,
+    externalServers: List<ExternalMcpServer>,
+    maxIters: Int = 20
 ): String {
-    logFile.appendText("[${ts()}] ")
-    var reply = infer(history, engine)
     var iters = 0
+    var lastText = ""
 
     while (iters < maxIters) {
-        var toolLines = reply.lines().filter { it.trimStart().startsWith("CORTEX_TOOL:") }
-
-        // Retry once if it looks like a tool call but wrong format
-        if (toolLines.isEmpty() && looksLikeToolCall(reply)) {
-            log("  [retry] reformatting tool call...")
-            history.add(AgentMessage("assistant", reply))
-            history.add(AgentMessage("user",
-                "Use the tool with EXACTLY this format on a single line — no code blocks, no extra text:\n" +
-                """CORTEX_TOOL: {"tool":"<name>","args":{<arguments>}}""" + "\nExample: " +
-                """CORTEX_TOOL: {"tool":"memory.remember","args":{"text":"the fact to store"}}"""
-            ))
-            logFile.appendText("[${ts()}] ")
-            reply = infer(history, engine)
-            toolLines = reply.lines().filter { it.trimStart().startsWith("CORTEX_TOOL:") }
-        }
-
-        if (toolLines.isEmpty()) break
-
-        // Add the assistant reply ONCE for all tool calls in this response
-        history.add(AgentMessage("assistant", reply))
-
-        // Execute ALL tool calls sequentially before re-inferring
-        for (toolLine in toolLines) {
-            val jsonStr = toolLine.trimStart().removePrefix("CORTEX_TOOL:").trim()
-
-            var executedTool: String? = null
-            val rawResult = runCatching {
-                val parsed   = mapper.readValue<Map<String, Any?>>(jsonStr)
-                val fullName = parsed["tool"]?.toString() ?: return@runCatching "missing 'tool' field"
-                executedTool = fullName
-                @Suppress("UNCHECKED_CAST")
-                val toolArgs = parsed["args"] as? Map<String, Any?> ?: emptyMap()
-                executeTool(fullName, toolArgs, externalServers)
-            }.getOrElse { e -> "error: ${e.message?.take(80)}" }
-
-            val result = if (executedTool == "run_agent") verifyJobResult(rawResult) else rawResult
-
-            log("  ↳ ${result.take(200)}")
-            log("")
-            history.add(AgentMessage("user", "TOOL_RESULT($executedTool): $result"))
-        }
-
         logFile.appendText("[${ts()}] ")
-        reply = infer(history, engine)
+        val result = runCatching {
+            runBlocking { engine.predictWithTools(history, toolDefs) }
+        }.getOrElse { e ->
+            val err = "[Error: ${e.message?.take(100)}]"
+            logFile.appendText("$err\n")
+            return err
+        }
+
+        lastText = result.text
+
+        if (result.toolCalls.isEmpty()) {
+            if (lastText.isNotBlank()) logFile.appendText(lastText)
+            logFile.appendText("\n")
+            break
+        }
+
+        if (lastText.isNotBlank()) logFile.appendText(lastText)
+        logFile.appendText("\n")
+
+        // Add assistant message with ALL tool calls in one batch
+        history.add(AgentMessage(
+            role             = "assistant",
+            content          = lastText,
+            nativeToolCalls  = result.toolCalls
+        ))
+
+        // Execute all tool calls and add tool result messages
+        for (tc in result.toolCalls) {
+            log("  → ${tc.name}(${mapper.writeValueAsString(tc.arguments).take(120)})")
+            val rawResult = runCatching {
+                executeToolCall(tc.name, tc.arguments, externalServers)
+            }.getOrElse { e -> "Error: ${e.message?.take(80)}" }
+
+            val toolResult = if (tc.name == "run_agent") verifyJobResult(rawResult) else rawResult
+            log("  ↳ ${toolResult.take(200)}")
+            log("")
+
+            // Tool result message — role="tool", tool_call_id matches the tc.id
+            history.add(AgentMessage(
+                role     = "tool",
+                content  = toolResult,
+                toolCall = com.koupper.providers.agent.ToolCall(
+                    toolName  = tc.name,
+                    action    = tc.id,   // tool_call_id
+                    arguments = tc.arguments
+                )
+            ))
+        }
+
         iters++
     }
 
-    return reply
+    return lastText
 }
 
 // ── Main entry point ──────────────────────────────────────────────────────────
 
 @Export
-val cortex: () -> Unit = {
+val setup: () -> Unit = {
 
     val engine = runCatching { app.getInstance(InferenceEngine::class) }.getOrElse { e ->
         log("⚠ InferenceEngine not available: ${e.message}")
-        log("  Set KOUPPER_LLM_MODEL_PATH and KOUPPER_LLM_EXECUTABLE.")
         procFile.delete()
         null
     }
@@ -382,12 +308,13 @@ val cortex: () -> Unit = {
     if (engine != null) {
         val localTools      = listMcpTools()
         val externalServers = loadExternalMcpServers()
-        val history = mutableListOf(AgentMessage("system", buildSystemPrompt(localTools, externalServers)))
+        val toolDefs        = buildToolDefinitions(localTools, externalServers)
+        val history         = mutableListOf(AgentMessage("system", buildSystemPrompt(toolDefs)))
 
         log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        log("  CORTEX ONLINE — Koupper InferenceEngine")
-        log("  Built-in tools : ${localTools.size}")
-        log("  External MCPs  : ${externalServers.size} servers")
+        log("  CORTEX ONLINE — ${if (isCloud) "Cloud (${System.getenv("KOUPPER_LLM_MODEL") ?: "?"})" else "Local"}")
+        log("  Tools: ${toolDefs.size} (${localTools.size} MCP + ${externalServers.sumOf { it.connected.tools.size }} external${if (memory != null) " + 3 memory" else ""})")
+        log("  Mode: ${if (isCloud) "native function calling" else "text-based CORTEX_TOOL"}")
         log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         val agentCount = agentsDir.listFiles { f -> f.name.endsWith(".kts") && f.name != "CortexAgent.kts" }?.size ?: 0
@@ -397,12 +324,14 @@ val cortex: () -> Unit = {
 
         history.add(AgentMessage("user",
             "System state: $agentCount agents deployed, $pending jobs pending. " +
-            "Greet the user warmly in 2 lines max and ask what they need built today."
+            "Greet the user in 1-2 lines and ask what to build."
         ))
 
-        logFile.appendText("[${ts()}] ")
-        val greeting = infer(history, engine)
+        val greeting = runCatching {
+            runBlocking { engine.predict<String>(history) }
+        }.getOrDefault("CORTEX ready. What do you want to build?")
         history.add(AgentMessage("assistant", greeting))
+        logFile.appendText("[${ts()}] $greeting\n")
         log("")
         log("  Press Enter on this job to open the command bar.")
         log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -419,29 +348,18 @@ val cortex: () -> Unit = {
             log("")
 
             val contextMsg = if (memory != null) {
-                val recalls = memory.recall(userMsg, topK = 1)
+                val recalls = runCatching { memory.recall(userMsg, topK = 1) }.getOrDefault(emptyList())
                 if (recalls.isNotEmpty()) "[CONTEXT: ${recalls.first().text.take(100)}...]\n$userMsg"
                 else userMsg
             } else userMsg
 
             history.add(AgentMessage("user", contextMsg))
-            val reply = inferWithTools(history, engine, externalServers)
+            val reply = inferWithNativeTools(history, engine, toolDefs, externalServers)
             history.add(AgentMessage("assistant", reply))
-
-            val scriptMatch = Regex("```kotlin(.*?)```", RegexOption.DOT_MATCHES_ALL).find(reply)
-            if (scriptMatch != null) {
-                val script    = scriptMatch.groupValues[1].trim()
-                val agentName = Regex("//\\s*Agent:\\s*(.+)").find(script)
-                    ?.groupValues?.get(1)?.trim()?.replace(" ", "")
-                    ?: "Agent${System.currentTimeMillis() % 1000}"
-                File(agentsDir, "$agentName.kts").writeText(script)
-                log("[✓ Saved → ~/.koupper/agents/$agentName.kts]")
-                log("[  Use run_agent to execute it]")
-            }
             log("")
         }
 
-        log("[!] Session expired after 1 hour.")
+        log("[!] Session ended.")
         bridge.close()
     }
     procFile.delete()
