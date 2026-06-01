@@ -751,25 +751,86 @@ function refreshLog() {
 setInterval(() => { if (selectedJob) refreshLog(); }, 2000);
 
 // ── CORTEX chat ───────────────────────────────────────────────────────────────
+function watchForResponse(linesBeforeSend) {
+  const chat = document.getElementById('chat-log');
+  let attempts = 0;
+  const maxAttempts = 60;
+  let responseBuffer = [];
+  let collecting = false;
+
+  const poll = setInterval(() => {
+    if (++attempts > maxAttempts) { clearInterval(poll); return; }
+
+    fetch('/api/logs/cortex-session?queue=cortex')
+      .then(r => r.json())
+      .then(d => {
+        if (!d.lines || d.lines.length <= linesBeforeSend) return;
+
+        const newLines = d.lines.slice(linesBeforeSend);
+
+        for (const line of newLines) {
+          const text = line.replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '').trim();
+          if (!text) continue;
+          if (text.startsWith('▶') || text.startsWith('CORTEX_TOOL:') ||
+              text.startsWith('━') || text.startsWith('↳') ||
+              text.startsWith('⏳') || text.startsWith('✓') || text.startsWith('✗') ||
+              text.startsWith('Press Enter') || text.startsWith('Built-in') ||
+              text.startsWith('External') || text.startsWith('JOB_')) continue;
+          collecting = true;
+          responseBuffer.push(text);
+        }
+
+        const lastText = (newLines[newLines.length - 1] || '')
+          .replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '').trim();
+
+        if (collecting && responseBuffer.length > 0 && !lastText) {
+          clearInterval(poll);
+          const response = responseBuffer.join(' ').trim();
+          if (response) {
+            chat.innerHTML += '<div class="msg-c" style="margin-bottom:8px;line-height:1.5">' +
+              response.replace(/</g,'&lt;').replace(/\n/g,'<br>') + '</div>';
+            chat.scrollTop = chat.scrollHeight;
+          }
+          responseBuffer = [];
+          collecting = false;
+        }
+      }).catch(() => {});
+  }, 2000);
+}
+
 function sendChat() {
   const input = document.getElementById('chat-input');
   const msg   = input.value.trim();
   if (!msg) return;
   input.value = '';
-  const log = document.getElementById('chat-log');
-  log.innerHTML += '<div class="msg-u">▶ ' + msg.replace(/</g,'&lt;') + '</div>';
-  log.scrollTop = log.scrollHeight;
-  fetch('/api/cortex', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({message: msg})
-  }).then(r => r.json()).then(d => {
-    if (d.ok) {
-      log.innerHTML += '<div style="color:#4a3a6a;font-size:10px;margin-bottom:4px">→ sent. watching log…</div>';
-      selectJob('cortex-session');
-    }
-    log.scrollTop = log.scrollHeight;
-  }).catch(() => {});
+  const chat = document.getElementById('chat-log');
+  chat.innerHTML += '<div class="msg-u">▶ ' + msg.replace(/</g,'&lt;') + '</div>';
+  chat.scrollTop = chat.scrollHeight;
+
+  // Capturar líneas actuales del log ANTES de enviar
+  fetch('/api/logs/cortex-session?queue=cortex')
+    .then(r => r.json())
+    .then(d => {
+      const linesBefore = d.lines ? d.lines.length : 0;
+      fetch('/api/cortex', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({message: msg})
+      }).then(r => r.json()).then(resp => {
+        if (resp.ok) {
+          chat.innerHTML += '<div style="color:#4a3a6a;font-size:10px;margin-bottom:4px">→ pensando…</div>';
+          chat.scrollTop = chat.scrollHeight;
+          selectJob('cortex', 'cortex-session');
+          watchForResponse(linesBefore);
+        }
+      }).catch(() => {});
+    }).catch(() => {
+      fetch('/api/cortex', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({message: msg})
+      });
+    });
 }
 
 // ── Keyboard navigation ───────────────────────────────────────────────────────
