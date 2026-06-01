@@ -174,7 +174,7 @@ MEMORY TOOLS:
         appendLine("  println(resp?.asString())")
         appendLine()
         appendLine("  // HTTP endpoint server")
-        appendLine("  val router = app.getInstance(com.koupper.providers.runtime.router.GrizzlyRuntimeRouterProvider::class)")
+        appendLine("  val router = app.getInstance(com.koupper.providers.runtime.router.RuntimeRouterProvider::class)")
         appendLine("  router.registerRouter {")
         appendLine("    get<String> { path { \"/hello\" }; script { { -> \"Hello World\" } } }")
         appendLine("  }")
