@@ -745,7 +745,9 @@ function refreshLog() {
         return '<span class="' + cls + '">' + l.replace(/</g,'&lt;') + '</span>';
       }).join('\n');
       const el = document.getElementById('log-body');
-      el.scrollTop = el.scrollHeight;
+      // Solo auto-scroll si el usuario ya estaba al fondo (±60px)
+      const atBottom = el.scrollHeight - el.clientHeight <= el.scrollTop + 60;
+      if (atBottom) el.scrollTop = el.scrollHeight;
     }).catch(() => {});
 }
 setInterval(() => { if (selectedJob) refreshLog(); }, 2000);
@@ -754,9 +756,9 @@ setInterval(() => { if (selectedJob) refreshLog(); }, 2000);
 function watchForResponse(linesBeforeSend) {
   const chat = document.getElementById('chat-log');
   let attempts = 0;
-  const maxAttempts = 60;
-  let responseBuffer = [];
-  let collecting = false;
+  const maxAttempts = 90;
+  let lastSnapshot = '';
+  let stableCount  = 0;
 
   const poll = setInterval(() => {
     if (++attempts > maxAttempts) { clearInterval(poll); return; }
@@ -766,33 +768,32 @@ function watchForResponse(linesBeforeSend) {
       .then(d => {
         if (!d.lines || d.lines.length <= linesBeforeSend) return;
 
-        const newLines = d.lines.slice(linesBeforeSend);
+        // Collect only response-looking lines (no tool calls, markers, etc.)
+        const response = d.lines.slice(linesBeforeSend)
+          .map(l => l.replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '').trim())
+          .filter(t => t &&
+            !t.startsWith('▶') && !t.startsWith('CORTEX_TOOL:') &&
+            !t.startsWith('━') && !t.startsWith('↳') &&
+            !t.startsWith('⏳') && !t.startsWith('✓') && !t.startsWith('✗') &&
+            !t.startsWith('[') && !t.startsWith('Press Enter') &&
+            !t.startsWith('Built-in') && !t.startsWith('External') &&
+            !t.startsWith('JOB_') && !t.startsWith('[DEBUG]') &&
+            !t.startsWith('[DONE]') && !t.startsWith('[FAILED]'))
+          .join(' ').trim();
 
-        for (const line of newLines) {
-          const text = line.replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '').trim();
-          if (!text) continue;
-          if (text.startsWith('▶') || text.startsWith('CORTEX_TOOL:') ||
-              text.startsWith('━') || text.startsWith('↳') ||
-              text.startsWith('⏳') || text.startsWith('✓') || text.startsWith('✗') ||
-              text.startsWith('Press Enter') || text.startsWith('Built-in') ||
-              text.startsWith('External') || text.startsWith('JOB_')) continue;
-          collecting = true;
-          responseBuffer.push(text);
-        }
+        if (!response) return;
 
-        const lastText = (newLines[newLines.length - 1] || '')
-          .replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '').trim();
-
-        if (collecting && responseBuffer.length > 0 && !lastText) {
-          clearInterval(poll);
-          const response = responseBuffer.join(' ').trim();
-          if (response) {
+        // Show as soon as content stabilizes (same for 2 polls = 4s)
+        if (response === lastSnapshot) {
+          if (++stableCount >= 2) {
+            clearInterval(poll);
             chat.innerHTML += '<div class="msg-c" style="margin-bottom:8px;line-height:1.5">' +
-              response.replace(/</g,'&lt;').replace(/\n/g,'<br>') + '</div>';
+              response.replace(/</g,'&lt;') + '</div>';
             chat.scrollTop = chat.scrollHeight;
           }
-          responseBuffer = [];
-          collecting = false;
+        } else {
+          lastSnapshot = response;
+          stableCount  = 0;
         }
       }).catch(() => {});
   }, 2000);
