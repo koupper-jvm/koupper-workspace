@@ -683,8 +683,19 @@ function renderAgents(agents) {
   }).join('');
 }
 
+let viewingAgent = false;
+
 function viewAgent(name) {
-  document.getElementById('log-title').textContent = name + '.kts';
+  viewingAgent = true;
+  document.getElementById('log-title').textContent = name + '.kts  ×';
+  document.getElementById('log-title').style.cursor = 'pointer';
+  document.getElementById('log-title').onclick = () => {
+    viewingAgent = false;
+    document.getElementById('log-title').style.cursor = '';
+    document.getElementById('log-title').onclick = null;
+    document.getElementById('log-title').textContent = selectedJob ? selectedJob.split(':')[1] : 'Log';
+    if (selectedJob) refreshLog();
+  };
   fetch('/api/agent/' + name)
     .then(r => r.json())
     .then(d => {
@@ -721,6 +732,7 @@ function renderSchedules(scheds) {
 
 // ── Log ───────────────────────────────────────────────────────────────────────
 function selectJob(queue, id) {
+  viewingAgent = false;
   selectedJob = queue + ':' + id;
   document.getElementById('log-title').textContent = id;
   renderJobs();
@@ -750,7 +762,7 @@ function refreshLog() {
       if (atBottom) el.scrollTop = el.scrollHeight;
     }).catch(() => {});
 }
-setInterval(() => { if (selectedJob) refreshLog(); }, 2000);
+setInterval(() => { if (selectedJob && !viewingAgent) refreshLog(); }, 2000);
 
 // ── CORTEX chat ───────────────────────────────────────────────────────────────
 function watchForResponse(linesBeforeSend) {
