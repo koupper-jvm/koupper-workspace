@@ -674,13 +674,39 @@ function renderAgents(agents) {
   if (!agents.length) { el.innerHTML = '<div class="empty">No agents installed</div>'; return; }
   el.innerHTML = agents.map((a, i) => {
     const col = agentColors[i % agentColors.length];
-    return '<div class="side-item" style="cursor:pointer" onclick="viewAgent(\'' + a.name + '\')" title="View script">' +
-      '<div class="agent-dot ' + col + '"></div>' +
-      '<div class="agent-info">' +
-        '<div class="name">' + a.name + '</div>' +
-        (a.description ? '<div class="desc">' + a.description + '</div>' : '') +
-      '</div></div>';
+    return '<div class="side-item" style="justify-content:space-between">' +
+      '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;min-width:0" onclick="viewAgent(\'' + a.name + '\')" title="View script">' +
+        '<div class="agent-dot ' + col + '"></div>' +
+        '<div class="agent-info">' +
+          '<div class="name">' + a.name + '</div>' +
+          (a.description ? '<div class="desc">' + a.description + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<button onclick="event.stopPropagation();runAgent(\'' + a.name + '\')" title="Run agent" ' +
+        'style="background:#1a2a1a;border:1px solid #2ea043;color:#56d364;font-size:10px;padding:2px 7px;border-radius:4px;cursor:pointer;flex-shrink:0;margin-left:4px">▶</button>' +
+    '</div>';
   }).join('');
+}
+
+function runAgent(name) {
+  fetch('/api/run-agent', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name: name, queue: 'default'})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      const btn = event.target;
+      const orig = btn.textContent;
+      btn.textContent = '✓';
+      btn.style.borderColor = '#56d364';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    } else {
+      alert('Error: ' + d.error);
+    }
+  })
+  .catch(e => alert('Error: ' + e.message));
 }
 
 let viewingAgent = false;
@@ -917,6 +943,33 @@ val setup: () -> Unit = {
                     mapper.writeValueAsString(mapOf("name" to name, "content" to file.readText()))
                 else
                     mapper.writeValueAsString(mapOf("name" to name, "error" to "agent not found"))
+            } }
+        }
+
+        post<String> {
+            path { "/api/run-agent" }
+            script { {
+                body: String ->
+                runCatching {
+                    val payload = mapper.readValue<Map<String, String>>(body)
+                    val name    = payload["name"]?.trim() ?: ""
+                    val queue   = payload["queue"]?.trim()?.takeIf { it.isNotEmpty() } ?: "default"
+                    if (name.isBlank()) {
+                        mapper.writeValueAsString(mapOf("ok" to false, "error" to "name is required"))
+                    } else {
+                        val agentFile = File(home, ".koupper/agents/$name.kts")
+                        if (!agentFile.exists()) {
+                            mapper.writeValueAsString(mapOf("ok" to false, "error" to "agent not found: $name"))
+                        } else {
+                            val jobId = "$name-${System.currentTimeMillis()}"
+                            val qDir  = File(jobsDir, queue).also { it.mkdirs() }
+                            File(qDir, "$jobId.json").writeText(
+                                """{"id":"$jobId","fileName":"$name","functionName":"run","scriptPath":"agents/$name.kts","sourceType":"script","args":{},"submittedAt":"${java.time.LocalDateTime.now()}"}"""
+                            )
+                            mapper.writeValueAsString(mapOf("ok" to true, "jobId" to jobId, "queue" to queue))
+                        }
+                    }
+                }.getOrElse { e -> mapper.writeValueAsString(mapOf("ok" to false, "error" to e.message)) }
             } }
         }
 

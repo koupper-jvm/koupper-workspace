@@ -16,6 +16,7 @@ import com.koupper.providers.commandbridge.CommandBridgeProvider
 import com.koupper.providers.http.HtppClient
 import com.koupper.providers.http.Post
 import com.koupper.providers.mcp.MCPClientProvider
+import com.koupper.providers.mcp.LocalMCPClientProvider
 import com.koupper.providers.mcp.MCPConnectedServer
 import com.koupper.providers.mcp.MCPServerConfig
 import com.koupper.providers.mcp.MCPToolDescriptor
@@ -57,13 +58,11 @@ procFile.writeText("""{"id":"$SESSION_ID","fileName":"CortexAgent","functionName
 // Format: [{"name":"playwright","transport":"stdio","command":"npx","args":["@playwright/mcp"]},
 //          {"name":"github","transport":"http","url":"http://localhost:3001"}]
 
-data class ExternalMcpServer(val connected: MCPConnectedServer, val namePrefix: String)
+data class ExternalMcpServer(val client: LocalMCPClientProvider, val connected: MCPConnectedServer, val namePrefix: String)
 
 fun loadExternalMcpServers(): List<ExternalMcpServer> {
     val configFile = File(home, ".koupper/mcp/servers.json")
     if (!configFile.exists()) return emptyList()
-
-    val client = runCatching { app.getInstance(MCPClientProvider::class) }.getOrNull() ?: return emptyList()
 
     return runCatching {
         val configs = mapper.readValue<List<Map<String, Any>>>(configFile)
@@ -79,11 +78,12 @@ fun loadExternalMcpServers(): List<ExternalMcpServer> {
                 args      = (cfg["args"] as? List<String>) ?: emptyList(),
                 env       = (cfg["env"] as? Map<String, String>) ?: emptyMap()
             )
+            val client = LocalMCPClientProvider()
             runCatching {
                 val connected = client.connect(serverConfig)
                 log("  External MCP: $name (${connected.tools.size} tools) [$transport]")
-                ExternalMcpServer(connected, name)
-            }.onFailure { e -> log("  ⚠ Could not connect to MCP '$name': ${e.message?.take(60)}") }
+                ExternalMcpServer(client, connected, name)
+            }.onFailure { e -> log("  ⚠ Could not connect to MCP '$name': ${e.message?.take(80)}") }
             .getOrNull()
         }
     }.getOrDefault(emptyList())
@@ -306,8 +306,7 @@ fun executeTool(
         val actualTool = fullName.substring(dotIdx + 1)
         val srv = externalServers.firstOrNull { it.namePrefix == serverName }
             ?: return "Unknown external MCP server: $serverName"
-        val mcpClient = app.getInstance(MCPClientProvider::class)
-        mcpClient.callTool(srv.connected, actualTool, toolArgs).toString()
+        srv.client.callTool(srv.connected, actualTool, toolArgs).toString()
     } else {
         callMcpTool(fullName, toolArgs)
     }
