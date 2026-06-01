@@ -1,12 +1,13 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-01 — repo split + 5 agentes + dashboard run button_
+_Last updated: 2026-06-01 — native function calling + koupper start fully working_
 
 ---
 
 ## Current Objective
 
-Separación limpia entre Koupper (open-source) e IGLY CORTEX (privado).
-CORTEX vive en `igly/cortex` en todos los repos. Framework en `develop`.
+CORTEX operativo como coding assistant de nivel OpenCode:
+- `koupper start` arranca todo automáticamente (cloud mode, native function calling)
+- CORTEX puede crear proyectos completos (React, etc.) con autocorrección
 
 ---
 
@@ -18,135 +19,146 @@ CORTEX vive en `igly/cortex` en todos los repos. Framework en `develop`.
 | `koupper-cli` | `develop` | `igly/cortex` |
 | `koupper-workspace` | `develop` | `igly/cortex` |
 
-**Regla:** todo lo de CORTEX va a `igly/cortex`. El framework a `develop`.
-
 ---
 
 ## Estado de ramas hoy
 
 | Repo | Branch | Último commit |
 |---|---|---|
-| `koupper` | `develop` | `aa0898b` — catalog fix WebReader/PDFReader |
-| `koupper-cli` | `igly/cortex` | `d1ac229` — test fix + sync-from-develop script |
-| `koupper-cli` | `develop` | `b2a1b8c` — add koupper agent marketplace commands |
-| `koupper-workspace` | `igly/cortex` | `ad548f7` — 5 agentes + dashboard run button |
-| `koupper-workspace` | `develop` | `87abf01` — add skills reference to CLAUDE.md |
+| `koupper` | `develop` | `2bafb64` — native function calling en InferenceEngine |
+| `koupper-cli` | `igly/cortex` | `00f79ba` — StartCommand arranca CORTEX + forwardEnv completo |
+| `koupper-workspace` | `igly/cortex` | `b95e4ef` — CortexAgent con native function calling |
 
 ---
 
-## Stack funcionando HOY
+## Cómo arrancar
 
 ```bash
-# Variables en ~/.bashrc
-export KOUPPER_LLM_MODEL_PATH=/home/tdn-dell/develop/llama.cpp/models/fast/qwen2.5-1.5b-instruct-q4_k_m.gguf
-export KOUPPER_LLM_EXECUTABLE=/home/tdn-dell/develop/llama.cpp/build/bin/llama-server
-
-# Arrancar todo
-source ~/.bashrc
 koupper start
 ```
 
-Levanta: Worker daemon · Web UI :18083 · Monitor TUI · MCP server :18082
+Eso es todo. Levanta:
+- **Worker** — procesa jobs de la queue
+- **Web UI** — dashboard en http://localhost:18083
+- **Monitor TUI** — en el terminal (q para salir y matar todo)
+- **MCP server** — http://localhost:18082/mcp/tools (14 tools)
+- **CORTEX** — Cloud mode, Llama 3.3 70B (NVIDIA), native function calling
 
-**Modelo activo:** Qwen2.5-1.5B-Instruct-Q4_K_M (rápido, ~1GB)
+---
+
+## Config LLM (en ~/.profile — activa en todas las shells)
+
+```bash
+export KOUPPER_LLM_PROVIDER=openai
+export KOUPPER_LLM_API_BASE=https://integrate.api.nvidia.com/v1
+export KOUPPER_LLM_API_KEY=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
+export KOUPPER_LLM_MODEL=meta/llama-3.3-70b-instruct
+
+# Fallback local (si sin internet)
+export KOUPPER_LLM_MODEL_PATH=~/develop/llama.cpp/models/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf
+export KOUPPER_LLM_EXECUTABLE=~/develop/llama.cpp/build/bin/llama-server
+```
+
+**IMPORTANTE:** Las vars van en `~/.profile` (no en `.bashrc`) para que funcionen en shells no interactivas.
+
+El shim `~/.koupper/bin/koupper` hace `source ~/.profile` automáticamente al arrancar.
+
+---
+
+## MCP Tools disponibles en CORTEX (40 total)
+
+**14 built-in:**
+`bash`, `write_file`, `read_file`, `list_dir`, `fetch_url`, `create_agent`, `run_agent`,
+`list_agents`, `job_status`, `read_log`, `inspect_swarm`, `pipeline_run`, `cancel_job`, `swarm_run`
+
+**23 Playwright (external MCP):**
+`navigate`, `click`, `screenshot`, `snapshot`, `fill_form`, etc.
+
+**3 memory:**
+`memory.remember`, `memory.recall`, `memory.forget`
 
 ---
 
 ## Agentes instalados en ~/.koupper/agents/
 
 ```
-CortexAgent.kts           — LLM orchestrator multi-tool + memory + Playwright MCP
-CortexWebUiAgent.kts      — dashboard web (Grizzly, SSE, historial, run button)
-GreetingAgent.kts         — análisis de swarm + saludo
-AgentCreatorAgent.kts     — wizard v2 LLM code gen
-RssFeedAgent.kts          — fetch RSS + resumen LLM
-HeartbeatAgent.kts        — monitor proactivo de condiciones
-TelegramBridgeAgent.kts   — bridge Telegram ↔ CortexAgent
-SysMonitorAgent.kts       — CPU, RAM, disco, top procesos, puertos ← NUEVO
-FileOrganizerAgent.kts    — clasifica ~/Downloads por tipo de archivo ← NUEVO
-PortScannerAgent.kts      — escanea puertos, alerta servicios inesperados ← NUEVO
-DiaryAgent.kts            — resume logs del día con LLM → memory/diary-<date>.md ← NUEVO
-CodeReviewAgent.kts       — code review .kt/.kts con LLM (CODE_REVIEW_FILE env) ← NUEVO
+CortexAgent.kts        — orchestrator con native function calling, 8h session
+CortexWebUiAgent.kts   — dashboard web + POST /api/run-agent + botón ▶
+GreetingAgent.kts      — saludo + análisis de swarm
+AgentCreatorAgent.kts  — wizard LLM code gen
+RssFeedAgent.kts       — fetch RSS + resumen LLM
+HeartbeatAgent.kts     — monitor proactivo de condiciones
+TelegramBridgeAgent.kts— bridge Telegram ↔ CORTEX
+SysMonitorAgent.kts    — CPU, RAM, disco, puertos
+FileOrganizerAgent.kts — clasifica ~/Downloads por tipo
+PortScannerAgent.kts   — escanea puertos locales
+DiaryAgent.kts         — resume logs del día con LLM
+CodeReviewAgent.kts    — code review con LLM (CODE_REVIEW_FILE env)
 ```
 
 ---
 
-## Dashboard — features activos
+## Qué se hizo hoy
 
-- **Sidebar con botón ▶** por agente → `POST /api/run-agent` → encola en worker
-- **Agent script viewer** → click en agente muestra el .kts con syntax coloring
-- **Chat SSE** → respuestas del LLM en tiempo real como burbujas
-- **Job result** → columna Result en tabla (`.done/<id>.result.json`)
-- **Keyboard nav** → ArrowUp/Down en tabla de jobs
-- **Observability panel** → jobs/min, success rate, P50/P95, sparkline
+### Native function calling
+- `ToolModels.kt` — nuevos tipos: `ToolDefinition`, `NativeToolCall`, `NativeInferenceResult`
+- `InferenceEngine` — nuevo método `predictWithTools()` con fallback para modelos locales
+- `OpenAICompatibleEngine` — implementación completa usando `tools` field de OpenAI API
+- `AgentMessage` — campo `nativeToolCalls: List<NativeToolCall>?` para batch tool calls
+- `CortexAgent` — loop `inferWithNativeTools()` reemplaza CORTEX_TOOL text parsing
+
+**Resultado:** 15 inferencias → 3-4 por proyecto. Autocorrección real (instaló `@vitejs/plugin-react` solo).
+
+### MCP tools de filesystem (en `CortexMcpServer.kt`)
+- `write_file`, `read_file`, `list_dir`, `bash` — con expansión de `~` y timeout 120s
+
+### `koupper start` — flujo limpio
+- `StartCommand` arranca octopus directamente con `forwardEnv` (NVIDIA vars incluidas)
+- `StartCommand` lanza `CortexAgent` fuera del worker (sin timeout de 300s)
+- Shim `~/.koupper/bin/koupper` hace `source ~/.profile` antes de arrancar octopus
+- Vars LLM movidas a `~/.profile` para que funcionen en shells no interactivas
 
 ---
 
-## Puertos del sistema
+## Puertos
 
 | Puerto | Servicio |
 |---|---|
-| 8081 | llama-server (LLM) |
 | 9998 | Octopus daemon socket |
-| 18082 | MCP server JSON-RPC 2.0 |
+| 18082 | MCP server JSON-RPC |
 | 18083 | Web UI Grizzly HTTP |
-
----
-
-## Fixes aplicados hoy
-
-### koupper-cli `igly/cortex`
-- `ModuleCommandAddScriptsTest` — path con backslash en Linux creaba nombre literal, corregido a `/`
-- `scripts/sync-from-develop.sh` — merge seguro de develop→igly/cortex sin perder StartCommand/MonitorCommand
-
-### koupper-workspace `igly/cortex`
-- 5 agentes nuevos verificados y pasando desde el dashboard
-- `CortexWebUiAgent` — `POST /api/run-agent` + botón ▶ en sidebar
-
-### Separación de repos
-- `koupper-workspace/develop` reseteado a `87abf01` (pre-CORTEX)
-- `koupper-workspace/igly/cortex` creado con todo el historial CORTEX (50+ commits)
-- Force-push de develop + push de igly/cortex a origin ✓
+| 8081 | llama-server (solo modo local) |
 
 ---
 
 ## Bugs conocidos
 
-1. **Merge develop→igly/cortex en CLI** elimina StartCommand/MonitorCommand — usar `./scripts/sync-from-develop.sh`
-2. **Octopus cachea scripts compilados** — matar daemon al cambiar un .kts (`pkill -f octopus.jar`)
-3. **`bridge.drain()` al inicio de CortexAgent** borra `.response` files — enviar comandos solo después del greeting
+1. **`koupper doctor` warning de :8081** cuando `KOUPPER_LLM_PROVIDER=openai` — esperado, cosmético
+2. **`npm run dev` timeout en bash** — el dev server no termina; usar `npm run build` para verificar
+3. **Merge develop→igly/cortex en CLI** — usar `./scripts/sync-from-develop.sh`
 
 ---
 
 ## Próximo
 
-- Nuevos features de CORTEX → branch `igly/cortex` en workspace
-- Nuevos features del framework → branch `feature/*` desde `develop` en koupper/koupper-cli
-- Para sincronizar CLI con framework: `./scripts/sync-from-develop.sh` desde `igly/cortex`
+- Probar CORTEX creando un proyecto completo end-to-end sin interrupciones
+- Fix cosmético: omitir warning de llama-server en doctor cuando PROVIDER=openai
+- Explorar más casos de uso con native function calling
 
 ---
 
 ## Cómo retomar
 
 ```bash
-cd ~/develop/koupper\ workspace
-
-# Ver estado
-git log --oneline igly/cortex -5
-cd koupper-cli && git log --oneline igly/cortex -5
-
-# Arrancar stack
-source ~/.bashrc
+# Arrancar todo
 koupper start
 
-# Logs en vivo
-tail -f ~/.koupper/logs/worker.log
+# Ver log de CORTEX en tiempo real
 tail -f ~/.koupper/jobs/logs/cortex/cortex-session.log
 
-# Ejecutar agente desde CLI
-koupper run ~/.koupper/agents/SysMonitorAgent.kts
+# Mandar comando a CORTEX
+echo "tu pedido aquí" > ~/.koupper/jobs/commands/wizard/$(date +%s%3N).response
 
-# Verificar memoria acumulada
-cat ~/.koupper/memory/memory.md
-cat ~/.koupper/memory/diary-$(date +%Y-%m-%d).md
+# Ver estado
+koupper doctor
 ```
