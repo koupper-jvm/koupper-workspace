@@ -104,6 +104,34 @@ fun callMcpTool(toolName: String, args: Map<String, Any?>): String = runCatching
 
 // ── Tool definitions for native function calling ──────────────────────────────
 
+// Normalize a property type to OpenAI-compatible types (string/integer/number/boolean/array/object).
+// Converts boolean to string with enum, ensures arrays have items, drops unsupported keys.
+@Suppress("UNCHECKED_CAST")
+fun sanitizeProperty(prop: Map<String, Any>): Map<String, Any> {
+    val type = prop["type"]?.toString() ?: "string"
+    return when (type) {
+        "boolean" -> mapOf("type" to "string", "enum" to listOf("true", "false"),
+            "description" to (prop["description"]?.toString() ?: ""))
+        "array"   -> {
+            val items = prop["items"] ?: mapOf("type" to "string")
+            mapOf("type" to "array", "items" to items,
+                "description" to (prop["description"]?.toString() ?: ""))
+        }
+        else -> prop.filterKeys { it in setOf("type", "description", "enum", "items", "properties", "required") }
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+fun sanitizeSchema(raw: Map<String, Any>): Map<String, Any> {
+    val props = (raw["properties"] as? Map<String, Any>) ?: emptyMap()
+    val sanitized = props.mapValues { (_, v) ->
+        sanitizeProperty((v as? Map<String, Any>) ?: mapOf("type" to "string"))
+    }
+    val result = mutableMapOf<String, Any>("type" to "object", "properties" to sanitized)
+    raw["required"]?.let { result["required"] = it }
+    return result
+}
+
 @Suppress("UNCHECKED_CAST")
 fun buildToolDefinitions(
     localTools: List<Map<String, Any>>,
@@ -114,17 +142,19 @@ fun buildToolDefinitions(
     for (t in localTools) {
         val name   = t["name"]?.toString() ?: continue
         val desc   = t["description"]?.toString() ?: ""
-        val schema = (t["inputSchema"] as? Map<String, Any>)
+        val raw    = (t["inputSchema"] as? Map<String, Any>)
             ?: mapOf("type" to "object", "properties" to emptyMap<String, Any>())
-        defs.add(ToolDefinition(name, desc, schema))
+        defs.add(ToolDefinition(name, desc, sanitizeSchema(raw)))
     }
 
-    for (srv in externalServers) {
+    // External MCP servers: include only non-Playwright ones in native FC to reduce token count.
+    // Playwright tools are still callable via executeToolCall() but not declared as functions.
+    for (srv in externalServers.filter { it.namePrefix != "playwright" }) {
         for (t in srv.connected.tools) {
             val prefixed = "${srv.namePrefix}.${t.name}"
-            val schema   = (t.inputSchema as? Map<String, Any>)
+            val raw      = (t.inputSchema as? Map<String, Any>)
                 ?: mapOf("type" to "object", "properties" to emptyMap<String, Any>())
-            defs.add(ToolDefinition(prefixed, t.description ?: "", schema))
+            defs.add(ToolDefinition(prefixed, t.description ?: "", sanitizeSchema(raw)))
         }
     }
 
@@ -152,7 +182,10 @@ fun buildSystemPrompt(toolDefs: List<ToolDefinition>): String = buildString {
     appendLine("  fetch_url  — fetch a URL")
     appendLine("  create_agent + run_agent — create and run Koupper .kts scripts")
     appendLine()
-    appendLine("PROJECT FLOW: bash mkdir → write_file each file → bash install → bash build → report.")
+    appendLine("PROJECT SCAFFOLDING RULES:")
+    appendLine("  - To create ~/projects/mi-app: cwd=~/projects, command='npm create vite@latest mi-app -- --template react-ts'")
+    appendLine("  - ALWAYS use relative project name as target, parent dir as cwd — never absolute path as vite target")
+    appendLine("  - Verify with 'npm run build' (not 'npm run dev' — dev server never exits)")
     appendLine("KOUPPER SCRIPTS: import com.koupper.shared.annotations.Export; @" + "Export val setup: () -> Unit = { ... }")
 }
 
