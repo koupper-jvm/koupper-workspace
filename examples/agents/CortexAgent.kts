@@ -18,6 +18,9 @@ import com.koupper.providers.mcp.MCPServerConfig
 import com.koupper.providers.memory.MemoryProvider
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.time.LocalDateTime
@@ -393,6 +396,111 @@ fun verifyJobResult(rawResult: String): String {
 
 // ── Native function calling loop ──────────────────────────────────────────────
 
+fun loadLLMRoles(): Map<String, String> =
+    System.getenv().entries
+        .filter { it.key.matches(Regex("K_[A-Z0-9]+_LLM_ROLE")) }
+        .associate { (k, v) -> k.removePrefix("K_").removeSuffix("_LLM_ROLE").lowercase() to v.lowercase() }
+
+val providerRoles = loadLLMRoles()
+
+// ── Planning constants ────────────────────────────────────────────────────────
+
+val PLANNER_PROMPT = """
+You are CORTEX's Intent Analyzer. Analyze the user request and return a JSON execution plan.
+Output ONLY valid JSON, no markdown, no explanation.
+
+Schema:
+{"summary":"one line","type":"process|code|explanation|architecture|conversational","risk":"low|medium|high","steps":[{"n":1,"what":"description","how":"bash|mcp|agent|llm|create_agent","detail":"specifics","risk":"low|medium|high"}],"needs_confirmation":true}
+
+Rules:
+- needs_confirmation=true if any step is high/medium risk or modifies external systems
+- type=conversational and steps=[] for simple questions or greetings
+- max 8 steps, be concise
+""".trimIndent()
+
+val SYNTHESIZER_PROMPT = "Synthesize these execution plans into ONE final JSON plan. Output ONLY valid JSON, no markdown."
+
+// ── Planning functions ────────────────────────────────────────────────────────
+
+fun isComplexRequest(msg: String): Boolean {
+    val m = msg.lowercase()
+    val words = m.split(Regex("\\s+")).size
+    if (words <= 4) return false
+    val multiStep = listOf("y luego", "y después", "también", "además", "then", "after that", "paso a paso", "y también")
+    if (multiStep.any { m.contains(it) }) return true
+    val actionWords = listOf("deploy", "crea", "create", "build", "construye", "analiza", "analyze",
+        "arregla", "fix", "refactor", "instala", "install", "configura", "configure",
+        "monitorea", "monitor", "verifica", "check", "ejecuta", "run", "prueba", "test",
+        "push", "merge", "commit", "arquitectura", "architecture", "diseña", "design",
+        "implementa", "implement", "migra", "migrate", "optimiza", "optimize", "despliega")
+    val count = actionWords.count { m.contains(it) }
+    return count >= 2 || (count >= 1 && words > 12)
+}
+
+fun extractPlanJson(text: String): String {
+    val fenced = Regex("```(?:json)?\\s*(\\{[\\s\\S]*?\\})\\s*```").find(text)?.groupValues?.get(1)
+    if (fenced != null) return fenced.trim()
+    return Regex("\\{[\\s\\S]*\\}").find(text)?.value?.trim() ?: text.trim()
+}
+
+fun buildPlan(userMsg: String, engines: List<Pair<String, InferenceEngine>>): String {
+    val fallback = """{"summary":"${userMsg.take(60).replace("\"","")}","type":"conversational","risk":"low","steps":[],"needs_confirmation":false}"""
+    if (engines.isEmpty()) return fallback
+
+    val msgs = listOf(AgentMessage("system", PLANNER_PROMPT), AgentMessage("user", userMsg))
+
+    val proposals = if (engines.size == 1) {
+        listOf(runCatching { runBlocking { engines.first().second.predict<String>(msgs) }.toString() }.getOrNull())
+    } else {
+        runBlocking {
+            engines.take(3).map { (_, eng) ->
+                async(Dispatchers.IO) { runCatching { eng.predict<String>(msgs) }.getOrNull()?.toString() }
+            }.awaitAll()
+        }
+    }.filterNotNull().filter { it.isNotBlank() }
+
+    if (proposals.isEmpty()) return fallback
+    if (proposals.size == 1) return extractPlanJson(proposals.first())
+
+    val synthMsgs = listOf(
+        AgentMessage("system", SYNTHESIZER_PROMPT),
+        AgentMessage("user", "Plans:\n${proposals.joinToString("\n---\n")}\nRequest: $userMsg")
+    )
+    val synthesis = runCatching { runBlocking { engines.first().second.predict<String>(synthMsgs) }.toString() }
+        .getOrNull() ?: proposals.first()
+    return extractPlanJson(synthesis)
+}
+
+fun formatPlan(planJson: String): String = runCatching {
+    val p = mapper.readTree(planJson)
+    val sb = StringBuilder()
+    sb.appendLine("┌──────────────────────────────────────────┐")
+    sb.appendLine("│   PLAN DE EJECUCIÓN                      │")
+    sb.appendLine("└──────────────────────────────────────────┘")
+    sb.appendLine("  Objetivo : ${p.path("summary").asText("?")}")
+    sb.appendLine("  Tipo     : ${p.path("type").asText("?")}")
+    val riskLabel = when (p.path("risk").asText("low")) { "high" -> "⚠  ALTO" ; "medium" -> "⚡ MEDIO" ; else -> "✓  BAJO" }
+    sb.appendLine("  Riesgo   : $riskLabel")
+    val steps = p.path("steps")
+    if (steps.isArray && steps.size() > 0) {
+        sb.appendLine("")
+        steps.forEach { s ->
+            val mark = when (s.path("risk").asText("low")) { "high" -> " ⚠" ; "medium" -> " ⚡" ; else -> "" }
+            sb.appendLine("  ${s.path("n").asInt()}. ${s.path("what").asText("?")}$mark")
+            sb.appendLine("     [${s.path("how").asText("?")}] ${s.path("detail").asText("").take(80)}")
+        }
+    } else {
+        sb.appendLine("  (respuesta directa — sin pasos de ejecución)")
+    }
+    sb.toString().trimEnd()
+}.getOrDefault("Plan: $planJson")
+
+fun buildContextMsg(userMsg: String, base: String = userMsg): String {
+    if (memory == null) return base
+    val recalls = runCatching { memory.recall(userMsg, topK = 3) }.getOrDefault(emptyList())
+    return if (recalls.isNotEmpty()) "[CONTEXT:\n${recalls.joinToString("\n") { "- ${it.text.take(400)}" }}]\n$base" else base
+}
+
 fun memoryFallback(query: String): String {
     if (memory != null) {
         val recalls = runCatching { memory.recall(query, topK = 3) }.getOrDefault(emptyList())
@@ -523,51 +631,119 @@ val setup: () -> Unit = {
 
         bridge.watch(cmdInDir).drain()
 
-        // Dedup window: ignore same command if it arrives again within 2s (watcher fires multiple events per file write)
-        val recentCmds = mutableMapOf<Int, Long>()
+        val recentCmds  = mutableMapOf<Int, Long>()
+
+        // Planning engines: prefer fast/reasoning roles; fall back to all providers
+        val planningEngines = providers.filter { (label, _) ->
+            providerRoles[label.substringBefore(" ")] in listOf("fast", "reasoning")
+        }.ifEmpty { providers }
+
+        val confirmWords = setOf("si", "sí", "yes", "s", "y", "ok", "dale", "adelante", "ejecuta", "confirmo", "confirmar")
+        val cancelWords  = setOf("no", "cancel", "cancelar", "abort", "abortar", "detener")
+
+        // Plan confirmation state
+        var pendingPlan    : String? = null
+        var pendingRequest : String? = null
 
         while (System.currentTimeMillis() < deadline) {
             val userMsg = bridge.nextCommand() ?: continue
 
-            val now  = System.currentTimeMillis()
-            val hash = userMsg.trimEnd().hashCode()
-            recentCmds.entries.removeIf { now - it.value > 2_000L }
-            if (hash in recentCmds) continue
-            recentCmds[hash] = now
+            // Dedup only for new requests, not confirmations
+            if (pendingPlan == null) {
+                val now  = System.currentTimeMillis()
+                val hash = userMsg.trimEnd().hashCode()
+                recentCmds.entries.removeIf { now - it.value > 2_000L }
+                if (hash in recentCmds) continue
+                recentCmds[hash] = now
+            }
 
-            log("▶ $userMsg")
-            log("")
+            var shouldExecute = false
 
-            val contextMsg = if (memory != null) {
-                val recalls = runCatching { memory.recall(userMsg, topK = 3) }.getOrDefault(emptyList())
-                if (recalls.isNotEmpty()) {
-                    val ctx = recalls.joinToString("\n") { "- ${it.text.take(400)}" }
-                    "[CONTEXT:\n$ctx]\n$userMsg"
-                } else userMsg
-            } else userMsg
-
-            history.add(AgentMessage("user", contextMsg))
-            val historyMark = history.size
-
-            var reply = inferWithNativeTools(history, engine, toolDefs, externalServers)
-
-            if (reply.startsWith("[Error:")) {
-                var recovered = false
-                for ((fbName, fbEngine) in fallbackEngines) {
-                    while (history.size > historyMark) history.removeAt(history.size - 1)
-                    log("  ↺ Primary LLM failed — trying $fbName")
-                    reply = inferWithNativeTools(history, fbEngine, toolDefs, externalServers)
-                    if (!reply.startsWith("[Error:")) { recovered = true; break }
+            if (pendingPlan != null && pendingRequest != null) {
+                // ── Confirmation response ─────────────────────────────────────
+                val answer = userMsg.lowercase().trim()
+                when {
+                    answer in confirmWords -> {
+                        log("  ✓ Plan aprobado — ejecutando...")
+                        log("")
+                        val execMsg = "[PLAN APROBADO. Ejecuta EXACTAMENTE estos pasos en orden:\n$pendingPlan]\n\nSolicitud original: $pendingRequest"
+                        history.add(AgentMessage("user", buildContextMsg(pendingRequest!!, execMsg)))
+                        pendingPlan    = null
+                        pendingRequest = null
+                        shouldExecute  = true
+                    }
+                    answer in cancelWords -> {
+                        log("  ✗ Plan cancelado.")
+                        log("")
+                        pendingPlan    = null
+                        pendingRequest = null
+                    }
+                    else -> {
+                        // Feedback → re-plan
+                        log("  ↺ Replanificando con tu feedback...")
+                        val revised = "${pendingRequest!!} [ajuste solicitado: $userMsg]"
+                        val newPlan = buildPlan(revised, planningEngines)
+                        log(formatPlan(newPlan))
+                        log("")
+                        log("  ¿Ejecutar este plan? (si / no / más comentarios)")
+                        pendingPlan    = newPlan
+                        pendingRequest = revised
+                    }
                 }
-                if (!recovered) {
-                    while (history.size > historyMark) history.removeAt(history.size - 1)
-                    reply = memoryFallback(userMsg)
-                    log(reply)
+            } else {
+                // ── New request ───────────────────────────────────────────────
+                log("▶ $userMsg")
+                log("")
+
+                if (isComplexRequest(userMsg)) {
+                    log("  ◈ Analizando solicitud con ${planningEngines.size} provider(s)...")
+                    val plan = buildPlan(userMsg, planningEngines)
+                    log(formatPlan(plan))
+                    log("")
+
+                    val planNode       = runCatching { mapper.readTree(plan) }.getOrNull()
+                    val isConversational = planNode?.path("type")?.asText() == "conversational"
+                                       || (planNode?.path("steps")?.size() ?: 0) == 0
+                    val needsConfirmation = !isConversational &&
+                                           (planNode?.path("needs_confirmation")?.asBoolean(true) != false)
+
+                    if (needsConfirmation) {
+                        log("  ¿Ejecutar este plan? (si / no / comentarios para ajustar)")
+                        pendingPlan    = plan
+                        pendingRequest = userMsg
+                    } else {
+                        val base = if (isConversational) userMsg else "[PLAN:\n$plan]\n\n$userMsg"
+                        history.add(AgentMessage("user", buildContextMsg(userMsg, base)))
+                        shouldExecute = true
+                    }
+                } else {
+                    history.add(AgentMessage("user", buildContextMsg(userMsg)))
+                    shouldExecute = true
                 }
             }
 
-            history.add(AgentMessage("assistant", reply))
-            log("")
+            if (shouldExecute) {
+                val historyMark = history.size
+                var reply = inferWithNativeTools(history, engine, toolDefs, externalServers)
+
+                if (reply.startsWith("[Error:")) {
+                    var recovered = false
+                    for ((fbName, fbEngine) in fallbackEngines) {
+                        while (history.size > historyMark) history.removeAt(history.size - 1)
+                        log("  ↺ Primary LLM failed — trying $fbName")
+                        reply = inferWithNativeTools(history, fbEngine, toolDefs, externalServers)
+                        if (!reply.startsWith("[Error:")) { recovered = true; break }
+                    }
+                    if (!recovered) {
+                        while (history.size > historyMark) history.removeAt(history.size - 1)
+                        reply = memoryFallback(userMsg)
+                        log(reply)
+                    }
+                }
+
+                history.add(AgentMessage("assistant", reply))
+                log("")
+            }
         }
 
         log("[!] Session ended.")
