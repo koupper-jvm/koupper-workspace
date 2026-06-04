@@ -1,26 +1,19 @@
 // TelegramBridgeAgent.kts
-// Role      : Telegram ↔ CORTEX bidirectional bridge
+// Role      : Telegram <-> CORTEX bidirectional bridge
 // Objective : Forward Telegram messages to CortexAgent via CommandBridge,
 //             monitor the cortex-session log for responses, send them back.
 //
 // Config: ~/.koupper/telegram.json
 //   { "token": "BOT_TOKEN", "allowedChatIds": [123456789] }
 //
-// Or via env vars:
-//   KOUPPER_TELEGRAM_TOKEN     — Bot API token
-//   KOUPPER_TELEGRAM_CHAT_IDS  — comma-separated allowed chat IDs (empty = all)
-//
 // Setup:
-//   1. Create a bot at https://t.me/BotFather → get token
-//   2. Start a chat with your bot, send /start
-//   3. Get your chat ID: https://api.telegram.org/bot<TOKEN>/getUpdates
-//   4. Fill ~/.koupper/telegram.json
-//   5. Make sure CortexAgent is running (cortex-session job in PROCESSING)
-//   6. Run: koupper run ~/.koupper/agents/TelegramBridgeAgent.kts
+//   1. Create a bot at https://t.me/BotFather -> get token
+//   2. Run ~/.koupper/setup-telegram.sh to configure
+//   3. Make sure CortexAgent is running
+//   4. Run: koupper run ~/.koupper/agents/TelegramBridgeAgent.kts
 
 import com.koupper.container.app
 import com.koupper.providers.commandbridge.CommandBridgeProvider
-import com.koupper.providers.telegram.TelegramChannelProvider
 import com.koupper.shared.annotations.Export
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -35,13 +28,11 @@ val setup: () -> Unit = {
     val jobsDir = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
     val mapper  = jacksonObjectMapper()
 
-    // ── Load config ───────────────────────────────────────────────────────────
-
     data class TelegramConfig(val token: String, val allowedChatIds: List<Long> = emptyList())
 
     val configFile = File(home, ".koupper/telegram.json")
 
-    val config: TelegramConfig = when {
+    val rawConfig: TelegramConfig? = when {
         System.getenv("KOUPPER_TELEGRAM_TOKEN") != null -> {
             val token = System.getenv("KOUPPER_TELEGRAM_TOKEN")!!
             val ids   = System.getenv("KOUPPER_TELEGRAM_CHAT_IDS")
@@ -52,44 +43,30 @@ val setup: () -> Unit = {
             mapper.readValue<TelegramConfig>(configFile)
         }.getOrElse {
             System.err.println("[TelegramBridge] Failed to parse telegram.json: ${it.message}")
-            return@setup
+            null
         }
         else -> {
-            // Create template config and exit
-            configFile.writeText("""
-{
-  "token": "YOUR_BOT_TOKEN_HERE",
-  "allowedChatIds": []
-}
-""".trimIndent())
-            System.err.println("""
-[TelegramBridge] Config not found. Created template at ${configFile.absolutePath}
-
-Steps to set up:
-  1. Create a bot at https://t.me/BotFather
-  2. Copy the token into telegram.json
-  3. Send /start to your bot, then run:
-     curl https://api.telegram.org/bot<TOKEN>/getUpdates
-     to get your chat ID and add it to allowedChatIds
-  4. Run this agent again
-""".trimIndent())
-            return@setup
+            configFile.writeText("""{"token":"YOUR_BOT_TOKEN_HERE","allowedChatIds":[]}""")
+            System.err.println("[TelegramBridge] Config not found. Edit ${configFile.absolutePath}")
+            null
         }
     }
 
-    if (config.token.isBlank() || config.token == "YOUR_BOT_TOKEN_HERE") {
-        System.err.println("[TelegramBridge] Token not configured. Edit ${configFile.absolutePath}")
-        return@setup
+    val config = if (rawConfig != null && rawConfig.token.isNotBlank() && rawConfig.token != "YOUR_BOT_TOKEN_HERE") {
+        rawConfig
+    } else {
+        if (rawConfig != null) System.err.println("[TelegramBridge] Token not configured.")
+        null
     }
 
-    // ── Setup ─────────────────────────────────────────────────────────────────
+    if (config != null) {
 
-    val telegram      = app.getInstance(TelegramChannelProvider::class)
     val bridge        = app.getInstance(CommandBridgeProvider::class)
     val cmdInDir      = File(jobsDir, "commands/wizard").also { it.mkdirs() }
     val cortexLogFile = File(jobsDir, "logs/cortex/cortex-session.log")
     val logDir        = File(jobsDir, "logs/default").also { it.mkdirs() }
     val agentLog      = File(logDir, "telegram-bridge.log")
+    val offsetFile    = File(home, ".koupper/telegram-offset.json")
     val running       = AtomicBoolean(true)
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
@@ -98,20 +75,81 @@ Steps to set up:
     Runtime.getRuntime().addShutdownHook(Thread { running.set(false) })
 
     val allowedSet = config.allowedChatIds.toSet()
-    log("◈ TELEGRAM BRIDGE started")
+    log("TELEGRAM BRIDGE started")
     log("  Token   : ${config.token.take(10)}...")
     log("  Allowed : ${if (allowedSet.isEmpty()) "all chats" else allowedSet.toString()}")
-    log("  Waiting for messages...")
+
+    // ── HTTP helpers ──────────────────────────────────────────────────────────
+
+    val tgHttp = java.net.http.HttpClient.newBuilder()
+        .connectTimeout(java.time.Duration.ofSeconds(10))
+        .build()
+
+    fun tgSend(chatId: Long, text: String) {
+        if (text.isBlank()) return
+        runCatching {
+            val payload = mapper.writeValueAsString(mapOf(
+                "chat_id" to chatId, "text" to text.take(4096), "parse_mode" to "HTML"
+            ))
+            val req = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("https://api.telegram.org/bot${config.token}/sendMessage"))
+                .header("Content-Type", "application/json")
+                .timeout(java.time.Duration.ofSeconds(15))
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(payload)).build()
+            tgHttp.send(req, java.net.http.HttpResponse.BodyHandlers.ofString())
+        }.onFailure { log("  tgSend error: ${it.message}") }
+    }
+
+    fun tgSendPhoto(chatId: Long, file: java.io.File, caption: String) {
+        if (!file.exists()) { tgSend(chatId, "File not found: ${file.absolutePath}"); return }
+        runCatching {
+            val boundary = "TelegramBridge${System.currentTimeMillis()}"
+            val nl = "\r\n"
+            val baos = java.io.ByteArrayOutputStream()
+            fun part(name: String, value: String) {
+                baos.write("--$boundary$nl".toByteArray())
+                baos.write("Content-Disposition: form-data; name=\"$name\"$nl$nl".toByteArray())
+                baos.write(value.toByteArray())
+                baos.write(nl.toByteArray())
+            }
+            part("chat_id", chatId.toString())
+            if (caption.isNotBlank()) part("caption", caption)
+            baos.write("--$boundary$nl".toByteArray())
+            baos.write("Content-Disposition: form-data; name=\"photo\"; filename=\"${file.name}\"$nl".toByteArray())
+            baos.write("Content-Type: application/octet-stream$nl$nl".toByteArray())
+            baos.write(file.readBytes())
+            baos.write("$nl--$boundary--$nl".toByteArray())
+
+            val req = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("https://api.telegram.org/bot${config.token}/sendPhoto"))
+                .header("Content-Type", "multipart/form-data; boundary=$boundary")
+                .timeout(java.time.Duration.ofSeconds(60))
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofByteArray(baos.toByteArray())).build()
+            val resp = tgHttp.send(req, java.net.http.HttpResponse.BodyHandlers.ofString())
+            log("  <- sent photo ${file.name} (${resp.statusCode()})")
+        }.onFailure { log("  tgSendPhoto error: ${it.message}") }
+    }
+
+    // ── Startup notification ──────────────────────────────────────────────────
+
+    if (allowedSet.isNotEmpty()) {
+        allowedSet.forEach { chatId ->
+            runCatching {
+                tgSend(chatId, "Robot CORTEX Bridge is online. Send me a message!")
+                log("  Sent startup notification to $chatId")
+            }.onFailure { log("  Could not notify $chatId: ${it.message}") }
+        }
+    }
 
     // ── Response collector ────────────────────────────────────────────────────
-    // Reads new lines added to cortex-session.log after a command is sent.
-    // Waits up to [maxWaitMs] for the LLM to finish responding.
 
-    fun collectResponse(logPosBefore: Long, maxWaitMs: Long = 30_000L): String {
+    fun collectResponse(logPosBefore: Long, userText: String, maxWaitMs: Long = 90_000L): String {
         val deadline  = System.currentTimeMillis() + maxWaitMs
         var lastSize  = logPosBefore
         var idleMs    = 0L
         val collected = StringBuilder()
+        var echoSeen     = false   // true once we see the ▶ echo of the user's command
+        var hasRealContent = false // true once real LLM text appears after the echo
 
         while (System.currentTimeMillis() < deadline) {
             Thread.sleep(500)
@@ -127,14 +165,29 @@ Steps to set up:
                     String(buf)
                 }.getOrDefault("")
 
-                collected.append(newContent)
                 lastSize = currentSize
                 idleMs   = 0
+
+                for (line in newContent.lines()) {
+                    val stripped = line.replace(Regex("^\\[[0-9:]+\\]\\s?"), "").trim()
+                    if (!echoSeen) {
+                        // Wait until we see the ▶ echo of the user's command
+                        if (stripped.startsWith("▶") && stripped.contains(userText.take(20))) {
+                            echoSeen = true
+                        }
+                        continue
+                    }
+                    // After echo: collect everything
+                    collected.appendLine(line)
+                    if (stripped.isNotBlank() && !stripped.startsWith("→") &&
+                        !stripped.startsWith("↳") && !stripped.contains("━")) {
+                        hasRealContent = true
+                    }
+                }
             } else {
                 idleMs += 500
-                // Stop if idle for 3s and we have content, or 5s if nothing yet
-                val threshold = if (collected.isNotEmpty()) 3000L else 5000L
-                if (idleMs >= threshold && collected.isNotEmpty()) break
+                val idleThreshold = if (hasRealContent) 15_000L else 60_000L
+                if (idleMs >= idleThreshold && hasRealContent) break
             }
         }
 
@@ -145,65 +198,124 @@ Steps to set up:
             .trim()
     }
 
-    // ── Main polling loop ─────────────────────────────────────────────────────
+    // ── Main polling loop (direct HTTP) ───────────────────────────────────────
 
-    telegram.startPolling(
-        token        = config.token,
-        allowedChats = allowedSet,
-        running      = { running.get() }
-    ) { chatId, text ->
+    var offset = runCatching { mapper.readValue<Long>(offsetFile) }.getOrDefault(0L)
+    log("  Poll loop starting (offset=$offset)")
 
-        log("▶ [$chatId] $text")
+    while (running.get()) {
+        val pollResult = runCatching {
+            val req = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("https://api.telegram.org/bot${config.token}/getUpdates?offset=$offset&timeout=25"))
+                .timeout(java.time.Duration.ofSeconds(30))
+                .GET().build()
+            val resp = tgHttp.send(req, java.net.http.HttpResponse.BodyHandlers.ofString())
+            @Suppress("UNCHECKED_CAST")
+            mapper.readValue<Map<String, Any>>(resp.body())
+        }
+        val respBody = pollResult.getOrNull()
 
-        // Check if CortexAgent is running
-        val procFile = File(jobsDir, "cortex/cortex-session.json.processing")
-        if (!procFile.exists()) {
-            telegram.sendMessage(config.token, chatId,
-                "⚠️ <b>CORTEX</b> is not running.\nStart it with: <code>koupper start</code>"
-            )
-            return@startPolling
+        if (respBody == null || respBody["ok"] != true) {
+            val err = pollResult.exceptionOrNull()?.message ?: respBody?.toString() ?: "null"
+            log("  poll error: $err")
+            Thread.sleep(5000)
+            continue
         }
 
-        // Note log size before sending command
-        val logPosBefore = if (cortexLogFile.exists()) cortexLogFile.length() else 0L
+        @Suppress("UNCHECKED_CAST")
+        val updates = respBody["result"] as? List<Map<String, Any>> ?: emptyList()
 
-        // Forward to CortexAgent via CommandBridge
-        File(cmdInDir, "${System.currentTimeMillis()}.response").writeText(text)
-        log("  → sent to CommandBridge")
+        for (update in updates) {
+            val updateId = (update["update_id"] as? Number)?.toLong() ?: continue
+            offset = updateId + 1
+            runCatching { offsetFile.writeText(mapper.writeValueAsString(offset)) }
 
-        // Send typing indicator
-        runCatching {
-            val http = java.net.http.HttpClient.newHttpClient()
-            val req  = java.net.http.HttpRequest.newBuilder()
-                .uri(java.net.URI.create("https://api.telegram.org/bot${config.token}/sendChatAction"))
-                .header("Content-Type", "application/json")
-                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(
-                    """{"chat_id":$chatId,"action":"typing"}"""
-                ))
-                .build()
-            http.sendAsync(req, java.net.http.HttpResponse.BodyHandlers.ofString())
-        }
+            @Suppress("UNCHECKED_CAST")
+            val message = update["message"] as? Map<String, Any> ?: continue
+            val text    = message["text"] as? String ?: continue
+            @Suppress("UNCHECKED_CAST")
+            val chat    = message["chat"] as? Map<String, Any> ?: continue
+            val chatId  = (chat["id"] as? Number)?.toLong() ?: continue
 
-        // Collect CORTEX response
-        val response = collectResponse(logPosBefore)
+            if (allowedSet.isNotEmpty() && chatId !in allowedSet) continue
 
-        if (response.isBlank()) {
-            telegram.sendMessage(config.token, chatId,
-                "🤔 CORTEX is thinking... Check the dashboard for the full response."
-            )
-        } else {
-            // Clean up log formatting for Telegram (strip ANSI, trim timestamps)
-            val cleaned = response
-                .replace(Regex("\\[[0-9;]*m"), "")        // ANSI codes
-                .lines()
-                .joinToString("\n") { it.trimStart() }
-                .trim()
+            log("MSG [$chatId] $text")
 
-            telegram.sendLongMessage(config.token, chatId, cleaned)
-            log("  ← sent response (${cleaned.length} chars)")
+            val procFile = File(jobsDir, "cortex/cortex-session.json.processing")
+            if (!procFile.exists()) {
+                tgSend(chatId, "CORTEX is not running. Start it first.")
+                continue
+            }
+
+            val logPosBefore = if (cortexLogFile.exists()) cortexLogFile.length() else 0L
+            val ts = System.currentTimeMillis()
+            val tmpCmd = File(jobsDir, "commands/.tmp_$ts")
+            tmpCmd.writeText(text)
+            tmpCmd.renameTo(File(cmdInDir, "$ts.response"))
+            log("  -> sent to CommandBridge")
+
+            val response = collectResponse(logPosBefore, text)
+            if (response.isBlank()) {
+                tgSend(chatId, "CORTEX did not respond in time.")
+            } else {
+                // Strip log noise — keep only LLM response lines
+                val cleaned = response
+                    .replace(Regex("\\[[0-9;]*m"), "")  // ANSI codes
+                    .lines()
+                    .map { it.replace(Regex("^\\[[0-9]{2}:[0-9]{2}:[0-9]{2}\\]\\s?"), "") }
+                    .filter { line ->
+                        !line.startsWith("  →") &&   // -> tool calls
+                        !line.startsWith("  ↳") &&   // down-right tool results
+                        !line.startsWith("▶") &&     // ▶ user echo
+                        !line.contains("━")           // ━ separators
+                    }
+                    .joinToString("\n")
+                    .replace(Regex("\n{3,}"), "\n\n")
+                    .trim()
+
+                if (cleaned.isBlank()) {
+                    val hasRateLimit = response.contains("429")
+                    val hasTooBig    = response.contains("413")
+                    val hasNoRoute   = response.contains("No route to host") || response.contains("Connection refused")
+                    val hasError     = response.contains("[Error:")
+                    val msg = when {
+                        hasRateLimit -> "⚠ CORTEX: rate limit hit. Try again in a moment."
+                        hasTooBig    -> "⚠ CORTEX: request too large. Try a shorter question."
+                        hasNoRoute   -> "⚠ CORTEX: LLM server not reachable (192.168.1.9:1234 offline?)."
+                        hasError     -> "⚠ CORTEX error: ${response.lines().firstOrNull { it.contains("[Error:") }?.trim() ?: "unknown"}"
+                        else         -> "⚠ CORTEX responded but the message was empty."
+                    }
+                    log("  <- sent error response to $chatId: $msg")
+                    tgSend(chatId, msg)
+                } else {
+                    cleaned.chunked(3800).forEachIndexed { i, chunk ->
+                        if (i > 0) Thread.sleep(300)
+                        tgSend(chatId, chunk)
+                    }
+                    log("  <- sent response (${cleaned.length} chars)")
+                }
+            }
+
+            // Send any photos queued by CORTEX during this request
+            val photoQueueDir = File(jobsDir, "telegram/photo_queue")
+            photoQueueDir.mkdirs()
+            photoQueueDir.listFiles { f -> f.extension == "json" }
+                ?.sortedBy { it.name }
+                ?.forEach { reqFile ->
+                    runCatching {
+                        @Suppress("UNCHECKED_CAST")
+                        val req     = mapper.readValue<Map<String, Any>>(reqFile)
+                        val path    = req["path"]?.toString() ?: return@runCatching
+                        val caption = req["caption"]?.toString() ?: ""
+                        tgSendPhoto(chatId, java.io.File(path), caption)
+                        reqFile.delete()
+                    }.onFailure { log("  photo queue error: ${it.message}") }
+                }
         }
     }
 
-    log("◈ TELEGRAM BRIDGE stopped")
+    log("TELEGRAM BRIDGE stopped")
     bridge.close()
+
+    } // end if (config != null)
 }

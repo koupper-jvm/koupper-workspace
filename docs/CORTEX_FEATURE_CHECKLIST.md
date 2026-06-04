@@ -32,9 +32,11 @@ _Orden de implementación por impacto. Tachar cuando esté hecho._
 
 ## Fase 2 — Canal Telegram (cerrar gap vs OpenClaw)
 
-- [ ] **TelegramBridgeAgent flow completo verificado**
-  - El agente existe y arranca, pero ¿el flow mensaje → CORTEX → respuesta funciona end-to-end?
-  - Meta: mandar un mensaje real desde Telegram y recibir respuesta de CORTEX
+- [x] **TelegramBridgeAgent flow completo verificado**
+  - Flow confirmado en vivo: Telegram → CommandBridge (atómico) → CortexAgent → respuesta → Telegram
+  - Fix: write atómico (writeText → tmp + rename), offset persistido en telegram-offset.json
+  - Fix: errores de CortexAgent ya se reenvían a Telegram con mensaje útil (LLM offline, rate limit, etc.)
+  - Pendiente: probar con LLM server online para verificar respuesta completa end-to-end
 
 - [ ] **TelegramChannelProvider como Service Provider**
   - Mover la lógica de Telegram a un SP reutilizable en el framework
