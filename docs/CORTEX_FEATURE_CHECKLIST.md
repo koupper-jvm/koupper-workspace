@@ -18,9 +18,11 @@ _Orden de implementación por impacto. Tachar cuando esté hecho._
   - Loop de 60 s añadido a `koupper-start.sh`; cooldown persiste en `~/.koupper/heartbeat-state.json`
   - Verificado: compila, evalúa condiciones, despacha jobs con formato correcto, el worker los consume
 
-- [ ] **Agente útil de ejemplo — GitStatusAgent**
-  - Un agente que monitoree los repos de Koupper (commits nuevos, PRs abiertos, CI status)
-  - Demuestra uso real del framework + MCP GitHub
+- [x] **Agente útil de ejemplo — GitStatusAgent**
+  - Conecta al MCP GitHub (servers.json), lista últimos 5 commits + PRs abiertos por repo
+  - Repos configurables en `~/.koupper/gitstatus-repos.json` (default: koupper-jvm/*)
+  - Digest diario en `~/.koupper/jobs/logs/default/gitstatus-YYYY-MM-DD.log`
+  - Condición en heartbeat.md: corre a las 09:00, cooldown 720 min
 
 - [ ] **Agente útil de ejemplo — FileWatcherAgent**
   - Monitorea un directorio configurable y dispara acciones cuando aparecen archivos nuevos
