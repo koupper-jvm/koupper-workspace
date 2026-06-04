@@ -27,6 +27,10 @@ echo "[koupper-start] Starting WebUI..."
 nohup koupper run ~/.koupper/agents/CortexWebUiAgent.kts >> "$LOGS/default/webui.log" 2>&1 &
 echo $! > ~/.koupper/run/webui.pid
 
+echo "[koupper-start] Starting FileWatcherAgent..."
+nohup koupper run ~/.koupper/agents/FileWatcherAgent.kts >> "$LOGS/default/filewatcher.log" 2>&1 &
+echo $! > ~/.koupper/run/filewatcher.pid
+
 echo "[koupper-start] Starting HeartbeatAgent loop (60 s)..."
 (while true; do
     koupper run ~/.koupper/agents/HeartbeatAgent.kts >> "$LOGS/default/heartbeat.log" 2>&1
