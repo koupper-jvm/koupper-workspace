@@ -20,6 +20,10 @@ Startup entrypoint is `docs/AGENT_RECEPTION.md`; run that checklist first, then 
   - `koupper-docs/docs/production/release-workflow.md`
 - If task touches maintainer governance/policy, also read:
   - `docs/MAINTAINER_GUIDE.md`
+- If task touches scripting DX / boilerplate reduction / implicit providers, also read:
+  - `docs/SCRIPTING_DX_IMPROVEMENTS.md`
+- If task touches tech debt / code quality / build cleanup, also read:
+  - `docs/OBSERVATIONS.md`
 - If task touches framework maturity/enterprise hardening, also read:
   - `docs/KOUPPER_FRAMEWORK_MATURITY_PLAYBOOK.md`
 

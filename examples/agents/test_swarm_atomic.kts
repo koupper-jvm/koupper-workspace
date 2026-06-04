@@ -64,8 +64,8 @@ class AtomicSwarmCoordinator(val sidecar: AtomicSidecar) {
 
 @Export
 val run: () -> Unit = {
-    val exe = "/home/tdn-dell/develop/llama.cpp/build/bin/llama-server"
-    val model = "/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf"
+    val exe = System.getenv("KOUPPER_LLM_EXECUTABLE") ?: "/home/tdn-dell/develop/llama.cpp/build/bin/llama-server"
+    val model = System.getenv("KOUPPER_LLM_MODEL_PATH") ?: "/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf"
     val port = 8082
 
     println("--- SWARM HANDOFF ATOMIC TEST ---")

@@ -3,5 +3,6 @@ import com.koupper.octopus.process.ModuleAnalyzer
 
 @Export
 val setup: (ModuleAnalyzer) -> Unit = { analyzer ->
-    analyzer.target("C:\\Users\\dosek\\develop\\igly-comms").run()
+    val target = System.getenv("KOUPPER_MODULE_TARGET") ?: error("KOUPPER_MODULE_TARGET environment variable is not set")
+    analyzer.target(target).run()
 }
