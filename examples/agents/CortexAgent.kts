@@ -94,6 +94,48 @@ val mcpServer = runCatching {
             "${if (f.isDirectory) "dir" else "file"}  ${f.name}  (${f.length()} bytes)"
         } ?: "(empty)"
     }
+    srv.registerTool("job_status", "Check the status and last log lines of a job by ID",
+        mapOf("type" to "object", "properties" to mapOf(
+            "jobId" to mapOf("type" to "string", "description" to "Job ID, e.g. GitStatusAgent-hb-1780591778175")
+        ), "required" to listOf("jobId"))
+    ) { args ->
+        val jobId = args["jobId"]?.toString() ?: return@registerTool "missing jobId"
+        val queues = jobsDir.listFiles { f -> f.isDirectory && !f.name.startsWith(".") } ?: emptyArray()
+        val sb = StringBuilder()
+
+        // Check all queues for this job
+        var found = false
+        for (q in queues) {
+            val pending    = File(q, "$jobId.json").exists()
+            val processing = File(q, "$jobId.json.processing").exists()
+            val failed     = File(File(q, ".failed"), "$jobId.json").exists()
+            if (pending || processing || failed) {
+                found = true
+                val status = when { failed -> "FAILED" ; processing -> "PROCESSING" ; else -> "PENDING" }
+                sb.appendLine("Status: $status (queue: ${q.name})")
+            }
+        }
+
+        // Check log
+        val logFile = queues.mapNotNull { q ->
+            File(jobsDir, "logs/${q.name}/$jobId.log").takeIf { it.exists() }
+        }.firstOrNull()
+
+        if (logFile != null) {
+            found = true
+            val lines = logFile.readLines()
+            val status = when {
+                lines.any { "[DONE]" in it }    -> "DONE"
+                lines.any { "[FAILED]" in it }  -> "FAILED"
+                else                            -> "IN PROGRESS / COMPLETED"
+            }
+            if (sb.isEmpty()) sb.appendLine("Status: $status")
+            sb.appendLine("Log (last 20 lines):")
+            lines.takeLast(20).forEach { sb.appendLine("  $it") }
+        }
+
+        if (!found) "Job '$jobId' not found in any queue or log. Check the job ID." else sb.toString().trimEnd()
+    }
     srv.startHttp()
     srv
 }.getOrNull()
