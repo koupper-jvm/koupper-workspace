@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-03 — auto-start, dashboard, memoria, AgentCreatorAgent con LLM real_
+_Last updated: 2026-06-04 — HeartbeatAgent operativo con condiciones reales y loop 60 s_
 
 ---
 
@@ -123,6 +123,6 @@ def embed(text):
 
 ## Próximos pasos (ver CORTEX_FEATURE_CHECKLIST.md)
 
-1. **HeartbeatAgent operativo** — definir condiciones reales en `~/.koupper/heartbeat.md`
+1. **Agente útil — GitStatusAgent** — monitorear repos Koupper (commits, PRs, CI)
 2. **TelegramBridgeAgent end-to-end** — verificar flow completo mensaje → CORTEX → respuesta
-3. **GitStatusAgent** — agente útil real usando MCP GitHub
+3. **FileWatcherAgent** — monitorear directorio, disparar acciones en archivos nuevos

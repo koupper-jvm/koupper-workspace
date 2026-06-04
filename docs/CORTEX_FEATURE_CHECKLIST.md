@@ -12,10 +12,11 @@ _Orden de implementación por impacto. Tachar cuando esté hecho._
   - Fallback a scaffold si el LLM no está disponible
   - Nota: requiere que el LLM server (192.168.1.9:1234 o Groq) esté online
 
-- [ ] **HeartbeatAgent operativo**
-  - El agente existe pero las condiciones en `~/.koupper/heartbeat.md` nunca se han definido
-  - Meta: definir condiciones reales (ej. queue vacío, hora del día, archivo existe) y verificar que dispara agentes correctamente
-  - Archivo: `~/.koupper/agents/HeartbeatAgent.kts`
+- [x] **HeartbeatAgent operativo**
+  - Corregidos: imports (`@Export`, `jacksonObjectMapper`), `log.info {}` → `emit()`, formato de job JSON
+  - 3 condiciones reales en `~/.koupper/heartbeat.md`: morning-digest (08:00→RSS), failed-jobs-alert, nightly-cleanup (23:00→DiskCleaner)
+  - Loop de 60 s añadido a `koupper-start.sh`; cooldown persiste en `~/.koupper/heartbeat-state.json`
+  - Verificado: compila, evalúa condiciones, despacha jobs con formato correcto, el worker los consume
 
 - [ ] **Agente útil de ejemplo — GitStatusAgent**
   - Un agente que monitoree los repos de Koupper (commits nuevos, PRs abiertos, CI status)
