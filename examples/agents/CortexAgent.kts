@@ -30,25 +30,38 @@ val agentsDir = File(home, ".koupper/agents").also { it.mkdirs() }
 val mapper    = jacksonObjectMapper()
 val http      = app.getInstance(HtppClient::class)
 val memory    = runCatching { app.getInstance(MemoryProvider::class) }.getOrNull()
-val isCloud   = env("KOUPPER_LLM_PROVIDER").lowercase() == "openai"
 
 val SESSION_ID = "cortex-session"
 val queueDir   = File(jobsDir, "cortex").also { it.mkdirs() }
 
-// Fallback LLM engines — tried in order when the primary fails
-val fallbackEngines: List<Pair<String, InferenceEngine>> = run {
-    val list = mutableListOf<Pair<String, InferenceEngine>>()
-    val groqKey = env("KOUPPER_LLM_API_KEY", "")
-    if (groqKey.isNotBlank() && !env("KOUPPER_LLM_API_BASE", "").contains("groq.com")) {
-        runCatching {
-            list.add("groq" to OpenAICompatibleEngine(
-                baseUrl = "https://api.groq.com/openai/v1",
-                apiKey  = groqKey,
-                model   = env("KOUPPER_LLM_MODEL_FALLBACK", "llama-3.3-70b-versatile")
-            ))
+// ── Multi-provider reader ─────────────────────────────────────────────────────
+// Escanea K_[PROVIDER]_LLM=true en el entorno y construye engines en orden de prioridad.
+// Para agregar un provider basta con setear las 5 vars en ~/.profile — sin tocar código.
+fun loadLLMProviders(): List<Pair<String, InferenceEngine>> {
+    val e = System.getenv()
+    return e.keys
+        .filter { it.matches(Regex("K_[A-Z0-9]+_LLM")) && e[it]?.lowercase() == "true" }
+        .mapNotNull { flag ->
+            val pfx    = flag.removeSuffix("_LLM")
+            val name   = pfx.removePrefix("K_").lowercase()
+            val apiKey = e["${pfx}_LLM_API_KEY"] ?: ""
+            val url    = e["${pfx}_LLM_URL"]     ?: ""
+            val model  = e["${pfx}_LLM_MODEL"]   ?: ""
+            val prio   = e["${pfx}_LLM_PRIORITY"]?.toIntOrNull() ?: 50
+            if (apiKey.isBlank() || url.isBlank() || model.isBlank()) {
+                log("  ⚠ $name: K_${name.uppercase()}_LLM=true pero faltan vars (KEY/URL/MODEL) — ignorado")
+                null
+            } else {
+                runCatching {
+                    prio to ("$name ($model)" to (OpenAICompatibleEngine(
+                        baseUrl = url, apiKey = apiKey, model = model
+                    ) as InferenceEngine))
+                }.getOrNull()
+            }
         }
-    }
-    list
+        .filterNotNull()
+        .sortedBy { it.first }
+        .map { it.second }
 }
 
 // ── Local MCP server (bash + list_files tools on port 18082) ─────────────────
@@ -464,22 +477,26 @@ fun inferWithNativeTools(
 @Export
 val setup: () -> Unit = {
 
-    val engine = runCatching { app.getInstance(InferenceEngine::class) }.getOrElse { e ->
-        log("⚠ InferenceEngine not available: ${e.message}")
+    val providers = loadLLMProviders()
+
+    if (providers.isEmpty()) {
+        log("⚠ Sin providers LLM. Configura K_[PROVIDER]_LLM=true en ~/.profile")
         procFile.delete()
-        null
     }
 
-    if (engine != null) {
+    if (providers.isNotEmpty()) {
+        val engine          = providers.first().second
+        val fallbackEngines = providers.drop(1)
+
         val localTools      = listMcpTools()
         val externalServers = loadExternalMcpServers()
         val toolDefs        = buildToolDefinitions(localTools, externalServers)
         val history         = mutableListOf(AgentMessage("system", buildSystemPrompt(toolDefs)))
 
         log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        log("  CORTEX ONLINE — ${if (isCloud) "Cloud (${env("KOUPPER_LLM_MODEL") ?: "?"})" else "Local"}")
+        log("  CORTEX ONLINE")
+        log("  Providers: ${providers.joinToString(" → ") { it.first }}")
         log("  Tools: ${toolDefs.size} (${localTools.size} MCP + ${externalServers.sumOf { it.connected.tools.size }} external${if (memory != null) " + 3 memory" else ""})")
-        log("  Mode: ${if (isCloud) "native function calling" else "text-based CORTEX_TOOL"}")
         log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
         val agentCount = agentsDir.listFiles { f -> f.name.endsWith(".kts") && f.name != "CortexAgent.kts" }?.size ?: 0
