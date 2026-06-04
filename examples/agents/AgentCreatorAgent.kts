@@ -1,12 +1,10 @@
 // AgentCreatorAgent.kts — CORTEX Wizard
 // Interactive wizard: collects name, role, objective then uses InferenceEngine
-// to generate a working Koupper agent script (not just a scaffold).
-// Driven by CommandBridgeProvider — reads answers from commands/wizard/*.response.
+// to generate a working Koupper agent script with a correction loop.
 
 import com.koupper.container.app
 import com.koupper.providers.agent.AgentMessage
 import com.koupper.providers.agent.InferenceEngine
-import com.koupper.providers.agent.TokenListener
 import com.koupper.providers.commandbridge.CommandBridgeProvider
 import com.koupper.shared.annotations.Export
 import java.io.File
@@ -18,8 +16,7 @@ enum class WizardStep { NAME, ROLE, OBJECTIVE, GENERATING, DONE }
 
 @Export
 val setup: () -> Unit = {
-    val home      = System.getProperty("user.home")!!
-    val jobsDir   = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
+    val jobsDir   = File(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
     val sessionId = "wizard-${System.currentTimeMillis()}"
 
     val agentsDir   = File(home, ".koupper/agents").also { it.mkdirs() }
@@ -31,132 +28,157 @@ val setup: () -> Unit = {
 
     logFile.writeText("")
 
-    fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-    fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n")
-    fun ask(msg: String) = logFile.appendText("[${ts()}] [?] $msg\n")
+    fun ts()           = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    fun log(msg: String) { logFile.appendText("[${ts()}] $msg\n"); emit(msg) }
+    fun ask(msg: String) { logFile.appendText("[${ts()}] [?] $msg\n"); emit("[?] $msg") }
 
     procFile.writeText("""{"id":"$sessionId","fileName":"AgentCreatorAgent","functionName":"setup","scriptPath":"agents/AgentCreatorAgent.kts","sourceType":"script"}""")
 
-    // ── State machine ─────────────────────────────────────────────────────────
+    // ── Prompt ────────────────────────────────────────────────────────────────
 
-    var step = WizardStep.NAME
-    val draft = mutableMapOf<String, String>()
+    val exportTag = "@" + "Export"
 
-    fun buildGenerationPrompt(name: String, role: String, objective: String): String = """
-You are generating a Koupper agent script. Output ONLY the Kotlin script, no explanation.
+    fun buildPrompt(name: String, role: String, objective: String) = """
+Write a Koupper agent script in Kotlin. Output ONLY code, no markdown, no explanation.
 
-Requirements:
-- The script must import com.koupper.shared.annotations.Export
-- Must have exactly one @Export annotated val named 'setup' of type () -> Unit
-- Use java.io.File for log output to: File(jobsDir, "logs/default/$name-session.log")
-- Use CORTEX_JOBS_DIR env var for jobsDir (default: ${'$'}home/.koupper/jobs)
-- Must be self-contained — no external HTTP calls unless via Koupper SPs
-- Include proper logging with timestamps using LocalDateTime
+Rules:
+- Start with: // $name.kts
+- Imports: com.koupper.container.app, com.koupper.shared.annotations.Export, java.io.File, java.time.*
+- Preamble already provides: home:String, env(name,default=""):String, emit(text):Unit
+- One entrypoint: $exportTag  val setup: () -> Unit = { ... }
+- Inside setup: val jobsDir = File(env("CORTEX_JOBS_DIR", System.getProperty("user.home") + "/.koupper/jobs"))
+- Write logs to File(jobsDir, "logs/default/$name-session.log")
+- Use app.getInstance(HtppClient::class) for HTTP, app.getInstance(RSSReader::class) for feeds
+- No TODO comments — implement the logic fully
 
-Agent specification:
-  Name:      $name
-  Role:      $role
-  Objective: $objective
-
-Available Koupper Service Providers (use via app.getInstance()):
-  - InferenceEngine   — local LLM inference (predict, TokenListener for streaming)
-  - HtppClient        — HTTP GET/POST
-  - TextFileHandler   — read/write text files
-  - RSSReader         — read RSS/Atom feeds (read(url): List<RSSItem {title,link,html,pubDate,source}>)
-  - CommandBridgeProvider — watch directory for *.response command files
-
-Output a complete, working .kts script that implements the agent's objective.
-Start the script with these comment lines:
-// $name.kts
-// Role      : $role
-// Objective : $objective
+Agent:
+Name: $name | Role: $role
+Objective: $objective
 """.trimIndent()
 
-    fun generateWithLLM(name: String, role: String, objective: String): String {
-        log("")
-        log("  ◈ Generating agent with local LLM...")
-        log("  This may take a moment depending on your model.")
-        log("")
+    fun buildCorrectionPrompt(issues: List<String>, code: String) = """
+The following Koupper agent script has issues. Fix them and return ONLY the corrected code.
 
-        val engine = runCatching { app.getInstance(InferenceEngine::class) }.getOrNull()
+ISSUES TO FIX:
+${issues.joinToString("\n") { "- $it" }}
 
-        if (engine == null) {
-            log("  ⚠ InferenceEngine not available — generating scaffold instead.")
-            log("  Set KOUPPER_LLM_MODEL_PATH to enable LLM code generation.")
-            return generateScaffold(name, role, objective)
-        }
+Rules: no markdown fences, no explanation, no new TODO comments.
 
-        val prompt = buildGenerationPrompt(name, role, objective)
-        val history = listOf(
-            AgentMessage("system", "You are an expert Kotlin developer who writes Koupper agent scripts. Output only valid Kotlin code, no markdown, no explanation."),
-            AgentMessage("user", prompt)
-        )
+CODE:
+$code
+""".trimIndent()
 
-        val sb = StringBuilder()
-        val listener = object : TokenListener {
-            override fun onToken(token: String, agentId: String) {
-                sb.append(token)
-                logFile.appendText(token)
-            }
-        }
+    // ── Code extraction ───────────────────────────────────────────────────────
 
-        return runCatching {
-            runBlocking { engine.predict<String>(history, listener = listener) }
-            logFile.appendText("\n")
-            sb.toString().trim()
-        }.getOrElse { e ->
-            log("\n  ⚠ LLM generation failed: ${e.message?.take(80)}")
-            log("  Falling back to scaffold.")
-            generateScaffold(name, role, objective)
-        }
+    fun extractCode(raw: String): String {
+        // Strip markdown fences in any variation
+        val stripped = Regex("```(?:kotlin|kts)?\\s*\\n?(.*?)```", RegexOption.DOT_MATCHES_ALL)
+            .find(raw)?.groupValues?.get(1)?.trim() ?: raw.trim()
+        // Remove leading/trailing blank lines
+        return stripped.lines().dropWhile { it.isBlank() }.dropLastWhile { it.isBlank() }
+            .joinToString("\n")
     }
 
+    fun validateCode(code: String): List<String> {
+        val issues = mutableListOf<String>()
+        if (!code.contains("@Export")) issues += "Missing @Export annotation"
+        if (!code.contains("val setup")) issues += "Missing 'val setup' entrypoint"
+        val todoCount = Regex("// ?TODO").findAll(code).count()
+        if (todoCount > 0) issues += "$todoCount TODO comment(s) not implemented — replace with real code"
+        if (code.contains("// implement") || code.contains("// add logic"))
+            issues += "Placeholder comments found — implement the actual logic"
+        return issues
+    }
+
+    // ── Scaffold (defined first so generateWithLLM can reference it) ──────────
+
     fun generateScaffold(name: String, role: String, objective: String): String {
-        val exportAnn = "@" + "Export"
+        val ann = "@" + "Export"
         return """
 // $name.kts
 // Role      : $role
 // Objective : $objective
-// Generated by CORTEX WIZARD (scaffold — set KOUPPER_LLM_MODEL_PATH for LLM generation)
 
 import com.koupper.shared.annotations.Export
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-$exportAnn
+$ann
 val setup: () -> Unit = {
-    val home    = System.getProperty("user.home")!!
-    val jobsDir = File(System.getenv("CORTEX_JOBS_DIR") ?: "${'$'}home/.koupper/jobs")
+    val jobsDir = File(env("CORTEX_JOBS_DIR", "${'$'}home/.koupper/jobs"))
     val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
     val logFile = File(logDir, "$name-session.log")
-    fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
-    fun log(msg: String) = logFile.appendText("[${'$'}{ts()}] ${'$'}msg\n")
-
-    // TODO: Implement agent behavior
-    // Role:      $role
-    // Objective: $objective
+    fun ts()         = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+    fun log(m: String) { logFile.appendText("[${'$'}{ts()}] ${'$'}m\n"); emit(m) }
 
     log("$name started")
-    log("Role: $role")
-    log("Objective: $objective")
-    log("$name completed — READY")
+    // TODO: Implement $objective
+    log("$name done")
 }
 """.trimIndent()
     }
 
-    fun saveAgent(name: String, role: String, objective: String, code: String) {
-        // Extract code block if LLM wrapped it in markdown
-        val cleanCode = Regex("```kotlin\n?(.*?)```", RegexOption.DOT_MATCHES_ALL)
-            .find(code)?.groupValues?.get(1)?.trim() ?: code
+    // ── LLM call ─────────────────────────────────────────────────────────────
 
-        File(agentsDir, "draft_$name.json").writeText(
-            """{"name":"$name","role":"$role","objective":"$objective","createdAt":"${ts()}"}"""
+    fun callLLM(engine: InferenceEngine, systemMsg: String, userMsg: String): String {
+        val history = listOf(
+            AgentMessage("system", systemMsg),
+            AgentMessage("user", userMsg)
         )
-        File(agentsDir, "$name.kts").writeText(cleanCode)
+        return runCatching {
+            runBlocking { engine.predict<String>(history) }.toString().trim()
+        }.getOrElse { e ->
+            log("  ⚠ LLM call failed: ${e.message?.take(80)}")
+            ""
+        }
+    }
 
-        // Write skill.json
-        val exportAnn = "@" + "Export"
+    fun generateWithLLM(name: String, role: String, objective: String): String {
+        log("")
+        log("  ◈ Generating agent with LLM...")
+        log("")
+
+        val engine = runCatching { app.getInstance(InferenceEngine::class) }.getOrNull()
+        if (engine == null) {
+            log("  ⚠ InferenceEngine not available — generating scaffold.")
+            return generateScaffold(name, role, objective)
+        }
+
+        val systemMsg = "You are an expert Kotlin developer. Output only valid Kotlin code, no markdown, no explanation."
+
+        // Pass 1 — generate
+        val raw1 = callLLM(engine, systemMsg, buildPrompt(name, role, objective))
+        if (raw1.isBlank()) return generateScaffold(name, role, objective)
+
+        var code = extractCode(raw1)
+        val issues = validateCode(code)
+
+        if (issues.isEmpty()) {
+            log("  ✓ Code generated and validated.")
+            return code
+        }
+
+        // Pass 2 — correction loop
+        log("  ↺ Issues found: ${issues.joinToString("; ")}. Requesting correction...")
+        val raw2 = callLLM(engine, systemMsg, buildCorrectionPrompt(issues, code))
+        if (raw2.isNotBlank()) {
+            code = extractCode(raw2)
+            val remaining = validateCode(code)
+            if (remaining.isEmpty()) {
+                log("  ✓ Correction successful.")
+            } else {
+                log("  ⚠ ${remaining.size} issue(s) remain — saving anyway.")
+            }
+        }
+
+        return code
+    }
+
+    // ── Save ──────────────────────────────────────────────────────────────────
+
+    fun saveAgent(name: String, role: String, objective: String, code: String) {
+        File(agentsDir, "$name.kts").writeText(code)
         File(agentsDir, "$name.skill.json").writeText("""
 {
   "name": "$name",
@@ -164,56 +186,53 @@ val setup: () -> Unit = {
   "description": "$objective",
   "role": "$role",
   "entrypoint": "setup",
-  "inputs": [],
-  "outputs": ["logs/default/$name-session.log"],
-  "envVars": [],
-  "providers": [],
   "triggers": ["manual", "worker-job"],
-  "tags": ["generated"],
-  "persistent": false
+  "tags": ["generated"]
 }
 """.trimIndent())
 
         log("")
         log("┌─────────────────────────────────────┐")
-        log("│   AGENT READY FOR DEPLOYMENT        │")
+        log("│   AGENT READY                       │")
         log("└─────────────────────────────────────┘")
-        log("  NAME       : $name")
-        log("  ROLE       : $role")
-        log("  OBJECTIVE  : $objective")
-        log("  FILE       : ~/.koupper/agents/$name.kts")
-        log("  SKILL      : ~/.koupper/agents/$name.skill.json")
+        log("  NAME : $name")
+        log("  FILE : ~/.koupper/agents/$name.kts")
         log("")
         log("  Run: koupper run ~/.koupper/agents/$name.kts")
     }
 
-    fun nextQuestion() {
-        when (step) {
-            WizardStep.NAME      -> ask("What is the agent name? (e.g. DataSyncAgent)")
-            WizardStep.ROLE      -> ask("What is the agent role / specialty?")
-            WizardStep.OBJECTIVE -> ask("What should this agent do? (be specific)")
-            else                 -> {}
-        }
+    // ── State machine ─────────────────────────────────────────────────────────
+
+    var step = WizardStep.NAME
+    val draft = mutableMapOf<String, String>()
+
+    fun nextQuestion() = when (step) {
+        WizardStep.NAME      -> ask("Agent name? (e.g. GitStatusAgent)")
+        WizardStep.ROLE      -> ask("Agent role / specialty?")
+        WizardStep.OBJECTIVE -> ask("What should it do? Be specific.")
+        else                 -> {}
     }
 
     fun processAnswer(answer: String) {
         when (step) {
             WizardStep.NAME -> {
-                val name = answer.replace(" ", "").let { if (it.endsWith("Agent")) it else "${it}Agent" }
+                val name = answer.trim().replace(" ", "").let {
+                    if (it.endsWith("Agent")) it else "${it}Agent"
+                }
                 draft["name"] = name
-                log("  ✓ Name      : $name")
+                log("  ✓ Name: $name")
                 step = WizardStep.ROLE
                 nextQuestion()
             }
             WizardStep.ROLE -> {
-                draft["role"] = answer
-                log("  ✓ Role      : $answer")
+                draft["role"] = answer.trim()
+                log("  ✓ Role: ${answer.trim()}")
                 step = WizardStep.OBJECTIVE
                 nextQuestion()
             }
             WizardStep.OBJECTIVE -> {
-                draft["objective"] = answer
-                log("  ✓ Objective : $answer")
+                draft["objective"] = answer.trim()
+                log("  ✓ Objective: ${answer.trim()}")
                 step = WizardStep.GENERATING
 
                 val name      = draft["name"]!!
@@ -222,7 +241,6 @@ val setup: () -> Unit = {
 
                 val code = generateWithLLM(name, role, objective)
                 saveAgent(name, role, objective, code)
-
                 step = WizardStep.DONE
                 Thread.sleep(300)
                 procFile.delete()
@@ -231,13 +249,11 @@ val setup: () -> Unit = {
         }
     }
 
-    // ── Command loop ──────────────────────────────────────────────────────────
+    // ── Main loop ─────────────────────────────────────────────────────────────
 
     log("┌─────────────────────────────────────┐")
     log("│   CORTEX WIZARD — AGENT CREATOR     │")
     log("└─────────────────────────────────────┘")
-    log("  Type your answers in the command bar.")
-    log("  LLM will generate the agent code automatically.")
     log("")
     nextQuestion()
 
@@ -246,12 +262,12 @@ val setup: () -> Unit = {
 
     bridge.watch(wizardInDir).drain()
 
-    while (step != WizardStep.DONE && step != WizardStep.GENERATING && System.currentTimeMillis() < deadline) {
+    while (step != WizardStep.DONE && step != WizardStep.GENERATING
+           && System.currentTimeMillis() < deadline) {
         val answer = bridge.nextCommand() ?: continue
         if (answer.isNotBlank()) processAnswer(answer)
     }
 
-    // Wait for generation to finish if in progress
     val genDeadline = System.currentTimeMillis() + 5 * 60 * 1000L
     while (step == WizardStep.GENERATING && System.currentTimeMillis() < genDeadline) {
         Thread.sleep(500)
