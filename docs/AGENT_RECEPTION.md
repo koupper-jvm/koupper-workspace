@@ -9,7 +9,6 @@ This is the single startup file for every agent session in this workspace.
 3. Read `docs/AGENT_BOOTSTRAP.md` — required follow-up reads by task scope.
 4. Run preflight (from repo root):
    ```bash
-   cd "C:\Users\dosek\develop\koupper infrastructure"
    koupper run scripts/agent/preflight.kts '{}'
    ```
 5. Run structure validation:
