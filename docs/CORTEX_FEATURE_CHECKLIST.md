@@ -24,9 +24,11 @@ _Orden de implementación por impacto. Tachar cuando esté hecho._
   - Digest diario en `~/.koupper/jobs/logs/default/gitstatus-YYYY-MM-DD.log`
   - Condición en heartbeat.md: corre a las 09:00, cooldown 720 min
 
-- [ ] **Agente útil de ejemplo — FileWatcherAgent**
-  - Monitorea un directorio configurable y dispara acciones cuando aparecen archivos nuevos
-  - Caso de uso: watch `~/Downloads/`, procesar PDFs automáticamente
+- [x] **Agente útil de ejemplo — FileWatcherAgent**
+  - Usa Java WatchService, reglas en `~/.koupper/filewatcher-rules.json`
+  - Acciones: `log` | `move` | `dispatch` (crea job para otro agente con `filePath` en el JSON)
+  - Default: watch `~/Downloads` para `*.pdf` y `*` → log
+  - Verificado: detecta PDF y TXT en < 1 s; arranca con el sistema vía koupper-start.sh
 
 ---
 
