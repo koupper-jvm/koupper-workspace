@@ -39,7 +39,8 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
 3. **Provider developer experience**
    - ~~Add a provider authoring checklist template (`register + catalog + docs + tests`).~~ Done — `docs/PROVIDER_AUTHORING_CHECKLIST.md`.
    - ~~Add test coverage for all providers.~~ Done (6.4.0) — 74 tests across all providers.
-   - Add provider scaffold command or script that generates the starter files from the checklist template.
+   - ~~Add provider scaffold command or script that generates the starter files from the checklist template.~~ Done (6.5.3) — `koupper provider new <name>`.
+   - Add deep-type resolution for complex JSON/Map inputs in scripts. Done (6.5.3) — `.toType<T>()`.
 
 4. **Installer lifecycle hardening**
    - ~~Fix `install-uninstall-e2e-windows` CI PATH issue.~~ Done (6.4.0).
