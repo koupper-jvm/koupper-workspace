@@ -5,7 +5,10 @@
  */
 
 import com.koupper.providers.helloworld.HelloWorldProvider
+import com.koupper.shared.annotations.Export
+import com.koupper.container.app
 
+@Export
 val helloWorldDemo: (Map<String, Any?>) -> Map<String, Any?> = {
     val hello = app.getInstance(HelloWorldProvider::class)
     val response = hello.ping()

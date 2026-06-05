@@ -6,6 +6,7 @@
  */
 
 import com.koupper.providers.files.toType
+import com.koupper.shared.annotations.Export
 
 // 1. Define nested data structures
 data class Coords(val lat: Double, val lon: Double)
