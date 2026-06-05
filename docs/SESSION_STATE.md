@@ -1,193 +1,148 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-04 — Dashboard v2: chat history, agent search, collapsible cols, chat UI_
+_Last updated: 2026-06-05_
 
 ---
 
-## Current Objective
+## Estado general
 
-CORTEX con arquitectura Planner-Executor operativa y dashboard funcional.
-Próximo foco: validar Planner-Executor end-to-end con LLM online + TelegramChannelProvider como SP.
-
----
-
-## Estructura de ramas
-
-| Repo | Branch público | Branch privado CORTEX |
-|---|---|---|
-| `koupper` | `develop` | — |
-| `koupper-cli` | `develop` | `igly/cortex` |
-| `koupper-workspace` | `develop` | `igly/cortex` |
+- **CORTEX** vive en su propio repo: `git@github.com:Iglymx/cortex.git` → `~/develop/cortex/`
+- **Koupper** (framework open-source): `git@github.com:koupper-jvm/koupper-workspace.git`
+- Los dos repos están al día en sus ramas principales (`main` / `develop`)
 
 ---
 
-## Cómo arrancar
+## Repos y ramas activas
+
+| Repo | Ruta local | Rama activa | Estado |
+|---|---|---|---|
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | ✅ limpio, up to date |
+| koupper-workspace | `~/develop/koupper workspace` | `develop` | ✅ limpio, up to date |
+| cortex | `~/develop/cortex` | `main` | ✅ limpio, up to date |
+| igly2 (sitio web) | `~/develop/igly2` | `develop` | pendiente push a prod (merge→master manual) |
+
+---
+
+## Qué está construido (Fase 1 completa)
+
+### CORTEX (`~/develop/cortex/agents/`)
+
+| Agente | Descripción |
+|---|---|
+| `CortexAgent.kts` | Orquestador principal — Planner-Executor, multi-LLM, 19+ tools MCP |
+| `CortexWebUiAgent.kts` | Dashboard REST+SSE en localhost:18083 + voz edge-tts bilingüe |
+| `TelegramBridgeAgent.kts` | Bridge Telegram ↔ CORTEX, offset persistido |
+| `HeartbeatAgent.kts` | Monitor proactivo, condiciones en `~/.koupper/heartbeat.md`, loop 60s |
+| `FileIndexerAgent.kts` | ⭐ NUEVO — indexa directorios → chunks → embeddings → vector DB (100% SPs) |
+
+Todos tienen su `*.skill.json` con env vars, providers, triggers documentados.
+
+### Koupper framework (`~/develop/koupper workspace/koupper`)
+
+Cambio más reciente en `develop`:
+- `FileHandler.listFiles(dirPath, recursive, extensions)` — walk de directorios sin usar `java.io.File` directo en scripts
+
+---
+
+## Arrancar CORTEX
 
 ```bash
-systemctl --user start koupper.service    # levanta todo
-systemctl --user restart koupper.service  # reinicia
+# Prerrequisitos
+ollama serve && ollama pull gemma3:12b
+pip3 install edge-tts  # si no está instalado
 
-# Ver CORTEX en tiempo real
+# Arrancar stack completo
+~/develop/cortex/scripts/cortex-start.sh
+
+# Dashboard
+open http://localhost:18083
+
+# Log en tiempo real
 tail -f ~/.koupper/jobs/logs/cortex/cortex-session.log
-
-# Mandar pedido a CORTEX (mv = atómico, evita race condition con WatchService)
-echo "tu pedido" > /tmp/cmd.tmp && mv /tmp/cmd.tmp ~/.koupper/jobs/commands/wizard/$(date +%s%3N).response
-
-# Confirmar un plan
-echo "si" > /tmp/cmd.tmp && mv /tmp/cmd.tmp ~/.koupper/jobs/commands/wizard/$(date +%s%3N).response
 ```
 
----
-
-## Config LLM — Convención K_*_LLM
+### Config LLM (en `~/.bashrc`)
 
 ```bash
-# ~/.profile — patrón: K_[PROVIDER]_LLM=true activa el provider
-# CortexAgent escanea todos, los ordena por PRIORITY y construye la cadena de fallback
+# Prioridad 1 — local
+export K_OLLAMA_LLM=true
+export K_OLLAMA_LLM_URL=http://localhost:11434/v1
+export K_OLLAMA_LLM_MODEL=gemma3:12b
+export K_OLLAMA_LLM_PRIORITY=1
 
+# Prioridad 2 — LAN
 export K_LAN_LLM=true
 export K_LAN_LLM_URL=http://192.168.1.9:1234/v1
-export K_LAN_LLM_API_KEY=gsk_...
 export K_LAN_LLM_MODEL=qwen/qwen3.6-35b-a3b
-export K_LAN_LLM_PRIORITY=1
-export K_LAN_LLM_ROLE=general
+export K_LAN_LLM_PRIORITY=2
 
+# Prioridad 3 — cloud
 export K_GROQ_LLM=true
 export K_GROQ_LLM_URL=https://api.groq.com/openai/v1
-export K_GROQ_LLM_API_KEY=gsk_...
 export K_GROQ_LLM_MODEL=llama-3.3-70b-versatile
-export K_GROQ_LLM_PRIORITY=2
-export K_GROQ_LLM_ROLE=fast   # usado para Intent Analyzer (planning)
-
-# Templates comentados en ~/.profile: OpenAI, DeepSeek, Gemini, Mistral, NVIDIA
-# Para agregar: descomenta 5 vars (true + KEY + URL + MODEL + PRIORITY), reinicia
+export K_GROQ_LLM_PRIORITY=3
 ```
-
-### Cadena de fallback
-```
-[1] LAN server (priority=1)  →  [2] Groq (priority=2)  →  [3] Memoria vectorial  →  [4] Apología
-```
-
-### Roles disponibles
-- `general` — ejecución principal
-- `fast` — Intent Analyzer / planning (Groq)
-- `reasoning`, `code` — futuros (DeepSeek, etc.)
 
 ---
 
-## Arquitectura
+## Puertos
 
 | Puerto | Servicio |
 |---|---|
-| 9998 | Octopus daemon |
+| 9998 | Octopus daemon (socket) |
 | 18082 | MCP server (dentro de octopus.jar) |
-| 18083 | Web UI (CortexWebUiAgent) |
-
-**IMPORTANTE:**
-- Comandos a CORTEX: usar `mv /tmp/file ~/.koupper/jobs/commands/wizard/$(date +%s%3N).response` (atómico)
-- MCP server vive en `octopus.jar`, NO en `koupper-monitor.jar`
-- `emit()` en agentes `.kts` = stdout (preamble). `log()` local es para el logFile.
-- index.html del dashboard: vite genera `<!doctype html>` (lowercase) — el build script tiene `sed` para convertirlo a uppercase (Grizzly solo detecta `<!DOCTYPE` uppercase)
+| 18083 | Dashboard web (CortexWebUiAgent) |
+| 11434 | Ollama (local) |
 
 ---
 
-## Agentes instalados
+## FileIndexerAgent — cómo usarlo
 
-```
-CortexAgent.kts         — Planner-Executor, multi-LLM fallback, 19 tools, K_*_LLM reader
-CortexWebUiAgent.kts    — dashboard http://localhost:18083
-TelegramBridgeAgent.kts — bridge Telegram ↔ CORTEX (offset persistido)
-AgentCreatorAgent.kts   — wizard LLM real + correction loop + fallback scaffold
-HeartbeatAgent.kts      — proactive monitor (condiciones en ~/.koupper/heartbeat.md)
-GitStatusAgent.kts      — digest diario commits/PRs via MCP GitHub
-FileWatcherAgent.kts    — monitor de directorios (log/move/dispatch)
-RssFeedAgent.kts        — RSS aggregator + AI summary
-GreetingAgent.kts, DiskCleanerAgent.kts, y varios más
-```
-
----
-
-## Arquitectura CortexAgent — Planner-Executor
-
-```
-Input → isComplexRequest()?
-  NO  → ejecución directa
-  SÍ  → buildPlan() con providers role=fast (paralelo async/awaitAll)
-       → formatPlan() mostrado al usuario
-       → ¿Ejecutar? (si / no / feedback para re-planificar)
-           "si"  → inferWithNativeTools con plan como contexto
-           "no"  → cancela
-           texto → re-planifica con feedback
-```
-
-### Tools MCP registrados (local :18082)
-- `bash` — ejecuta comando shell
-- `list_files` — lista directorio
-- `job_status` — busca job por ID en todas las queues + últimas 20 líneas de log
-
-### Tools MCP externos
-- `github.*` — 26 tools
-- `playwright.*` — 23 tools
-
----
-
-## Dashboard — koupper-dashboard
-
-### Características actuales
-- **Header**: Aurora ring animada (72px) + "CORTEX" en pixel font (Press Start 2P) + glow neon
-- **Chat**: Historial de sesiones (localStorage), burbujas usuario/CORTEX, typing indicator animado, resize vertical
-- **Columnas colapsables**: Jobs, Log, Sidebar cada una con × para cerrar y franja con nombre rotado para reabrir
-- **Búsqueda de agentes**: scoring por nombre/descripción/rol/tags, multi-palabra fuzzy
-- **Búsqueda de jobs**: filtro por ID o queue en tiempo real
-- **Búsqueda en log**: highlight de matches con contador, opacidad reducida en no-matches
-- **Agentes filtrados**: oculta test/scratch agents (HelloWorld, FreshStart, etc.), toggle "▼ +N more"
-
-### Build/deploy
 ```bash
-cd koupper-dashboard
-npm run build   # incluye sed para uppercase DOCTYPE
-cp -r dist/. ~/.koupper/web/
+# One-shot: indexar un directorio
+koupper run ~/develop/cortex/agents/FileIndexerAgent.kts \
+  '{"watchDir":"/ruta/docs","collection":"mi-empresa"}'
+
+# Daemon: reindexar cada 5 minutos
+INDEXER_DIR=/ruta/docs INDEXER_LOOP_INTERVAL_S=300 \
+  koupper run ~/develop/cortex/agents/FileIndexerAgent.kts &
+
+# El vector DB queda en:
+~/.koupper/vectordb/mi-empresa.json
+
+# El estado incremental (archivos ya indexados) en:
+~/.koupper/indexer/mi-empresa-state.json
 ```
 
-### Bug conocido resuelto
-- `<!doctype html>` lowercase → Grizzly servía como application/json → HTML no renderizaba
-- Fix: `sed -i 's/<!doctype html>/<!DOCTYPE html>/g' dist/index.html` en build script
+Extensiones soportadas: `txt, md, pdf, csv, json, yaml, yml, xml, html`
 
 ---
 
-## Heartbeat conditions (`~/.koupper/heartbeat.md`)
+## Próximos pasos (por orden de impacto)
 
-| Condición | Cuándo | Agente | Cooldown |
-|---|---|---|---|
-| morning-digest | 08:00 | RssFeedAgent | 720 min |
-| failed-jobs-alert | queue_has_failed | GreetingAgent | 60 min |
-| nightly-cleanup | 23:00 | DiskCleanerAgent | 720 min |
-| daily-git-status | 09:00 | GitStatusAgent | 720 min |
-
----
-
-## Memoria vectorial
-
-19 entries en `~/.koupper/memory/memory-texts.json`.
-CortexAgent inyecta top-3 recalls relevantes por query.
-Entrada 18 corregida — ya no lista tools ficticios.
+1. **KnowledgeQueryAgent** — recibe query de texto, busca en el vector DB local, devuelve fragmentos con filename + chunk index. Bloque directo del FileIndexerAgent.
+2. **MasterKnowledgeAgent** — fan-out a múltiples nodos de la red, agrega resultados. Requiere KnowledgeQueryAgent funcionando + endpoint HTTP por nodo.
+3. **Deploy igly.mx a prod** — merge `develop→master` en igly2, `npm run build`, S3 sync, CloudFront invalidation (manual por el usuario).
+4. **TelegramChannelProvider como SP** — ya existe en Koupper (`telegram/` package), mover lógica del bridge a ese SP.
+5. **Dashboard multi-tenant** — separar jobs/logs por cliente en el panel.
 
 ---
 
-## Bugs resueltos (2026-06-04)
+## Docs de referencia
 
-1. **HeartbeatAgent**: imports + `log.info{}` → `fun log()` + formato job JSON correcto
-2. **TelegramBridgeAgent**: write atómico + offset persistido + errores descriptivos al usuario
-3. **FileWatcherAgent**: `return` en fun local → expression body; `continue` en forEach → for+if
-4. **CortexAgent: tools ficticios en memoria** → corregida entrada 18
-5. **CortexAgent: job_status inexistente** → registrado como tool MCP real
-6. **Dashboard: DOCTYPE lowercase** → build script agrega sed uppercase
-7. **Dashboard: agente RSS mostraba nada** → handleViewAgent stripea .kts antes del API call
+| Archivo | Propósito |
+|---|---|
+| `~/develop/cortex/docs/CORTEX_STRATEGIC_VISION.md` | Visión completa, arquitectura, casos de uso, competencia |
+| `~/develop/cortex/docs/CORTEX_FEATURE_CHECKLIST.md` | Checklist de features con estado actual |
+| `~/develop/cortex/agents/CortexAgent.kts` | Lógica del orquestador principal |
+| `~/develop/cortex/scripts/cortex-start.sh` | Startup completo del stack |
+| `~/develop/igly2/src/components/ourservices/AIAgents.tsx` | Landing pública de Igly Cortex |
 
 ---
 
-## Próximos pasos
+## Notas para retoma en frío
 
-1. **Validar Planner-Executor end-to-end** — probar con LLM LAN online: plan → "si" → ejecución
-2. **TelegramChannelProvider como SP** — mover lógica Telegram a Service Provider (Fase 2)
-3. **Marketplace** — `koupper agent list/install/publish` (Fase 3)
-4. **Métricas en dashboard** — jobs/min, success rate, P95 latency (Fase 4)
+- La landing de Igly Cortex (`/ourservices/ai-agents`) fue reescrita para público general sin jerga técnica. Está en `develop` de igly2, lista para merge a `master` (deploy manual).
+- `FileWatcherAgent` y `GitStatusAgent` existen en `~/.koupper/agents/` pero no están en el repo cortex — el usuario los instaló manualmente.
+- `HashEmbedder` (vectordb package, Koupper) es un `object` público accesible desde scripts: `import com.koupper.providers.vectordb.HashEmbedder`.
+- No existe SP de Excel (Apache POI no está en deps de Koupper). FileIndexerAgent omite `.xlsx`.
+- No existe SP de OCR. Imágenes no se indexan todavía.
