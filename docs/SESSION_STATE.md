@@ -45,8 +45,10 @@ _Last updated: 2026-06-05 (sesión 2)_
 
 | Tool | Comportamiento |
 |---|---|
-| `knowledge_index` | Usuario da una ruta → CORTEX indexa automáticamente (nunca pide hacerlo manualmente) |
+| `knowledge_index` | Usuario da una ruta → CORTEX indexa automáticamente |
 | `knowledge_query` | Busca en vector DB — intenta MasterKnowledgeAgent (18086) → fallback KnowledgeQueryAgent (18085) |
+| `remote_bash` | Ejecuta comandos en máquinas remotas vía SSH (JschSSHClient directo, no singleton) |
+| `remote_deploy` | Instala Koupper + agentes en host remoto, arranca servicios, registra nodo en knowledge-nodes.json |
 
 ### Koupper framework
 
@@ -121,6 +123,25 @@ export K_GROQ_LLM_PRIORITY=3
 3. **Agent templates parametrizables** — el cliente llena un formulario → genera su config → se despliega
 4. **Embeddings semánticos** — reemplazar HashEmbedder por llamada a LLM embedding API (mejor recall en knowledge_query)
 5. **TelegramChannelProvider como SP** — SP ya existe en Koupper (`telegram/` package), solo mover lógica del bridge
+
+## Flujo completo CORTEX Enterprise (7 laptops)
+
+```
+# Prerequisito una sola vez por máquina remota
+ssh-copy-id usuario@192.168.1.X
+
+# Desde CORTEX (dashboard o Telegram):
+"agrega la laptop de contabilidad en 192.168.1.20, usuario=jacob, carpeta=/home/jacob/documentos"
+→ CortexAgent llama remote_deploy(host, user, watchDir, name)
+→ Instala Koupper si falta, sube agentes, arranca servicios, registra nodo
+→ "Node 'laptop-contabilidad' listo ✓"
+
+# Consultar desde CORTEX:
+"¿qué dice el contrato X?"
+→ CortexAgent llama knowledge_query
+→ MasterKnowledgeAgent hace fan-out a todos los nodos registrados
+→ Responde con el contenido real del documento
+```
 
 ---
 
