@@ -1,16 +1,25 @@
 // HeartbeatAgent.kts
-// Role      : Proactive condition monitor
-// Objective : Read ~/.koupper/heartbeat.md, evaluate conditions, dispatch agents when triggered
+// Role      : Proactive condition monitor + agent watchdog
+// Objective : Read ~/.koupper/heartbeat.md, evaluate conditions, dispatch or restart agents
 //
-// Run periodically via koupper-start.sh (60 s loop)
+// Run periodically via cortex-start.sh (60 s loop)
+//
+// Condition types:
+//   file_exists      — triggers when a file/dir path exists
+//   queue_empty      — triggers when a queue has no pending/processing jobs
+//   queue_has_failed — triggers when a queue has failed jobs
+//   time_after       — triggers after HH:mm each day
+//   agent_down       — triggers when daemon PID is not alive; restarts it directly (not via queue)
+//   always           — always triggers (respects cooldown)
 //
 // heartbeat.md format:
 //   ## Condition: <id>
-//   - when: file_exists | queue_empty | queue_has_failed | time_after | always
-//   - target: <path or queue name>
+//   - when: <type>
+//   - target: <path, queue name, or PID file>
 //   - agent: <AgentName.kts>
-//   - queue: <queue name>
-//   - cooldown: <minutes>   (minimum time between triggers, default 60)
+//   - queue: <queue name>        (dispatch conditions only)
+//   - log: <log file path>       (agent_down only, optional)
+//   - cooldown: <minutes>        (default 60; use 2 for watchdogs)
 
 import com.koupper.shared.annotations.Export
 import com.koupper.providers.files.fromJson
@@ -24,6 +33,7 @@ import java.time.temporal.ChronoUnit
 @Export
 val setup: () -> Unit = {
     val jobsDir       = File(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val runDir        = File(home, ".koupper/run").also { it.mkdirs() }
     val stateFile     = File(home, ".koupper/heartbeat-state.json")
     val heartbeatFile = File(home, ".koupper/heartbeat.md")
     val logDir        = File(jobsDir, "logs/default").also { it.mkdirs() }
@@ -56,14 +66,42 @@ val setup: () -> Unit = {
 - agent: DiskCleanerAgent.kts
 - queue: default
 - cooldown: 720
+
+## Condition: watchdog-cortex
+- when: agent_down
+- target: ~/.koupper/run/cortex.pid
+- agent: CortexAgent.kts
+- log: ~/.koupper/jobs/logs/cortex/cortex-session.log
+- cooldown: 2
+
+## Condition: watchdog-telegram
+- when: agent_down
+- target: ~/.koupper/run/telegram.pid
+- agent: TelegramBridgeAgent.kts
+- log: ~/.koupper/jobs/logs/default/telegram-bridge.log
+- cooldown: 2
+
+## Condition: watchdog-webui
+- when: agent_down
+- target: ~/.koupper/run/webui.pid
+- agent: CortexWebUiAgent.kts
+- log: ~/.koupper/jobs/logs/default/webui.log
+- cooldown: 2
+
+## Condition: watchdog-worker
+- when: agent_down
+- target: ~/.koupper/run/worker.pid
+- agent: worker
+- log: ~/.koupper/jobs/logs/default/worker.log
+- cooldown: 2
 """.trimIndent())
         log("Created default heartbeat.md")
     }
 
-    // ── State (last-triggered timestamps) ────────────────────────────────────
+    // ── State ─────────────────────────────────────────────────────────────────
 
     val state: MutableMap<String, Long> = runCatching {
-        if (stateFile.exists()) stateFile.readText().fromJson<MutableMap<String, Long>>()
+        if (stateFile.exists()) stateFile.readText().fromJson<MutableMap<String, Long>>() ?: mutableMapOf()
         else mutableMapOf()
     }.getOrDefault(mutableMapOf())
 
@@ -72,8 +110,13 @@ val setup: () -> Unit = {
     // ── Parse conditions ──────────────────────────────────────────────────────
 
     data class Condition(
-        val id: String, val whenever: String, val target: String,
-        val agent: String, val queue: String, val cooldownMin: Long
+        val id: String,
+        val whenever: String,
+        val target: String,
+        val agent: String,
+        val queue: String,
+        val cooldownMin: Long,
+        val logPath: String?
     )
 
     fun parseConditions(): List<Condition> {
@@ -89,7 +132,8 @@ val setup: () -> Unit = {
                 target      = current["target"]   ?: "",
                 agent       = current["agent"]    ?: return,
                 queue       = current["queue"]    ?: "default",
-                cooldownMin = current["cooldown"]?.toLongOrNull() ?: 60L
+                cooldownMin = current["cooldown"]?.toLongOrNull() ?: 60L,
+                logPath     = current["log"]
             ))
             current.clear()
         }
@@ -108,7 +152,7 @@ val setup: () -> Unit = {
         return result
     }
 
-    // ── Evaluate & dispatch ───────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     fun cooldownOk(id: String, cooldownMin: Long): Boolean {
         val lastMs  = state[id] ?: return true
@@ -118,6 +162,14 @@ val setup: () -> Unit = {
         )
         return elapsed >= cooldownMin
     }
+
+    fun isPidAlive(pidFile: File): Boolean {
+        if (!pidFile.exists()) return false
+        val pid = pidFile.readText().trim().toLongOrNull() ?: return false
+        return File("/proc/$pid").exists()
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
 
     fun dispatch(cond: Condition) {
         val agentFile = File(home, ".koupper/agents/${cond.agent}")
@@ -134,6 +186,40 @@ val setup: () -> Unit = {
         log("  ▶ Dispatched ${cond.agent} → queue:${cond.queue}  job:$jobId")
     }
 
+    fun restart(cond: Condition) {
+        val pidFile = File(cond.target.replace("~", home))
+
+        // Kill stale process
+        runCatching {
+            val oldPid = pidFile.readText().trim()
+            Runtime.getRuntime().exec(arrayOf("kill", "-9", oldPid)).waitFor()
+        }
+
+        val resolvedLog = (cond.logPath ?: "$home/.koupper/jobs/logs/default/${cond.agent.removeSuffix(".kts")}.log")
+            .replace("~", home)
+        val agentLog = File(resolvedLog).also { it.parentFile?.mkdirs() }
+
+        val cmd = if (cond.agent == "worker") {
+            listOf("koupper", "worker")
+        } else {
+            val agentPath = File(home, ".koupper/agents/${cond.agent}")
+            if (!agentPath.exists()) { log("  ⚠ Agent not found: ${cond.agent}"); return }
+            listOf("koupper", "run", agentPath.absolutePath)
+        }
+
+        val proc = ProcessBuilder(cmd)
+            .redirectOutput(ProcessBuilder.Redirect.appendTo(agentLog))
+            .redirectError(ProcessBuilder.Redirect.appendTo(agentLog))
+            .start()
+
+        pidFile.parentFile?.mkdirs()
+        pidFile.writeText(proc.pid().toString())
+        state[cond.id] = System.currentTimeMillis()
+        log("  ↺ Restarted ${cond.agent} → PID ${proc.pid()}  log:${agentLog.name}")
+    }
+
+    // ── Evaluate ──────────────────────────────────────────────────────────────
+
     fun evaluate(cond: Condition): Boolean = when (cond.whenever) {
         "file_exists"      -> File(cond.target.replace("~", home)).exists()
         "queue_empty"      -> File(jobsDir, cond.target).let { q ->
@@ -145,6 +231,7 @@ val setup: () -> Unit = {
         "time_after"       -> runCatching {
             LocalTime.now().isAfter(LocalTime.parse(cond.target, DateTimeFormatter.ofPattern("HH:mm")))
         }.getOrDefault(false)
+        "agent_down"       -> !isPidAlive(File(cond.target.replace("~", home)))
         "always"           -> true
         else               -> false
     }
@@ -161,7 +248,10 @@ val setup: () -> Unit = {
         val fires = evaluate(cond)
         val ready = cooldownOk(cond.id, cond.cooldownMin)
         log("  [${cond.id}] when=${cond.whenever} fires=$fires cooldown_ok=$ready")
-        if (fires && ready) { dispatch(cond); triggered++ }
+        if (fires && ready) {
+            if (cond.whenever == "agent_down") restart(cond) else dispatch(cond)
+            triggered++
+        }
     }
 
     saveState()
