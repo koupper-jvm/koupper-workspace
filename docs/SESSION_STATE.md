@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-05 (sesión 2)_
+_Last updated: 2026-06-06 (sesión 4)_
 
 ---
 
@@ -53,6 +53,18 @@ _Last updated: 2026-06-05 (sesión 2)_
 ### Koupper framework
 
 - `FileHandler.listFiles(dirPath, recursive, extensions)` — walk de directorios desde scripts sin java.io.File directo
+- `OllamaEmbedder.embed(text, baseUrl, model)` — llama a Ollama `/api/embeddings`, retorna `List<Double>`. Fallback silencioso.
+- `OllamaEmbedder.isAvailable(baseUrl)` — health check rápido al endpoint
+- `VectorDbProvider.clear(collection)` — elimina todos los records y el archivo JSON en disco
+- **EditProvider** (`edit()`) — surgical string replace con guard NOT_UNIQUE, view/replaceLines/deleteLines por rango
+- **BuildProvider** (`build()`) — build/test/run Gradle+NPM, `BuildResult.Failure.summary` con errores estructurados; parsers KotlinParser, TypeScriptParser, NpmErrorParser, GradleTaskParser. Paquete `buildops` (evita colisión con `**/build/` en .gitignore)
+
+### Migración SP (sesión 4) — todos los agentes CORTEX sin librerías externas
+
+Agentes migrados de Jackson directo → Koupper SP:
+`HeartbeatAgent`, `RssFeedAgent`, `TelegramBridgeAgent`, `GitStatusAgent`, `PluginManagerAgent`, `FileWatcherAgent`, `CortexAgent`, `CortexWebUiAgent`, `ContextPreloaderAgent`
+
+> **Regla:** solo `com.koupper.*`, `java.*`, `kotlinx.*` — zero `com.fasterxml.*` fuera del framework
 
 ---
 
@@ -121,7 +133,7 @@ export K_GROQ_LLM_PRIORITY=3
 1. **Deploy igly.mx a prod** — merge `develop→master` en igly2, `npm run build`, S3 sync, CloudFront invalidation (manual)
 2. **Dashboard multi-tenant** — separar jobs/logs por cliente en el panel
 3. **Agent templates parametrizables** — el cliente llena un formulario → genera su config → se despliega
-4. **Embeddings semánticos** — reemplazar HashEmbedder por llamada a LLM embedding API (mejor recall en knowledge_query)
+4. ~~**Embeddings semánticos**~~ ✅ COMPLETO — OllamaEmbedder + HashEmbedder fallback + embedder-change detection
 5. **TelegramChannelProvider como SP** — SP ya existe en Koupper (`telegram/` package), solo mover lógica del bridge
 
 ## Flujo completo CORTEX Enterprise (7 laptops)
@@ -157,11 +169,24 @@ ssh-copy-id usuario@192.168.1.X
 
 ---
 
+## Próximas entregas técnicas (roadmap gap-closure)
+
+| Prioridad | Feature | Estado |
+|---|---|---|
+| 1 | **LSP bridge SP** — hover/go-to-def/diagnostics vía `lsp4j` | pendiente |
+| 2 | **GitSP** — staged diff-aware commits, blame, branch ops | pendiente |
+| 3 | **FileIndexerAgent versionado** — kopiar a `examples/agents/` en ambos repos | pendiente |
+| 4 | **Dashboard multi-tenant** | pendiente |
+
+---
+
 ## Notas para retoma en frío
 
 - **No existe SP de Excel** (Apache POI no en deps Koupper) — FileIndexerAgent omite `.xlsx`
 - **No existe SP de OCR** — imágenes no se indexan
-- **HashEmbedder** es keyword-overlap (no semántica profunda) — suficiente para MVP
+- **HashEmbedder** es keyword-overlap (512-dim) — aún disponible como fallback cuando Ollama no está corriendo
+- **OllamaEmbedder** — embeddings semánticos vía Ollama (default: nomic-embed-text, 768-dim). Requiere `ollama pull nomic-embed-text` (274MB, una vez)
+- **Cambio de embedder invalida índices** — FileIndexerAgent detecta el cambio, limpia la colección y reindexea automáticamente
 - **FileWatcherAgent y GitStatusAgent** existen en `~/.koupper/agents/` pero no en el repo cortex — instalados manualmente
 - **La landing igly.mx** (`/ourservices/ai-agents`) está en `develop` de igly2 — reescrita para público general, lista para prod
 - **TelegramChannelProvider** ya existe como SP en Koupper — no hay que crearlo, solo usarlo en TelegramBridgeAgent
