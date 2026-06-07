@@ -17,6 +17,7 @@ import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import com.koupper.providers.files.fromJson
 import kotlinx.coroutines.runBlocking
 
 @Export
@@ -38,12 +39,9 @@ val setup: () -> Unit = {
         mapOf("name" to "The Verge",   "url" to "https://www.theverge.com/rss/index.xml")
     )
 
-    @Suppress("UNCHECKED_CAST")
     val feeds: List<Map<String, String>> = runCatching {
-        if (configFile.exists()) {
-            com.fasterxml.jackson.module.kotlin.jacksonObjectMapper()
-                .readValue(configFile, List::class.java) as List<Map<String, String>>
-        } else defaultFeeds
+        if (configFile.exists()) configFile.readText().fromJson<List<Map<String, String>>>()
+        else defaultFeeds
     }.getOrDefault(defaultFeeds)
 
     // ── Fetch feeds ───────────────────────────────────────────────────────────
