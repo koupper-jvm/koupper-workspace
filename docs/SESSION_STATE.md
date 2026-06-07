@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-07 (sesión 5)_
+_Last updated: 2026-06-07 (sesión 6)_
 
 ---
 
@@ -29,9 +29,9 @@ _Last updated: 2026-06-07 (sesión 5)_
 | Agente | Descripción |
 |---|---|
 | `CortexAgent.kts` | Orquestador principal — Planner-Executor, multi-LLM, 21+ tools |
-| `CortexWebUiAgent.kts` | Dashboard REST+SSE en localhost:18083 + voz edge-tts bilingüe |
+| `CortexWebUiAgent.kts` | Dashboard REST+SSE en localhost:18083 + voz edge-tts bilingüe + **multi-tenant** |
 | `TelegramBridgeAgent.kts` | Bridge Telegram ↔ CORTEX, offset persistido |
-| `HeartbeatAgent.kts` | Monitor proactivo, condiciones en `~/.koupper/heartbeat.md`, loop 60s |
+| `HeartbeatAgent.kts` | Monitor proactivo + **watchdog auto-restart** — condiciones en `~/.koupper/heartbeat.md`, loop 60s |
 
 ### Fase 2 — CORTEX Enterprise (swarm de conocimiento) ✅
 
@@ -39,33 +39,70 @@ _Last updated: 2026-06-07 (sesión 5)_
 |---|---|
 | `FileIndexerAgent.kts` | Walk dirs → extrae texto (PDF/TXT/MD) → chunks → embeddings → vector DB |
 | `KnowledgeQueryAgent.kts` | Busca en vector DB local — one-shot o HTTP servidor (puerto 18085) |
-| `MasterKnowledgeAgent.kts` | Fan-out paralelo a N nodos → agrega resultados — HTTP servidor (puerto 18086) |
+| `MasterKnowledgeAgent.kts` | Fan-out paralelo a N nodos + cosine re-rank — HTTP servidor (puerto 18086) |
 
-### Integración en CortexAgent (sesión 2)
+### Fase 4 — Multi-tenant ✅ (completado sesión 6)
+
+- `CortexWebUiAgent`: separa jobs/logs por cliente en `~/.koupper/jobs/clients/<id>/`
+- Nuevas rutas: `GET /api/clients`, `POST /api/clients`, `GET /api/client/{id}/swarm`, `GET /api/client/{id}/history`
+- `default` client retro-compatible con la estructura existente de `~/.koupper/jobs/`
+
+### Integración en CortexAgent
 
 | Tool | Comportamiento |
 |---|---|
 | `knowledge_index` | Usuario da una ruta → CORTEX indexa automáticamente |
 | `knowledge_query` | Busca en vector DB — intenta MasterKnowledgeAgent (18086) → fallback KnowledgeQueryAgent (18085) |
-| `remote_bash` | Ejecuta comandos en máquinas remotas vía SSH (JschSSHClient directo, no singleton) |
+| `remote_bash` | Ejecuta comandos en máquinas remotas vía SSH (JschSSHClient) |
 | `remote_deploy` | Instala Koupper + agentes en host remoto, arranca servicios, registra nodo en knowledge-nodes.json |
 
-### Koupper framework
+### Koupper framework (develop)
 
-- `FileHandler.listFiles(dirPath, recursive, extensions)` — walk de directorios desde scripts sin java.io.File directo
-- `OllamaEmbedder.embed(text, baseUrl, model)` — llama a Ollama `/api/embeddings`, retorna `List<Double>`. Fallback silencioso.
-- `OllamaEmbedder.isAvailable(baseUrl)` — health check rápido al endpoint
+- `FileHandler.listFiles(dirPath, recursive, extensions)` — walk de directorios sin java.io.File directo
+- `OllamaEmbedder.embed(text, baseUrl, model)` — embeddings semánticos vía Ollama. Fallback silencioso.
+- `OllamaEmbedder.isAvailable(baseUrl)` — health check rápido
 - `VectorDbProvider.clear(collection)` — elimina todos los records y el archivo JSON en disco
-- **EditProvider** (`edit()`) — surgical string replace con guard NOT_UNIQUE, view/replaceLines/deleteLines por rango
-- **BuildProvider** (`build()`) — build/test/run Gradle+NPM, `BuildResult.Failure.summary` con errores estructurados; parsers KotlinParser, TypeScriptParser, NpmErrorParser, GradleTaskParser. Paquete `buildops` (evita colisión con `**/build/` en .gitignore)
-- **LspBridgeProvider** (`lspBridge()`) — JSON-RPC 2.0 puro sobre stdio sin `lsp4j`; `diagnostics()`, `hover()`, `definition()`; factories para `kotlinLanguageServer()` y `typescriptLanguageServer()`. Posiciones 0→1-based en API pública. 30 tests (framing, parsers, wiring de notificaciones)
+- **EditProvider** (`edit()`) — surgical string replace, view/replaceLines/deleteLines por rango
+- **BuildProvider** (`build()`) — Gradle+NPM, `BuildResult.Failure.summary` estructurado
+- **LspBridgeProvider** (`lspBridge()`) — JSON-RPC 2.0 sobre stdio; `diagnostics()`, `hover()`, `definition()`; 30 tests
+- **GitSP extendido** (sesión 6) — 11 métodos nuevos: `add`, `blame`, `currentBranch`, `listBranches`, `deleteBranch`, `push`, `pull`, `fetch`, `reset`, `stash`, `stashPop`; 19 tests
+- **`staticFiles(prefix, dir)` DSL** (sesión 6) — en `GrizzlyRuntimeRouterProvider`: sirve assets estáticos con guard de path traversal, 16 MIME types; `buildStatics()` en `RuntimeRouterDsl`
 
 ### Migración SP (sesión 4) — todos los agentes CORTEX sin librerías externas
 
-Agentes migrados de Jackson directo → Koupper SP:
-`HeartbeatAgent`, `RssFeedAgent`, `TelegramBridgeAgent`, `GitStatusAgent`, `PluginManagerAgent`, `FileWatcherAgent`, `CortexAgent`, `CortexWebUiAgent`, `ContextPreloaderAgent`
+Agentes migrados de Jackson directo → Koupper SP (`fromJson<T>()` / `toJson()`):
+`HeartbeatAgent`, `RssFeedAgent`, `TelegramBridgeAgent`, `GitStatusAgent`, `PluginManagerAgent`, `FileWatcherAgent`, `CortexAgent`, `CortexWebUiAgent`, `ContextPreloaderAgent`, `FileIndexerAgent`
 
 > **Regla:** solo `com.koupper.*`, `java.*`, `kotlinx.*` — zero `com.fasterxml.*` fuera del framework
+
+---
+
+## HeartbeatAgent — watchdog auto-restart (sesión 6)
+
+El `agent_down` es el único tipo de condición que **no despacha un job al worker** — actúa directamente:
+
+1. Lee el PID del `target` file (ej. `~/.koupper/run/cortex.pid`)
+2. Verifica `/proc/<pid>` en Linux
+3. Si el proceso cayó: mata el PID viejo, lanza con `ProcessBuilder`, escribe el nuevo PID
+4. `agent: worker` → arranca con `koupper worker` (caso especial)
+
+Default `heartbeat.md` incluye 4 watchdogs (cortex, telegram, webui, worker) con `cooldown: 2`.
+
+---
+
+## staticFiles() DSL — cómo usarlo en agentes
+
+```kotlin
+val router = app.getInstance(RuntimeRouterProvider::class)
+router.registerRouter {
+    staticFiles("/assets", "/ruta/al/directorio/assets")
+    staticFiles("/icons",  "/ruta/al/directorio")
+    // ... rutas normales
+    get<Unit> { path { "/health" }; script { { mapOf("ok" to true) } } }
+}
+```
+
+No requiere configuración extra en Grizzly. Guard de path traversal incluido (`canonicalPath`).
 
 ---
 
@@ -80,17 +117,9 @@ tail -f ~/.koupper/jobs/logs/cortex/cortex-session.log
 ### Para activar búsqueda de documentos
 
 ```bash
-# Copiar agentes al directorio de Koupper
-cp ~/develop/cortex/agents/FileIndexerAgent.kts     ~/.koupper/agents/
-cp ~/develop/cortex/agents/KnowledgeQueryAgent.kts  ~/.koupper/agents/
-cp ~/develop/cortex/agents/MasterKnowledgeAgent.kts ~/.koupper/agents/
-
-# Arrancar servicio de consulta (opcional — knowledge_index funciona sin esto)
 QUERY_SERVE=true koupper run ~/.koupper/agents/KnowledgeQueryAgent.kts &
-
-# Después, el usuario simplemente le dice a CORTEX:
+# Después el usuario le dice a CORTEX:
 # "analiza los contratos en /docs/contratos"
-# → CORTEX llama knowledge_index automáticamente, luego knowledge_query
 ```
 
 ---
@@ -131,30 +160,11 @@ export K_GROQ_LLM_PRIORITY=3
 
 ## Próximos pasos (por impacto)
 
-1. **Deploy igly.mx a prod** — merge `develop→master` en igly2, `npm run build`, S3 sync, CloudFront invalidation (manual)
-2. **Dashboard multi-tenant** — separar jobs/logs por cliente en el panel
-3. **Agent templates parametrizables** — el cliente llena un formulario → genera su config → se despliega
-4. ~~**Embeddings semánticos**~~ ✅ COMPLETO — OllamaEmbedder + HashEmbedder fallback + embedder-change detection
-5. **TelegramChannelProvider como SP** — SP ya existe en Koupper (`telegram/` package), solo mover lógica del bridge
-
-## Flujo completo CORTEX Enterprise (7 laptops)
-
-```
-# Prerequisito una sola vez por máquina remota
-ssh-copy-id usuario@192.168.1.X
-
-# Desde CORTEX (dashboard o Telegram):
-"agrega la laptop de contabilidad en 192.168.1.20, usuario=jacob, carpeta=/home/jacob/documentos"
-→ CortexAgent llama remote_deploy(host, user, watchDir, name)
-→ Instala Koupper si falta, sube agentes, arranca servicios, registra nodo
-→ "Node 'laptop-contabilidad' listo ✓"
-
-# Consultar desde CORTEX:
-"¿qué dice el contrato X?"
-→ CortexAgent llama knowledge_query
-→ MasterKnowledgeAgent hace fan-out a todos los nodos registrados
-→ Responde con el contenido real del documento
-```
+1. **Deploy igly.mx a prod** — merge `develop→master` en igly2, `npm run build`, S3 sync, CloudFront invalidation
+2. **Agent templates parametrizables** — el cliente llena formulario → genera config → despliega
+3. **Panel de onboarding** — crear cliente desde dashboard genera dirs, config y agentes
+4. **Tool budget warning en CortexAgent** — avisar cuando se acerca al límite de tool calls
+5. **lsp_diagnostics tool** — integrar LspBridgeProvider en CortexAgent como tool del loop compile→fix
 
 ---
 
@@ -162,44 +172,23 @@ ssh-copy-id usuario@192.168.1.X
 
 | Archivo | Propósito |
 |---|---|
-| `~/develop/cortex/docs/CORTEX_STRATEGIC_VISION.md` | Visión, arquitectura, casos de uso, competencia, estado actual |
-| `~/develop/cortex/docs/CORTEX_FEATURE_CHECKLIST.md` | Checklist detallado con estado de cada feature |
-| `~/develop/cortex/agents/CortexAgent.kts` | Orquestador principal — loop de inferencia, tools, routing LLM |
+| `~/develop/cortex/docs/CORTEX_STRATEGIC_VISION.md` | Visión, arquitectura, casos de uso, competencia |
+| `~/develop/cortex/docs/CORTEX_FEATURE_CHECKLIST.md` | Checklist con estado de cada feature (actualizado sesión 6) |
+| `~/develop/cortex/docs-site/docs/agents/heartbeat.md` | Condiciones Markdown, watchdog, env vars |
+| `~/develop/cortex/docs-site/docs/agents/web-ui.md` | Multi-tenant API, env vars, staticFiles |
+| `~/develop/cortex/docs-site/docs/reference/env-vars.md` | Referencia completa de env vars (limpia, sin vars inventadas) |
 | `~/develop/cortex/scripts/cortex-start.sh` | Startup completo del stack |
-| `~/develop/cortex/config/knowledge-nodes.example.json` | Plantilla de nodos para MasterKnowledgeAgent |
-
----
-
-## Próximas entregas técnicas (roadmap gap-closure)
-
-| Prioridad | Feature | Estado |
-|---|---|---|
-| 1 | ~~**LSP bridge SP**~~ ✅ COMPLETO | `lsp/LspBridgeProvider` — 30 tests, pusheado |
-| 2 | **GitSP** — staged diff-aware commits, blame, branch ops | pendiente |
-| 3 | **FileIndexerAgent versionado** — copiar a `examples/agents/` en ambos repos | pendiente |
-| 4 | **Dashboard multi-tenant** | pendiente |
-
----
-
-## Notas técnicas LspBridgeProvider (para retoma)
-
-- **No depende de `lsp4j`** — JSON-RPC 2.0 implementado en `LspRpc.kt` usando `PipedInputStream` / `PipedOutputStream` + Jackson
-- **Framing**: `Content-Length: N\r\n\r\n{json}` — leer headers hasta `\r\n\r\n`, luego leer exactamente N bytes
-- **Reader thread**: daemon, lee mensajes del servidor; correlaciona por `id` (responses) o despacha `handleNotification` (notifications)
-- **`diagnostics(file, waitMs)`**: registra un `CompletableFuture` en `diagFutures[uri]` antes de enviar `didOpen`; el reader thread completa el future cuando llega `publishDiagnostics`
-- **`forTesting()`**: usa `PipedInputStream` bloqueante (con `PipedOutputStream keepAlive`) para que el reader thread no salga antes de que el test registre futuros — evita race condition
-- **Conectar Kotlin LS**: `~/.lsp/kotlin-language-server/server/bin/kotlin-language-server` (no necesita `--stdio`, el binario lo maneja)
-- **Siguiente paso de uso**: integrar `lspBridge()` en `CortexAgent` como tool `lsp_diagnostics(file)` para el loop compile→fix→compile
 
 ---
 
 ## Notas para retoma en frío
 
+- **Separación estricta de repos**: Koupper = framework; CORTEX = producto. Cero mezcla en commits.
 - **No existe SP de Excel** (Apache POI no en deps Koupper) — FileIndexerAgent omite `.xlsx`
 - **No existe SP de OCR** — imágenes no se indexan
-- **HashEmbedder** es keyword-overlap (512-dim) — aún disponible como fallback cuando Ollama no está corriendo
-- **OllamaEmbedder** — embeddings semánticos vía Ollama (default: nomic-embed-text, 768-dim). Requiere `ollama pull nomic-embed-text` (274MB, una vez)
-- **Cambio de embedder invalida índices** — FileIndexerAgent detecta el cambio, limpia la colección y reindexea automáticamente
-- **FileWatcherAgent y GitStatusAgent** existen en `~/.koupper/agents/` pero no en el repo cortex — instalados manualmente
-- **La landing igly.mx** (`/ourservices/ai-agents`) está en `develop` de igly2 — reescrita para público general, lista para prod
-- **TelegramChannelProvider** ya existe como SP en Koupper — no hay que crearlo, solo usarlo en TelegramBridgeAgent
+- **HashEmbedder** es keyword-overlap (512-dim) — fallback cuando Ollama no corre
+- **OllamaEmbedder** — nomic-embed-text, 768-dim. Requiere `ollama pull nomic-embed-text` (274MB, una vez)
+- **Cambio de embedder invalida índices** — FileIndexerAgent detecta, limpia y reindexea automáticamente
+- **TelegramChannelProvider** ya existe como SP en Koupper — no hay que crearlo
+- **gh CLI no está instalado** en tdn-dell — usar `git push` directo; fast-lane script no funciona
+- **local-quick-checks.sh `core` target** falla porque busca `koupper-document/` aunque no lo necesite — workaround: `./gradlew :providers:test` directo
