@@ -634,28 +634,18 @@ val setup: () -> Unit = {
         }
     }
 
-    router.start(uiPort)
-
     val webRoot = System.getProperty("user.home") + "/.koupper/web"
-    val httpServer = System.getProperties()["koupper.runtime.server"]
-        as? org.glassfish.grizzly.http.server.HttpServer
-    if (httpServer != null && File(webRoot).exists()) {
-        val assetsHandler = org.glassfish.grizzly.http.server.StaticHttpHandler("$webRoot/assets")
-        assetsHandler.isFileCacheEnabled = false
-        httpServer.serverConfiguration.addHttpHandler(assetsHandler, "/assets/")
+    File("$webRoot/voice").mkdirs()
 
-        val voiceWebDir = "$webRoot/voice"
-        File(voiceWebDir).mkdirs()
-        val voiceHandler = org.glassfish.grizzly.http.server.StaticHttpHandler(voiceWebDir)
-        voiceHandler.isFileCacheEnabled = false
-        httpServer.serverConfiguration.addHttpHandler(voiceHandler, "/voice/")
-
-        val rootStaticHandler = org.glassfish.grizzly.http.server.StaticHttpHandler(webRoot)
-        rootStaticHandler.isFileCacheEnabled = false
-        httpServer.serverConfiguration.addHttpHandler(rootStaticHandler, "/favicon.svg", "/icons.svg")
-        println("  Serving dashboard from $webRoot")
+    router.registerRouter {
+        staticFiles("/assets", "$webRoot/assets")
+        staticFiles("/voice",  "$webRoot/voice")
+        staticFiles("/icons",  webRoot)
     }
 
+    router.start(uiPort)
+
+    if (File(webRoot).exists()) println("  Serving dashboard from $webRoot")
     println("◈ CORTEX API → http://localhost:$uiPort")
     println("  Press Ctrl+C to stop.")
     Thread.currentThread().join()
