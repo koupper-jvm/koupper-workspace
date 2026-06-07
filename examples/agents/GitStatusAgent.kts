@@ -5,8 +5,10 @@
 import com.koupper.providers.mcp.LocalMCPClientProvider
 import com.koupper.providers.mcp.MCPServerConfig
 import com.koupper.shared.annotations.Export
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.koupper.providers.files.fromJson
+import com.koupper.providers.files.getInt
+import com.koupper.providers.files.getObject
+import com.koupper.providers.files.getString
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -22,8 +24,6 @@ val setup: () -> Unit = {
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) { logFile.appendText("[${ts()}] $msg\n"); emit(msg) }
 
-    val mapper = jacksonObjectMapper()
-
     // ── Repos to monitor ─────────────────────────────────────────────────────
 
     val configFile = File(home, ".koupper/gitstatus-repos.json")
@@ -38,7 +38,7 @@ val setup: () -> Unit = {
     data class RepoConfig(val owner: String, val repo: String)
 
     val repos = runCatching {
-        mapper.readValue<List<Map<String, String>>>(configFile).mapNotNull { m ->
+        configFile.readText().fromJson<List<Map<String, String>>>().mapNotNull { m ->
             val owner = m["owner"] ?: return@mapNotNull null
             val repo  = m["repo"]  ?: return@mapNotNull null
             RepoConfig(owner, repo)
@@ -48,7 +48,7 @@ val setup: () -> Unit = {
     // ── Connect to GitHub MCP ────────────────────────────────────────────────
 
     val mcpConfigs = runCatching {
-        mapper.readValue<List<Map<String, Any>>>(File(home, ".koupper/mcp/servers.json"))
+        File(home, ".koupper/mcp/servers.json").readText().fromJson<List<Map<String, Any>>>()
     }.getOrDefault(emptyList())
 
     val githubCfg = mcpConfigs.firstOrNull { it["name"] == "github" }
@@ -97,14 +97,16 @@ val setup: () -> Unit = {
                     "owner" to owner, "repo" to repo, "sha" to "main", "per_page" to 5
                 ))
                 runCatching {
-                    val arr = mapper.readTree(commitsRaw).let { if (it.isArray) it else mapper.createArrayNode() }
-                    if (arr.size() == 0) {
+                    val arr = runCatching { commitsRaw.fromJson<List<Map<String, Any?>>>() }.getOrDefault(emptyList())
+                    if (arr.isEmpty()) {
                         log("  commits : (none on main)")
                     } else {
                         arr.take(5).forEach { c ->
-                            val msg    = c.path("commit").path("message").asText("").lines().first().take(72)
-                            val author = c.path("commit").path("author").path("name").asText("?")
-                            val date   = c.path("commit").path("author").path("date").asText("").take(10)
+                            val commit = c.getObject("commit") ?: emptyMap()
+                            val authorObj = commit.getObject("author") ?: emptyMap()
+                            val msg    = commit.getString("message")?.lines()?.first()?.take(72) ?: ""
+                            val author = authorObj.getString("name") ?: "?"
+                            val date   = authorObj.getString("date")?.take(10) ?: ""
                             log("  [$date] $author — $msg")
                         }
                     }
@@ -115,12 +117,12 @@ val setup: () -> Unit = {
                     "owner" to owner, "repo" to repo, "state" to "open"
                 ))
                 runCatching {
-                    val arr = mapper.readTree(prsRaw).let { if (it.isArray) it else mapper.createArrayNode() }
-                    log("  PRs open: ${arr.size()}")
+                    val arr = runCatching { prsRaw.fromJson<List<Map<String, Any?>>>() }.getOrDefault(emptyList())
+                    log("  PRs open: ${arr.size}")
                     arr.take(5).forEach { pr ->
-                        val title = pr.path("title").asText("?").take(72)
-                        val user  = pr.path("user").path("login").asText("?")
-                        log("    #${pr.path("number").asInt()} [$user] $title")
+                        val title = pr.getString("title")?.take(72) ?: "?"
+                        val user  = pr.getObject("user")?.getString("login") ?: "?"
+                        log("    #${pr.getInt("number") ?: 0} [$user] $title")
                     }
                 }.onFailure { /* silent */ }
 

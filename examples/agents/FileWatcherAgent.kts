@@ -13,15 +13,11 @@
 // Actions: log | move | dispatch
 
 import com.koupper.shared.annotations.Export
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.koupper.providers.files.WatchEvent
+import com.koupper.providers.files.fromJson
 import java.io.File
-import java.nio.file.FileSystems
-import java.nio.file.Path
-import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Export
@@ -29,7 +25,6 @@ val setup: () -> Unit = {
     val jobsDir = File(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
     val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
     val logFile = File(logDir, "filewatcher.log")
-    val mapper  = jacksonObjectMapper()
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) { logFile.appendText("[${ts()}] $msg\n"); emit(msg) }
@@ -63,7 +58,7 @@ val setup: () -> Unit = {
     )
 
     val rules = runCatching {
-        mapper.readValue<List<Map<String, String>>>(configFile).map { m ->
+        configFile.readText().fromJson<List<Map<String, String>>>().map { m ->
             Rule(
                 watchDir = m["watchDir"] ?: "~/Downloads",
                 pattern  = m["pattern"]  ?: "*",
@@ -138,54 +133,31 @@ val setup: () -> Unit = {
         }
     }
 
-    // ── Setup WatchService ────────────────────────────────────────────────────
+    // ── Watch ─────────────────────────────────────────────────────────────────
 
     if (rules.isEmpty()) {
         log("No rules configured — exiting.")
     } else {
-        val ws       = FileSystems.getDefault().newWatchService()
-        val keyToDir = mutableMapOf<java.nio.file.WatchKey, File>()
-        val watched  = mutableSetOf<String>()
+        val dirs = rules.map { File(it.watchDir.replace("~", home)).also { d -> d.mkdirs() } }.distinct()
 
-        rules.map { it.watchDir.replace("~", home) }.distinct().forEach { path ->
-            val dir = File(path).also { it.mkdirs() }
-            if (dir.absolutePath !in watched) {
-                val key = dir.toPath().register(ws, ENTRY_CREATE)
-                keyToDir[key] = dir
-                watched += dir.absolutePath
-                log("◈ Watching: ${dir.absolutePath}")
-            }
-        }
-
-        if (keyToDir.isEmpty()) {
+        if (dirs.isEmpty()) {
             log("No dirs to watch — exiting.")
         } else {
-            log("  FileWatcherAgent running — ${keyToDir.size} dir(s), ${rules.size} rule(s)")
+            dirs.forEach { log("◈ Watching: ${it.absolutePath}") }
+            log("  FileWatcherAgent running — ${dirs.size} dir(s), ${rules.size} rule(s)")
 
             val running = AtomicBoolean(true)
             Runtime.getRuntime().addShutdownHook(Thread { running.set(false) })
 
-            while (running.get()) {
-                val key = ws.poll(1, TimeUnit.SECONDS)
-                if (key != null) {
-                    val dir = keyToDir[key]
-                    if (dir != null) {
-                        key.pollEvents().forEach { ev ->
-                            if (ev.kind() == ENTRY_CREATE) {
-                                @Suppress("UNCHECKED_CAST")
-                                val filename = (ev as? java.nio.file.WatchEvent<Path>)?.context()?.fileName?.toString()
-                                if (filename != null && !filename.startsWith(".")) {
-                                    handleFile(dir, filename)
-                                }
-                            }
-                        }
-                    }
-                    key.reset()
-                }
+            watcher().watch(
+                dirs   = dirs,
+                events = setOf(WatchEvent.CREATE),
+                stop   = { !running.get() }
+            ) { dir, filename, _ ->
+                if (!filename.startsWith(".")) handleFile(dir, filename)
             }
 
             log("FileWatcherAgent stopped.")
-            ws.close()
         }
     }
 }
