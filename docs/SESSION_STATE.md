@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-06 (sesión 4)_
+_Last updated: 2026-06-07 (sesión 5)_
 
 ---
 
@@ -58,6 +58,7 @@ _Last updated: 2026-06-06 (sesión 4)_
 - `VectorDbProvider.clear(collection)` — elimina todos los records y el archivo JSON en disco
 - **EditProvider** (`edit()`) — surgical string replace con guard NOT_UNIQUE, view/replaceLines/deleteLines por rango
 - **BuildProvider** (`build()`) — build/test/run Gradle+NPM, `BuildResult.Failure.summary` con errores estructurados; parsers KotlinParser, TypeScriptParser, NpmErrorParser, GradleTaskParser. Paquete `buildops` (evita colisión con `**/build/` en .gitignore)
+- **LspBridgeProvider** (`lspBridge()`) — JSON-RPC 2.0 puro sobre stdio sin `lsp4j`; `diagnostics()`, `hover()`, `definition()`; factories para `kotlinLanguageServer()` y `typescriptLanguageServer()`. Posiciones 0→1-based en API pública. 30 tests (framing, parsers, wiring de notificaciones)
 
 ### Migración SP (sesión 4) — todos los agentes CORTEX sin librerías externas
 
@@ -173,10 +174,22 @@ ssh-copy-id usuario@192.168.1.X
 
 | Prioridad | Feature | Estado |
 |---|---|---|
-| 1 | **LSP bridge SP** — hover/go-to-def/diagnostics vía `lsp4j` | pendiente |
+| 1 | ~~**LSP bridge SP**~~ ✅ COMPLETO | `lsp/LspBridgeProvider` — 30 tests, pusheado |
 | 2 | **GitSP** — staged diff-aware commits, blame, branch ops | pendiente |
-| 3 | **FileIndexerAgent versionado** — kopiar a `examples/agents/` en ambos repos | pendiente |
+| 3 | **FileIndexerAgent versionado** — copiar a `examples/agents/` en ambos repos | pendiente |
 | 4 | **Dashboard multi-tenant** | pendiente |
+
+---
+
+## Notas técnicas LspBridgeProvider (para retoma)
+
+- **No depende de `lsp4j`** — JSON-RPC 2.0 implementado en `LspRpc.kt` usando `PipedInputStream` / `PipedOutputStream` + Jackson
+- **Framing**: `Content-Length: N\r\n\r\n{json}` — leer headers hasta `\r\n\r\n`, luego leer exactamente N bytes
+- **Reader thread**: daemon, lee mensajes del servidor; correlaciona por `id` (responses) o despacha `handleNotification` (notifications)
+- **`diagnostics(file, waitMs)`**: registra un `CompletableFuture` en `diagFutures[uri]` antes de enviar `didOpen`; el reader thread completa el future cuando llega `publishDiagnostics`
+- **`forTesting()`**: usa `PipedInputStream` bloqueante (con `PipedOutputStream keepAlive`) para que el reader thread no salga antes de que el test registre futuros — evita race condition
+- **Conectar Kotlin LS**: `~/.lsp/kotlin-language-server/server/bin/kotlin-language-server` (no necesita `--stdio`, el binario lo maneja)
+- **Siguiente paso de uso**: integrar `lspBridge()` en `CortexAgent` como tool `lsp_diagnostics(file)` para el loop compile→fix→compile
 
 ---
 
