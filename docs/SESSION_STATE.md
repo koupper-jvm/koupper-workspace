@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-07 (sesión 6)_
+_Last updated: 2026-06-07 (sesión 7)_
 
 ---
 
@@ -40,6 +40,35 @@ _Last updated: 2026-06-07 (sesión 6)_
 | `FileIndexerAgent.kts` | Walk dirs → extrae texto (PDF/TXT/MD) → chunks → embeddings → vector DB |
 | `KnowledgeQueryAgent.kts` | Busca en vector DB local — one-shot o HTTP servidor (puerto 18085) |
 | `MasterKnowledgeAgent.kts` | Fan-out paralelo a N nodos + cosine re-rank — HTTP servidor (puerto 18086) |
+
+### Fase 5 — Pipeline architecture ✅ (completado sesión 7)
+
+| Componente | Descripción |
+|---|---|
+| `WorkerCommand.kt` | Input passing: job JSON `input` → positional arg a `koupper run`; `[RESULT] <json>` sentinel; `pipelineNext` dispatch automático al siguiente step |
+| `RssFeedAgent.kts` | Primer agente tipado: `() -> FeedResult`, emite `[RESULT]` para chaining |
+| `SummarizerAgent.kts` | Segundo agente: `(FeedResult) -> DigestSummary`, llama Ollama, emite `[RESULT]` |
+| `HeartbeatAgent.kts` | Campo `pipeline: A.kts > B.kts` en condiciones → `dispatchPipeline()` construye pipelineNext JSON |
+| `CortexWebUiAgent.kts` | Resultado tipado re-serializado con `toJson()` (fix: Map.toString() → JSON correcto) |
+| `LogViewer.tsx` | Tab "Result" con árbol JSON colapsable (ResultPanel) cuando job emite `[RESULT]` |
+
+**Job JSON v2 (pipeline):**
+```json
+{
+  "id": "morning-digest-step0",
+  "scriptPath": "agents/RssFeedAgent.kts",
+  "pipelineId": "morning-digest",
+  "pipelineStep": 0,
+  "pipelineTotal": 2,
+  "pipelineNext": { "scriptPath": "agents/SummarizerAgent.kts" }
+}
+```
+
+**Cómo probar un pipeline manual:**
+```bash
+echo '{"id":"test-p0","scriptPath":"agents/RssFeedAgent.kts","pipelineId":"test","pipelineStep":0,"pipelineTotal":2,"pipelineNext":{"scriptPath":"agents/SummarizerAgent.kts"}}' > ~/.koupper/jobs/default/test-p0.json
+# El worker encola test-step1 automáticamente al completarse el step0
+```
 
 ### Fase 4 — Multi-tenant ✅ (completado sesión 6)
 
@@ -163,8 +192,8 @@ export K_GROQ_LLM_PRIORITY=3
 1. **Deploy igly.mx a prod** — merge `develop→master` en igly2, `npm run build`, S3 sync, CloudFront invalidation
 2. **Agent templates parametrizables** — el cliente llena formulario → genera config → despliega
 3. **Panel de onboarding** — crear cliente desde dashboard genera dirs, config y agentes
-4. **Tool budget warning en CortexAgent** — avisar cuando se acerca al límite de tool calls
-5. **lsp_diagnostics tool** — integrar LspBridgeProvider en CortexAgent como tool del loop compile→fix
+4. **Pipeline visualization en dashboard** — agrupar jobs por `pipelineId`, mostrar progreso step N/total
+5. **TelegramBridgeAgent como step 3** — enviar DigestSummary.overview via Telegram al completarse el pipeline
 
 ---
 
