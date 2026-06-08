@@ -190,10 +190,9 @@ export K_GROQ_LLM_PRIORITY=3
 ## Próximos pasos (por impacto)
 
 1. **Deploy igly.mx a prod** — merge `develop→master` en igly2, `npm run build`, S3 sync, CloudFront invalidation
-2. **Agent templates parametrizables** — el cliente llena formulario → genera config → despliega
-3. **Panel de onboarding** — crear cliente desde dashboard genera dirs, config y agentes
-4. **Pipeline visualization en dashboard** — agrupar jobs por `pipelineId`, mostrar progreso step N/total
-5. **TelegramBridgeAgent como step 3** — enviar DigestSummary.overview via Telegram al completarse el pipeline
+2. **TelegramBridgeAgent como step 3** — enviar DigestSummary.overview via Telegram al completarse el pipeline
+3. **Agent templates parametrizables** — el cliente llena formulario → genera config → despliega
+4. **Panel de onboarding** — crear cliente desde dashboard genera dirs, config y agentes
 
 ---
 
