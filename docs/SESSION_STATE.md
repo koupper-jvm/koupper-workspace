@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-08 (sesión 11)_
+_Last updated: 2026-06-08 (sesión 13)_
 
 ---
 
@@ -17,30 +17,29 @@ _Last updated: 2026-06-08 (sesión 11)_
 |---|---|---|---|
 | koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | limpio ✅ |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `igly/cortex` | limpio ✅ |
-| cortex | `~/develop/cortex` | `main` | limpio ✅ |
+| cortex | `~/develop/cortex` | `develop` | limpio ✅ |
+| dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
 
 ---
 
 ## Lo que está construido
 
-### Fase 1–5 ✅ (sesiones 1–9)
-Todas las fases completadas: base operativa, enterprise, edge, multi-tenant, marketplace.
+### Fases 1–11 ✅ (sesiones 1–11)
+Worker hardening, doctor, pipeline, SSE transport, multi-tenant, marketplace, edge nodes — todo entregado.
 
-### Sesión 10 ✅
-Worker hardening, doctor, --retry/--purge/--logs, dashboard job management, MCPClientProvider SSE transport.
+### Sesión 13 ✅ — Dashboard UX overhaul
 
-### Sesión 11 ✅
-
-| Componente | Descripción |
+| Feature | Detalle |
 |---|---|
-| Live log streaming | SSE `GET /api/logs/{jobId}/stream`; `useLogStream` hook; `● LIVE` badge pulsante en LogViewer |
-| `koupper pipeline submit` | Encola pipeline multi-step desde JSON; construye cadena `pipelineNext` anidada |
-| `koupper pipeline status` | Muestra progreso por step (pending/running/done/failed/dead) |
-| `emit()` evaluation | No procede para CORTEX agents (daemons persistentes con session logs estructurados) |
-
-### Totales de tests
-- koupper providers: 287 tests
-- koupper-cli: 196 tests (+37 en sesión 11)
+| Overview cards clickables | Navegan a `/jobs?filter=STATUS` via `useNavigate` |
+| Jobs/Logs URL sync | `useSearchParams` sincroniza filtro con `?filter=` param |
+| Agent split panel | "View" abre Info + Code tabs con ✕ close |
+| Fullscreen code IDE | Code tab → overlay `position:fixed`, CodeMirror editable, Ctrl+S, Ctrl+F, Esc |
+| `POST /api/agent/{name}/save` | Escribe `.kts` editado de vuelta al disco |
+| Tag pills coloreados | Mapa de color por nombre: llm, mcp, docker, aws, voice, email, etc. |
+| Log viewer fix | `useLogStream` reemplazó SSE rota → polling REST GET cada 2s |
+| Env vars actuales | `currentValue` en snapshot via `System.getenv()`, secretos enmascarados |
+| Markdown en chat | `react-markdown` renderiza respuestas de CORTEX; `stripMd()` limpia para TTS |
 
 ---
 
@@ -57,21 +56,34 @@ Worker hardening, doctor, --retry/--purge/--logs, dashboard job management, MCPC
 
 ---
 
-## Roadmap — COMPLETADO ✅
+## Notas para retoma en frío
 
-Todos los ítems del roadmap original están entregados. No hay pending técnico.
+- **Repos**: Koupper = framework; CORTEX = producto. `cortex/dashboard` es git submodule — commit en submodule primero, luego bump pointer en cortex
+- **gh CLI no está instalado** — usar `git push origin develop`
+- `emit()` = `println()` capturado por worker. CORTEX agents son daemons con session logs propios — NO reemplazar
+- SSE log stream (`/api/logs/{id}/stream`) tiene bug `kotlin.Unit cannot be cast to String` en Grizzly router — workaround: polling REST
+- `computeTokenMetrics()` en `CortexWebUiAgent.kts` lee de `logs/cortex/cortex-session.log` — no romper esa ruta
+- `marketplaceCache` es `var` top-level con TTL 5 min
+- `KOUPPER_AGENT_REGISTRY` env var sobreescribe URL del registry
+- Pipeline view en `JobsPage.tsx` — `job.pipelineStep` / `job.pipelineTotal` en las cards
+- AppContext: `snapshot`, `nodes`, `chatOpen`, `selectedJob`, `voiceMuted`, `toggleMute`
+- Dashboard pages: Overview, Jobs, Agents, Nodes, Calendar, Logs
+- Vite dev en 5173, proxies `/api`, `/events`, `/voice` → 18083
 
 ---
 
-## Notas para retoma en frío
+## Commits clave esta sesión
 
-- **Separación estricta de repos**: Koupper = framework; CORTEX = producto. Cero mezcla en commits.
-- **gh CLI no está instalado** en tdn-dell — usar `git push` directo
-- `cortex/dashboard` es git submodule — commit en submodule primero, luego actualizar pointer en cortex
-- `emit()` preamble = `println()` capturado por worker. CORTEX agents son daemons con logs propios — NO reemplazar con emit()
-- Pipeline submit: `parseStepObjects`, `buildStepNextJson`, `buildFirstJobJson` son `internal` top-level en `PipelineCommand.kt`
-- `computeTokenMetrics()` en `CortexWebUiAgent.kts` lee de `logs/cortex/cortex-session.log` — no romper esa ruta
-- Pipeline view ya existe en `JobsPanel.tsx` (`PipelineGroup` component con dots, progreso, collapsible)
-- `marketplaceCache` es `var` top-level en `CortexWebUiAgent.kts` — TTL 5 min
-- `KOUPPER_AGENT_REGISTRY` env var sobreescribe URL del registry
-- SSE transport MCP: `MCPServerConfig(transport = "sse", url = "http://host:port")` — `/sse` se agrega automáticamente
+```
+cortex/develop:
+  bc8f849  feat(dashboard): bump — markdown chat + TTS strip
+  7c5a407  feat(agents): currentValue en envVars snapshot
+  dc36a15  fix(dashboard): bump — log viewer polling
+  0f63b5c  feat(cortex): POST /api/agent/{name}/save + bump
+
+dashboard/main:
+  8934fb8  feat(chat): react-markdown + stripMd para TTS
+  59bc673  feat(agents): env var values con set/unset badges
+  76824fd  fix(logs): SSE → polling REST
+  b9b21d2  feat(dashboard): UX overhaul completo
+```
