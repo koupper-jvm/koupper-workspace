@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-09 (sesión 15)_
+_Last updated: 2026-06-10 (sesión 17)_
 
 ---
 
@@ -24,21 +24,18 @@ _Last updated: 2026-06-09 (sesión 15)_
 
 ## Lo que está construido
 
-### Fases 1–13 ✅ (sesiones 1–13)
-Worker hardening, doctor, pipeline, SSE transport, multi-tenant, marketplace, edge nodes, dashboard UX overhaul — todo entregado.
+### Fases 1–16 ✅ (sesiones 1–16)
+Worker hardening, doctor, pipeline, SSE transport, multi-tenant, marketplace, edge nodes, dashboard UX, setup wizard, chat UX, nodes reconnect, jobs UX overhaul, schema typing — todo entregado.
 
-### Sesión 14 ✅ — Setup wizard + Calendar UX + bugfixes críticos
-Setup redirect fix, "ya configurado" screen, `/api/providers` POST fix, Calendar cron legible + click-to-view, marketplace badges, tab colors diferenciados, HeartbeatAgent logging.
-
-### Sesión 15 ✅ — Chat UX + Nodes reconnect + persistencia
+### Sesión 17 ✅ — @Scheduled queue-visible + fix feedback loop
 
 | Feature | Detalle |
 |---|---|
-| Delete per-session styled | Click × en historial → fila de confirmación inline con estilo magenta (`--accent-2`). Sin `confirm()` del browser. Sin botón global de papelera |
-| Chat persistencia refresh | `chatOpen` guardado en localStorage. `PENDING_KEY` guarda `linesBeforeSend` al enviar mensaje. Al refrescar, si último mensaje es de 'user', retoma el polling automáticamente |
-| refreshNodes() en AppContext | Mecanismo de `nodesTick` en App.tsx → fuerza re-fetch inmediato de `/api/nodes` |
-| Reconnect nodo | Nuevo endpoint `GET /api/nodes/touch/{host}` actualiza `registeredAt=now + status=ready` en el JSON del nodo. Frontend llama touch → `refreshNodes()` → nodo verde inmediatamente |
-| Run script en nodo | **PENDIENTE correcta implementación** — se removió botón porque ejecutaba localmente (no en el nodo remoto vía SSH). Implementación correcta requiere SSH |
+| `ScheduledSetup.kt` — enqueue to queue | `@Scheduled` ahora escribe un job JSON a `~/.koupper/jobs/{queue}/` en vez de ejecutar en-proceso. El worker lo levanta → job visible en dashboard con logs, resultado e historial |
+| `toJsonValue()` helper | Serializa params bare-string a JSON válido (`hello` → `"hello"`) |
+| Fix feedback loop | `registeredScripts` ConcurrentHashMap en `ScheduledSetup`: si el worker re-ejecuta el script vía `koupper run`, octopus detecta que ya está registrado y retorna sin agregar otra tarea. Previene el loop exponencial (16k+ jobs en minutos) |
+| Jobs limpiados | Queue `default` limpiada de jobs de prueba del loop |
+| Escape fix CortexWebUiAgent | `Regex("-\\d+$")` corregido de `"-\d+$"` (invalid Kotlin escape) — agent name inference para jobs DONE sin fileName |
 
 ---
 
@@ -66,44 +63,116 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 ---
 
+## Arquitectura de scheduling — ESTADO ACTUAL
+
+### Cómo funciona HOY el morning-digest
+```
+heartbeat.md → HeartbeatAgent (cada 60s) → job JSON en cola → worker → RssFeedAgent → SummarizerAgent → TelegramNotifyAgent
+```
+Definido en `~/.koupper/heartbeat.md`:
+```markdown
+## Condition: morning-digest
+- when: time_after
+- target: 08:00
+- pipeline: RssFeedAgent.kts > SummarizerAgent.kts > TelegramNotifyAgent.kts
+- queue: default
+- cooldown: 720
+```
+
+### Cómo debería funcionar (PENDIENTE)
+```
+RssFeedAgent.kts con @Scheduled(cron="0 8 * * *", pipeline="SummarizerAgent.kts > TelegramNotifyAgent.kts")
+→ octopus escribe job con pipelineNext → worker ejecuta pipeline completo
+```
+
+### Estado actual de @Scheduled
+- **Framework**: `@Scheduled` funciona — escribe a la cola, visible en dashboard ✅
+- **Anotación**: tiene `cron`, `rate`, `delay`, `at`, `configId` — NO tiene `pipeline` aún ❌
+- **Agentes digest**: ninguno tiene `@Scheduled` ni `@Logger` — usan `println` ❌
+- **`enqueueJob()`**: no construye `pipelineNext` aún ❌
+
+---
+
 ## Notas para retoma en frío
 
 - **Repos**: Koupper = framework; CORTEX = producto. `cortex/dashboard` es git submodule — commit en submodule primero, luego bump pointer en cortex
 - **gh CLI no está instalado** — usar `git push origin develop`
-- **Build del dashboard**: `cd ~/develop/cortex/dashboard && npm run build && rm -rf ~/.koupper/web/assets && cp -r dist/* ~/.koupper/web/`
-- **Reinicio**: `bash ~/.koupper/bin/koupper-start.sh` — sourcea `~/.profile`, levanta octopus + todos los agentes
-- **Env authority**: `~/.profile` es la fuente de verdad. `.env` es override del wizard
-- `post<Map<String,Any>>` en Kotlin scripting falla el cast genérico — siempre usar `post<String>` + `fromJson()` para bodies JSON complejos
-- `@Scheduled` NO funciona como daemon persistente cuando el script usa implicit vars — usar bash while loop
-- HeartbeatAgent corre como bash loop con `nohup`
-- Script cache en `~/.koupper/cache/compiled-scripts/` — limpiar con `rm *.bin` si hay errores de compilación
-- CortexWebUiAgent sirve archivos estáticos de `~/.koupper/web/`
-- **Nodos**: `~/.koupper/nodes/{host_con_puntos_reemplazados}.json` guarda estado. Endpoint `GET /api/nodes/touch/{host}` refresca timestamp
-- **Scripts `@Export`** pueden recibir cualquier tipo Kotlin como input (data class, primitivo, etc.), no solo Map/List
+- **Build del dashboard**: `cd ~/develop/cortex/dashboard && npm run build && cp -r dist/. ~/.koupper/web/`
+- **Reinicio completo**:
+  1. `kill $(ps aux | grep 'octopus.jar' | grep -v grep | awk '{print $2}')`
+  2. `nohup java -jar ~/.koupper/libs/octopus.jar > /tmp/octopus.log 2>&1 &`
+  3. `until ss -tlnp | grep -q 9998; do sleep 2; done`
+  4. `rm ~/.koupper/cache/compiled-scripts/*.bin`
+  5. `java -Dfile.encoding=UTF-8 -jar ~/.koupper/libs/koupper-cli.jar run ~/.koupper/agents/CortexWebUiAgent.kts > /tmp/webui.log 2>&1 &`
+- **Script cache** en `~/.koupper/cache/compiled-scripts/` — limpiar con `rm *.bin` si hay errores
+- **Job input cache**: `~/.koupper/web-cache/jobs/{id}.json`
+- **Worker trunca resultados grandes**: bug de Koupper, detail endpoint tiene fallback regex
+- **`ScheduledSetup` es singleton object** — `registeredScripts` se resetea al reiniciar octopus. Después de restart hay que re-ejecutar `koupper run <script>` para volver a registrar el schedule
+- **CortexWebUiAgent**: `post<Map<String,Any>>` falla el cast genérico — siempre usar `post<String>` + `fromJson()`
+- **Nodos**: `~/.koupper/nodes/{host}.json` guarda estado
 
 ---
 
-## Commits clave sesión 15
+## Pendiente INMEDIATO — próxima sesión
 
+### 1. Agregar `pipeline` a `@Scheduled` (framework)
+Archivo: `koupper/octopus/src/main/kotlin/com/koupper/octopus/annotations/Scheduled.kt`
+```kotlin
+annotation class Scheduled(
+    val rate: Long = 0L,
+    val cron: String = "",
+    val configId: String = "",
+    val debug: Boolean = false,
+    val delay: Long = 0L,
+    val at: String = "",
+    val pipeline: String = ""   // ← AGREGAR: "AgentB.kts > AgentC.kts"
+)
 ```
-dashboard/main:
-  7a8c713  fix(nodes): remove broken Run script button
-  21465bb  feat(nodes): run script shows dropdown (luego removido)
-  c642a61  fix(chat): correct pending poll restore on refresh
-  2124d1c  feat(chat): inline per-session delete confirmation + refresh persistence
 
-cortex/develop:
-  72d75e4  chore: bump dashboard — remove broken node run script
-  dec83aa  chore: bump dashboard — node run script dropdown (luego removido)
-  a64b18c  chore: bump dashboard — fix refresh persistence + deploy new build
-  baa2e70  chore: bump dashboard — chat delete UX + refresh persistence + reconnect fix
+### 2. Actualizar `enqueueJob()` en `ScheduledSetup.kt`
+Cuando `scheduledParams["pipeline"]` no es blank, construir el `pipelineNext` JSON anidado igual que hace `HeartbeatAgent.dispatchPipeline()` y escribirlo en el job JSON.
+
+### 3. Migrar agentes digest
+- `RssFeedAgent.kts` → agregar `@Scheduled(cron = "0 8 * * *", pipeline = "SummarizerAgent.kts > TelegramNotifyAgent.kts")` + `@Logger(destination = "file:morning-digest-[yyyy-MM-dd]", level = "INFO")` + migrar `println` a `log.info {}`
+- `SummarizerAgent.kts` → agregar `@Logger(destination = "file:morning-digest-[yyyy-MM-dd]", level = "INFO")` + migrar `println` a `log.info {}`
+- `TelegramNotifyAgent.kts` → agregar `@Logger` + migrar `println` a `log.info {}`
+
+### 4. Rebuild + deploy
+```bash
+cd ~/develop/koupper\ workspace/koupper && ./gradlew :octopus:fatJar -x test
+cp octopus/build/libs/octopus-6.5.3.jar ~/.koupper/libs/octopus.jar
+# restart octopus + webui
 ```
+
+### 5. Commit ambos repos
+- `koupper/develop`: `feat(scheduled): add pipeline param to @Scheduled annotation`
+- `cortex/develop`: `feat(agents): migrate digest pipeline to @Scheduled + @Logger`
 
 ---
 
-## Pendientes / próximas sesiones
+## Otros pendientes
 
-- **Run script en nodo remoto**: Implementar SSH execution correctamente en NodeProvisionerAgent (`doRun` action) + modal en dashboard con credenciales SSH + persistir creds en node JSON
+- **Run script en nodo remoto**: SSH execution en NodeProvisionerAgent (`doRun`) + modal con credenciales
 - **Gemma3 Ollama error**: `gemma3:12b` falla con 400 desde `localhost:11434` — investigar
-- **FileIndexerAgent `@Logger`**: Migrar logging igual que HeartbeatAgent
-- **Docs tab en dashboard**: Sección de ayuda/documentación accesible desde sidebar
+- **extractAgentSchema recursion**: data classes anidadas (e.g. `List<FeedArticle>`) no se expanden
+- **Worker truncation bug**: resultados grandes (>8KB) quedan incompletos en `.result.json`
+
+---
+
+## Archivos clave modificados sesión 17
+
+- `~/develop/koupper workspace/koupper/octopus/src/main/kotlin/com/koupper/octopus/annotations/ScheduledSetup.kt`
+- `~/.koupper/agents/CortexWebUiAgent.kts` (+ `~/develop/cortex/agents/`)
+
+---
+
+## Commits sesión 17
+
+```
+cortex/develop:
+  5961b6a  fix(agents): fix Kotlin escape in agent-name inference regex
+
+koupper/develop:
+  ea09352  feat(scheduled): enqueue jobs to worker queue instead of in-process execution
+  9899139  fix(scheduled): prevent exponential job feedback loop on worker re-execution
+```
