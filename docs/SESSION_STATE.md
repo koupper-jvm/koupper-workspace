@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-09 (sesión 14)_
+_Last updated: 2026-06-09 (sesión 14 — continuación)_
 
 ---
 
@@ -46,6 +46,11 @@ Overview cards clickables, Jobs/Logs URL sync, Agent split panel + fullscreen ID
 | LAN provider fix | IP correcta: `192.168.1.8:1234` (era `.9`). Gemma-4-12b soporta tool calling |
 | HeartbeatAgent logging | Migrado a `@Logger` + `GlobalLogger.log` — sin duplicados, sin ANSI codes |
 | schedules.json sync | HeartbeatAgent escribe `~/.koupper/schedules.json` en cada ciclo → Calendar lo muestra |
+| History cleanup | `~/.koupper/jobs/.history.jsonl` es la fuente de `/api/history` — truncar + reiniciar WebUI para limpiar |
+| Marketplace install badge | `installedNames` set derivado de `snapshot.agents` — agentes ya instalados muestran "✓ Installed" en verde |
+| Tabs diferenciados | Installed = cyan (`--accent`), Marketplace = magenta (`--accent-2`); count marketplace muestra `···` antes de cargar |
+| Botón installed visible | `btn-installed` ahora full opacity con texto "✓ Installed", era invisible con solo icono + 0.4 opacity |
+| Setup config display | Pantalla "ya configurado" usa CSS grid para alinear pos/nombre/modelo/url/badge en columnas |
 
 ---
 
@@ -99,19 +104,20 @@ Wizard guarda en `~/.koupper/.env` — se aplica en el siguiente restart.
 
 ```
 cortex/develop:
+  bf78ac7  chore: bump dashboard — agents tab UX fixes
+  ebf6540  chore: bump dashboard — marketplace install state fix
+  9a21655  chore: bump dashboard — setup config layout fix
   a25140b  chore: bump dashboard — calendar UX + setup config view
-  6ac4e0b  chore: bump dashboard — setup page already-configured guard
   0deb8c5  fix(webui): parse /api/providers body as String (cast genérico fallaba)
-  b7fa5c4  chore: bump dashboard — fix setup redirect loop
-  81dfc40  chore: bump dashboard submodule — setup wizard complete
   f5ab6af  feat(webui): add setup wizard API endpoints + fix DSL syntax
 
 dashboard/main:
+  fb19ae2  fix(agents): marketplace tab count, differentiated tab colors, visible installed button
+  6978ada  fix(agents): show installed badge for marketplace agents already deployed
+  75c91dd  fix(setup): center done-ring, grid layout for config rows, position index
   613ae5b  feat(calendar): human-readable cron + click-to-view script modal + setup config view
-  3e8b716  fix(setup): show 'already configured' screen instead of wizard on re-entry
   4d75c9e  fix(setup): use /api/setup/status for redirect instead of snapshot.providers
   6ea3195  feat(setup): multi-step setup wizard for first-run configuration
-  cdb575e  fix(providers): replace editable priority input with read-only position badge
 ```
 
 ---
