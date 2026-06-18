@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-10 (sesión 18)_
+_Last updated: 2026-06-18 (sesión 19)_
 
 ---
 
@@ -15,7 +15,7 @@ _Last updated: 2026-06-10 (sesión 18)_
 
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
-| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | limpio ✅ |
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | 4 commits ahead, limpio ✅ |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `igly/cortex` | push bloqueado por branch protection — fix deployado ✅ |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
 | dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
@@ -83,9 +83,10 @@ RssFeedAgent.kts con @Scheduled(cron="0 8 * * *", pipeline="SummarizerAgent.kts 
 
 ### Estado actual de @Scheduled
 - **Framework**: `@Scheduled` funciona — escribe a la cola, visible en dashboard ✅
-- **Anotación**: tiene `cron`, `rate`, `delay`, `at`, `configId` — NO tiene `pipeline` aún ❌
-- **Agentes digest**: ninguno tiene `@Scheduled` ni `@Logger` ❌
-- **`enqueueJob()`**: no construye `pipelineNext` aún ❌
+- **Anotación**: `cron`, `rate`, `delay`, `at`, `configId`, `chain` ✅ (sesión 19)
+- **Pipeline chaining**: `enqueuePipelineJob()` ya existía en `ScheduledSetup`, solo faltaba exponer `chain` ✅ (sesión 19)
+- **SIDE_EFFECT**: `@Scheduled` ya no bloquea `@Export`, permite script runnable + scheduled ✅ (sesión 19)
+- **Agentes digest**: ninguno tiene `@Scheduled` ni `@Logger` ❌ (pendiente migrar)
 
 ---
 
@@ -105,32 +106,20 @@ RssFeedAgent.kts con @Scheduled(cron="0 8 * * *", pipeline="SummarizerAgent.kts 
 
 ## Pendiente INMEDIATO — próxima sesión
 
-### 1. Agregar `pipeline` a `@Scheduled` (framework)
-Archivo: `koupper/octopus/src/main/kotlin/com/koupper/octopus/annotations/Scheduled.kt`
-```kotlin
-annotation class Scheduled(
-    val rate: Long = 0L,
-    val cron: String = "",
-    val configId: String = "",
-    val debug: Boolean = false,
-    val delay: Long = 0L,
-    val at: String = "",
-    val pipeline: String = ""   // ← AGREGAR
-)
-```
+### Completado sesión 19 ✅
+- ~~SPI provider discovery~~ — `ServiceProviderManager.listProviders()` usa SPI con fallback hardcodeado; Gradle task genera `META-INF/services/` automáticamente
+- ~~`dependencies()` contract~~ — providers declaran dependencias; `registerBuildInServicesProvidersInContainer()` usa topological sort
+- ~~`@Scheduled.chain`~~ — campo `chain: String = ""` en anotación; `@Scheduled` es SIDE_EFFECT
+- ~~E2E test harness~~ — `EmbeddedOctopus` + `OctopusE2ETest` con 5 tests; `forkEvery=1` en octopus module
+- ~~`@Secret` annotation~~ — `SecretRedactor` redacta params sensibles en stdout/logs/TCP output
 
-### 2. Actualizar `enqueueJob()` en `ScheduledSetup.kt`
-Cuando `scheduledParams["pipeline"]` no es blank, construir `pipelineNext` JSON anidado igual que hace `HeartbeatAgent.dispatchPipeline()`.
+### Pendiente framework (priorizado del assessment)
 
-### 3. Migrar agentes digest
-- `RssFeedAgent.kts` → `@Scheduled(cron = "0 8 * * *", pipeline = "SummarizerAgent.kts > TelegramNotifyAgent.kts")` + `@Logger`
-- `SummarizerAgent.kts`, `TelegramNotifyAgent.kts` → `@Logger`
-
-### 4. Rebuild + deploy octopus
-```bash
-cd ~/develop/koupper\ workspace/koupper && ./gradlew :octopus:fatJar -x test
-cp octopus/build/libs/octopus-6.5.3.jar ~/.koupper/libs/octopus.jar
-```
+1. **Structured error protocol** — error codes tipados en vez de strings ("Script error: ..."); medium effort, high DX impact
+2. **Version provider preamble** — `@KoupperVersion("6.5")` evita breaking changes silenciosos; low effort
+3. **Map compile errors to source lines** — hoy los errores del compilador apuntan al preamble, no al script original; high effort
+4. **Replace regex → KSP** — `extractExportedDeclarations()` y `extractExportedAnnotations()` usan regex frágil; high effort
+5. **Migrar agentes digest** — `RssFeedAgent.kts`, `SummarizerAgent.kts`, `TelegramNotifyAgent.kts` a usar `@Scheduled(chain="...")` + `@Logger`
 
 ---
 
@@ -142,6 +131,16 @@ cp octopus/build/libs/octopus-6.5.3.jar ~/.koupper/libs/octopus.jar
 - **koupper-cli PR**: WorkerCommand fix necesita PR a `develop` en `koupper-jvm/koupper-cli`
 
 ---
+
+## Commits sesión 19
+
+```
+koupper/develop:
+  2743d87  feat(providers): SPI-based auto-discovery with topological init order
+  5834ab5  feat(scheduled): add chain param to @Scheduled + enable parallel Export
+  6a33462  test(octopus): add E2E test harness with embedded Octopus
+  85cb5a0  feat(security): add @Secret annotation for automatic output redaction
+```
 
 ## Commits sesión 18
 
