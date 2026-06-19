@@ -15,7 +15,7 @@ _Last updated: 2026-06-18 (sesión 19)_
 
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
-| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | 4 commits ahead, limpio ✅ |
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | 8 commits ahead, limpio ✅ |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `igly/cortex` | push bloqueado por branch protection — fix deployado ✅ |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
 | dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
@@ -104,22 +104,13 @@ RssFeedAgent.kts con @Scheduled(cron="0 8 * * *", pipeline="SummarizerAgent.kts 
 
 ---
 
-## Pendiente INMEDIATO — próxima sesión
+## Pendiente
 
-### Completado sesión 19 ✅
-- ~~SPI provider discovery~~ — `ServiceProviderManager.listProviders()` usa SPI con fallback hardcodeado; Gradle task genera `META-INF/services/` automáticamente
-- ~~`dependencies()` contract~~ — providers declaran dependencias; `registerBuildInServicesProvidersInContainer()` usa topological sort
-- ~~`@Scheduled.chain`~~ — campo `chain: String = ""` en anotación; `@Scheduled` es SIDE_EFFECT
-- ~~E2E test harness~~ — `EmbeddedOctopus` + `OctopusE2ETest` con 5 tests; `forkEvery=1` en octopus module
-- ~~`@Secret` annotation~~ — `SecretRedactor` redacta params sensibles en stdout/logs/TCP output
-
-### Pendiente framework (priorizado del assessment)
-
-1. **Structured error protocol** — error codes tipados en vez de strings ("Script error: ..."); medium effort, high DX impact
-2. **Version provider preamble** — `@KoupperVersion("6.5")` evita breaking changes silenciosos; low effort
-3. **Map compile errors to source lines** — hoy los errores del compilador apuntan al preamble, no al script original; high effort
-4. **Replace regex → KSP** — `extractExportedDeclarations()` y `extractExportedAnnotations()` usan regex frágil; high effort
-5. **Migrar agentes digest** — `RssFeedAgent.kts`, `SummarizerAgent.kts`, `TelegramNotifyAgent.kts` a usar `@Scheduled(chain="...")` + `@Logger`
+- **Migrar agentes digest** — `RssFeedAgent.kts`, `SummarizerAgent.kts`, `TelegramNotifyAgent.kts` a usar `@Scheduled(chain="...")` + `@Logger`
+- **Run script en nodo remoto**: SSH execution en NodeProvisionerAgent (`doRun`) + modal con credenciales
+- **Gemma3 Ollama error**: `gemma3:12b` falla con 400 desde `localhost:11434`
+- **extractAgentSchema recursion**: data classes anidadas no se expanden
+- **koupper-cli PR**: WorkerCommand fix necesita PR a `develop` en `koupper-jvm/koupper-cli`
 
 ---
 
@@ -140,7 +131,15 @@ koupper/develop:
   5834ab5  feat(scheduled): add chain param to @Scheduled + enable parallel Export
   6a33462  test(octopus): add E2E test harness with embedded Octopus
   85cb5a0  feat(security): add @Secret annotation for automatic output redaction
+  cc7a24c  feat(contract): add @KoupperVersion annotation and versioned preamble
+  872ac43  feat(errors): add structured error codes to execution pipeline
+  33f1dcb  fix(scripting): map compile errors to original source lines
+  2a1c2fb  feat(scripting): add reflection-based export signature extraction
 ```
+
+## Assessment: completado ✅
+
+Los 8 ítems del `KOUPPER_FRAMEWORK_ASSESSMENT.md` entregados en esta sesión.
 
 ## Commits sesión 18
 
