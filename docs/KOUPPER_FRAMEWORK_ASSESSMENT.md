@@ -291,3 +291,82 @@ These can be started now, without waiting for the full wave plan:
 ---
 
 *Last updated: 2026-06-18. Sync with `SESSION_STATE.md` after completing any item above.*
+
+---
+
+## 9. External Review Notes (2026-06-18)
+
+> **Reviewer:** opencode agent session. **Context:** Full codebase audit + SESSION_STATE cross-reference.
+>
+> These observations complement the assessment above and should be considered by Koupper agents during implementation waves.
+
+### 9.1 Wave 1 Effort Reality Check
+
+**Task 1.1 (KSP compiler plugin) is underestimated.**
+- Labeled "High" effort for 4-6 week wave, but KSP requires: understanding the KSP API, creating a new `processing/` module, changing the entire annotation discovery pipeline, and ensuring all 46+ providers remain compatible.
+- **Revised estimate:** 6–8 weeks as a standalone task. Consider splitting into phases: (a) KSP processor skeleton + manifest generation, (b) migration of `@Export` detection only, (c) migration of `@Scheduled`/`@Pipeline`/`@JobsListener`, (d) removal of legacy regex path.
+
+### 9.2 Missing P0 Item: @Scheduled Pipeline Gap
+
+**Not mentioned in assessment but blocking active development.**
+- `SESSION_STATE.md` documents across sessions 14–18 that `@Scheduled` needs a `pipeline: String` parameter.
+- Current workaround: `HeartbeatAgent` dispatches pipelines manually via `dispatchPipeline()`.
+- The fix touches: `annotations/Scheduled.kt` (add `pipeline` field), `ScheduledSetup.kt` (build `pipelineNext` in `enqueueJob()`), and digest agent scripts (`RssFeedAgent.kts`, `SummarizerAgent.kts`, `TelegramNotifyAgent.kts`).
+- **Recommendation:** Add as P0 in Immediate Action Items. This blocks real features today — it's not future debt.
+
+### 9.3 E2E Test Harness Should Be P0
+
+**Task 1.5 is listed as Medium/P1 but gates all other refactoring.**
+- Without an embedded Octopus test harness, every change to regex→KSP (1.1), TCP→gRPC (2.1), or SPI registry (1.2) is surgery without anesthesia.
+- The harness itself unlocks: regression testing per commit, CI gate for provider changes, safe refactoring of core modules.
+- **Recommendation:** Promote to P0. Build it first, then use it to validate every subsequent wave task.
+
+### 9.4 Sandbox Implementation Note
+
+**Task 3.6 (Script sandboxing) labeled High effort — additional complexity not documented.**
+- `SecurityManager` is **deprecated since Java 17** and removed in Java 21+.
+- Real options are: (a) custom `AccessController`-based policy, (b) isolated classloader with restricted permissions per script, (c) process-level sandbox (fork JVM per script — heavy but clean).
+- **Recommendation:** Document which Java target version Koupper locks to before choosing a sandbox strategy. If targeting Java 17+, option (b) is most viable.
+
+### 9.5 Suggested Execution Order Revision
+
+Based on dependency analysis, the recommended execution sequence differs slightly from the assessment:
+
+```
+Phase A (Foundation — must come first):
+  1. E2E harness (1.5)          ← builds safety net
+  2. SPI auto-discovery (1.2)   ← unblocks external contributors
+  3. @Scheduled pipeline gap    ← unblocks active feature work
+  4. Structured errors (1.4)    ← improves debuggability immediately
+
+Phase B (Core refactor — uses harness for validation):
+  5. Regex → KSP migration (1.1) ← biggest change, now testable
+  6. Compile error source mapping (1.3)
+  7. @Secret redaction (1.6)
+  8. Provider preamble versioning (1.7)
+
+Phase C (Scale — after Wave 1 solid):
+  9. gRPC endpoint (2.1)
+  10. Externalize cache (2.2)
+  11. OpenTelemetry tracing (2.5)
+```
+
+### 9.6 Observability Quick Win
+
+Before full OpenTelemetry (Wave 2, task 2.5), consider an intermediate step:
+- Add a **correlation ID** (`jobId` / `traceId`) that propagates through: TCP request → FunctionDispatcher → ScriptRunner → Provider calls → SessionOutput.
+- This is a string field passed through context, no external dependency needed.
+- Enables manual log correlation across pipeline steps (`RssFeedAgent → SummarizerAgent → TelegramNotifyAgent`) *today*.
+- Cost: ~half day of work. Value: immediate debugging improvement.
+
+### 9.7 Provider Tier System Detail
+
+When implementing Wave 3 task 3.1 (provider tiers), define concrete criteria:
+
+| Tier | Criteria | CI Gate |
+|---|---|---|
+| `core` | Full test coverage (>80%), exception-safe, documented, schema-typed I/O | Block merge if tests fail or coverage drops |
+| `community` | Basic happy-path tests, documented | Warn on no-test merge |
+| `experimental` | No test requirement, marked `@Experimental` | No CI block, but excluded from fatJar by default |
+
+This prevents the current situation where some providers are production-grade (SSH with round-trip editing, sync, rollback) and others are thin wrappers (command-runner) with no quality differentiation visible to users.
