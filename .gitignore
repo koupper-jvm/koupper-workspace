@@ -10,3 +10,5 @@ bin/
 gradle/
 gradlew
 gradlew.bat
+fb_session/
+examples/fb_session/
