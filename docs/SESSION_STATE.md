@@ -1,13 +1,14 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-18 (sesión 19)_
+_Last updated: 2026-06-18 (sesión 19 — cerrada)_
 
 ---
 
 ## Estado general
 
-- **CORTEX** vive en su propio repo: `git@github.com:Iglymx/cortex.git` → `~/develop/cortex/`
-- **Koupper** (framework open-source): `git@github.com:koupper-jvm/koupper-workspace.git`
-- Todos los repos están limpios y al día (koupper-cli push bloqueado por branch protection — fix deployado localmente)
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, 15 commits hoy
+- **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, pipelineNext mergeado
+- **Koupper Docs**: `github.com:koupper-jvm/koupper-docs` → `main`, 4 commits hoy
+- Todos los repos limpios y pusheados ✅
 
 ---
 
