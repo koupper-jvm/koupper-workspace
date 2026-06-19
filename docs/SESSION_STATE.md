@@ -16,7 +16,7 @@ _Last updated: 2026-06-18 (sesión 19)_
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
 | koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | 8 commits ahead, limpio ✅ |
-| koupper-cli | `~/develop/koupper workspace/koupper-cli` | `igly/cortex` | push bloqueado por branch protection — fix deployado ✅ |
+| koupper-cli | `~/develop/koupper workspace/koupper-cli` | `develop` | limpio ✅ — WorkerCommand pipelineNext merged |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
 | dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
 
@@ -110,7 +110,7 @@ RssFeedAgent.kts con @Scheduled(cron="0 8 * * *", pipeline="SummarizerAgent.kts 
 - **Run script en nodo remoto**: SSH execution en NodeProvisionerAgent (`doRun`) + modal con credenciales
 - **Gemma3 Ollama error**: `gemma3:12b` falla con 400 desde `localhost:11434`
 - **extractAgentSchema recursion**: data classes anidadas no se expanden
-- **koupper-cli PR**: WorkerCommand fix necesita PR a `develop` en `koupper-jvm/koupper-cli`
+- **koupper-cli**: WorkerCommand pipelineNext merged a develop ✅ (sesión 19)
 
 ---
 
@@ -119,7 +119,7 @@ RssFeedAgent.kts con @Scheduled(cron="0 8 * * *", pipeline="SummarizerAgent.kts 
 - **Run script en nodo remoto**: SSH execution en NodeProvisionerAgent (`doRun`) + modal con credenciales
 - **Gemma3 Ollama error**: `gemma3:12b` falla con 400 desde `localhost:11434`
 - **extractAgentSchema recursion**: data classes anidadas no se expanden
-- **koupper-cli PR**: WorkerCommand fix necesita PR a `develop` en `koupper-jvm/koupper-cli`
+- **koupper-cli**: WorkerCommand pipelineNext merged a develop ✅ (sesión 19)
 
 ---
 
