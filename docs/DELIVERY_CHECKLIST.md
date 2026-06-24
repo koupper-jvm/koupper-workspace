@@ -217,18 +217,24 @@ _Last updated: 2026-04-23_
 - [x] `JobQueueGrpcIntegrationTest` (single + concurrent jobs)
 - [x] `:annotation-processor` module with KSP configured
 - [x] `KoupperSymbolProcessor` extracts `@Export` at compile time
-- [x] Generates `koupper-exports.json` metadata file
+- [x] `KoupperSymbolProcessor` extracts `@Scheduled` and `@Pipeline`
+- [x] Generates `koupper-exports.json` with exports, scheduled, pipelines
 - [x] KSP integrated into `:octopus` build
 - [x] `KoupperSymbolProcessorTest` (unit tests)
+- [x] `KspMetadataReader`: runtime reader for KSP JSON
+- [x] `extractExportFunctionSignature` uses KSP first, regex fallback
+- [x] `KspRegexParityTest` validates parity for simple, param, complex, multi-annotation
 
 ### Validation
 
 - [x] Tier system PR #169 merged to develop
 - [x] gRPC PR #170 merged to develop
 - [x] KSP processor compiles and passes tests
+- [x] KSP runtime integration compiles and passes tests
 
 ### Release Flow
 
 - [x] PR #169 merged via squash
 - [x] PR #170 merged via squash
-- [x] PR #171 (KSP foundation) ready for review
+- [x] PR #171 (KSP foundation) merged
+- [x] PR #172 (KSP runtime integration) ready for merge
