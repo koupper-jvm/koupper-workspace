@@ -5,9 +5,9 @@ _Last updated: 2026-06-24 (sesión 21 — activa)_
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, PR #169 y #170 merged
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, PR #169, #170 merged, #171 y #172 ready
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, pipelineNext mergeado
-- **Branch activa**: `feature/ksp-annotation-processor` (en progreso)
+- **Branch activa**: `feature/ksp-runtime-integration` (listo para merge)
 
 ---
 
@@ -15,7 +15,7 @@ _Last updated: 2026-06-24 (sesión 21 — activa)_
 
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
-| koupper (framework) | `~/develop/koupper workspace/koupper` | `feature/ksp-annotation-processor` | KSP foundation ✅ |
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `feature/ksp-runtime-integration` | KSP integration ✅ |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `develop` | limpio ✅ |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
 | dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
@@ -24,27 +24,32 @@ _Last updated: 2026-06-24 (sesión 21 — activa)_
 
 ## Lo que está construido
 
-### Sesión 21 — KSP Foundation (en progreso)
+### Sesión 21 — KSP Integration (completado)
 
 | Fix | Estado | PR |
 |---|---|---|
 | Provider tier system (CORE/COMMUNITY/EXPERIMENTAL) | ✅ Merged | #169 |
 | gRPC bidirectional streaming | ✅ Merged | #170 |
-| KSP/PSI replaces regex annotation extraction | 🔄 Foundation lista | #171 (pending) |
+| KSP/PSI replaces regex annotation extraction | ✅ Integration lista | #172 (ready) |
 
-#### KSP foundation detalle
-- Módulo `:annotation-processor` creado con KSP 2.0.20-1.0.25
-- `KoupperSymbolProcessor`: extrae `@Export` en tiempo de compilación
-- Genera archivo JSON: `koupper-exports.json`
-- Integrado en build de `:octopus` (plugin KSP + dependencia ksp)
-- Unit tests: `KoupperSymbolProcessorTest` (inicialización + proceso vacío)
+#### KSP integration detalle
+- KSP processor extendido para `@Scheduled` y `@Pipeline`
+- `KspMetadataReader`: lector runtime para metadata JSON
+- `extractExportFunctionSignature`: usa KSP primero, regex como fallback
+- Parity tests: KSP vs regex para simple, param, complex, multi-annotation
+- KSP genera `koupper-exports.json` con exports, scheduled, pipelines
 
-#### Qué falta para completar KSP/PSI migration
-1. **Extender processor** para `@Scheduled` y `@Pipeline`
-2. **Consumir metadata JSON** en `AnnotationsProcessor.kt` en lugar de regex
-3. **Tests de paridad** KSP vs regex para todos los providers (48)
-4. **Remover código regex** legacy una vez validado
-5. **Documentar** la nueva arquitectura
+#### Arquitectura actual
+```
+KSP Processor (compile time)
+  → lee @Export/@Scheduled/@Pipeline de fuentes Kotlin
+  → genera koupper-exports.json
+  
+Runtime
+  → KspMetadataReader lee JSON
+  → extractExportFunctionSignature usa KSP metadata primero
+  → Fallback a regex si KSP no está disponible
+```
 
 ---
 
@@ -77,38 +82,36 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 ## Notas para retoma en frío
 
-- **Branch activa**: `feature/ksp-annotation-processor`
-- **Para continuar KSP**:
-  - Extender `KoupperSymbolProcessor` para procesar `@Scheduled` y `@Pipeline`
-  - Modificar `AnnotationsProcessor.kt` para leer metadata JSON generada
-  - Crear tests de paridad que comparen regex vs KSP para cada provider
-- **Assessment**: 2/3 items completados, 1 en progreso (foundation lista)
+- **Branch activa**: `feature/ksp-runtime-integration` (listo para merge)
+- **Para completar**: Merge PR #172, luego remover código regex legacy
+- **Assessment**: 3/3 items completados
 
 ---
 
 ## Pendiente próxima sesión
 
-- [ ] Mergear PR #171 (KSP foundation)
-- [ ] Extender KSP processor para `@Scheduled` y `@Pipeline`
-- [ ] Modificar `AnnotationsProcessor.kt` para consumir metadata KSP
-- [ ] Tests de paridad: KSP vs regex para todos los providers
-- [ ] Remover código regex legacy
+- [ ] Mergear PR #172 (KSP runtime integration)
+- [ ] Remover código regex legacy una vez validado en producción
+- [ ] Performance benchmark: KSP vs regex extraction
 
 ---
 
-## Assessment: completado parcial
+## Assessment: completado
 
 | Item | Estado |
 |---|---|
 | 1. Provider tier system | ✅ |
 | 2. gRPC bidirectional streaming | ✅ |
-| 3. KSP/PSI replaces regex | 🔄 Foundation lista |
+| 3. KSP/PSI replaces regex | ✅ |
 
 ---
 
 ## Commits sesión 21
 
 ```
+koupper/feature/ksp-runtime-integration:
+  4215877  feat(ksp): integrate KSP metadata into runtime extraction
+  
 koupper/feature/ksp-annotation-processor:
   baaccd2  feat(annotation-processor): add KSP foundation for @Export extraction
 ```
