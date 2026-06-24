@@ -94,9 +94,10 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 ## Pendiente próxima sesión
 
-- [ ] Mergear PR (v7 architecture features: Sandboxing, SSE, Hot Reloading) a `develop`
-- [ ] Validar flujos completos E2E con el nuevo CLI `koupper reload`
-- [ ] Preparar el tag release para `v7.0.0`
+- [x] Validar flujos completos E2E con el nuevo CLI `koupper reload` (Hot Reload arreglado vía Singleton + ClassLoader)
+- [x] Validar Process Sandbox y SSE scripts (Fallback de Reflexión implementado para bypass KSP en scripts dinámicos)
+- [x] Preparar el tag release para `v7.0.0` (Versión bumps listos, documentación README actualizada y pusheados a origin/develop)
+- [ ] Tag release y changelog (Ejecutar pipelineNext para generar release)
 
 ---
 
