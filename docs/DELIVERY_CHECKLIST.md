@@ -189,3 +189,41 @@ _Last updated: 2026-04-23_
 
 - [x] Clean-path bootstrap smoke passed with `./scripts/setup/workspace-bootstrap.ps1 -Workspace <clean-path> -DoctorOnly -Pull`.
 - [x] User rerun from documented flow succeeded after pulling updated script.
+
+---
+
+## Wave: Koupper Framework Assessment Fixes (Sesión 20)
+
+### Scope
+
+- [x] Provider tier system (CORE/COMMUNITY/EXPERIMENTAL)
+- [x] gRPC bidirectional streaming for job queue
+- [ ] KSP/PSI annotation processing (replaces regex) — next session
+
+### Implementation
+
+- [x] `ProviderTier.kt` enum with CI gate criteria
+- [x] `ServiceProvider.tier()` with default COMMUNITY
+- [x] 5 CORE providers marked, 3 EXPERIMENTAL
+- [x] `ServiceProviderManager.listProvidersByTier()` for CI filtering
+- [x] `ProviderTierConsistencyTest` validates assignments
+- [x] Fix `KoupperTelemetry` compilation (OTel deps in `shared/build.gradle`)
+- [x] Fix `TextMapGetter` type inference in `extractContext()`
+- [x] Protobuf plugin configured in `build.gradle`
+- [x] `job_queue.proto` defined with `JobQueue` service
+- [x] gRPC dependencies added to root `build.gradle`
+- [x] `JobQueueGrpcServer` with bidi stream handling
+- [x] `JobQueueGrpcClient` with auto-reconnect (5s backoff)
+- [x] `JobQueueGrpcIntegrationTest` (single + concurrent jobs)
+
+### Validation
+
+- [x] Tier system PR #169 merged to develop
+- [x] gRPC PR #170 merged to develop
+- [ ] KSP processor compiles — next session
+
+### Release Flow
+
+- [x] PR #169 merged via squash
+- [x] PR #170 merged via squash
+- [ ] KSP/PSI PR pending (next session)
