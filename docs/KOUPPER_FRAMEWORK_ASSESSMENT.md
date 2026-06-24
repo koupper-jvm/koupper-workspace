@@ -306,12 +306,13 @@ TCP request (RUN/DEPLOY)
 ### Wave 1: Foundation (4-6 weeks)
 **Goal:** Replace regex primary paths, remove hardcoded fallbacks, and complete source mapping.
 
-| # | Task | Files affected | Effort | Dependencies |
-|---|---|---|---|---|
-| 1.1 | **Replace primary regex annotation extraction** with KSP or PSI-based discovery | `shared/ScriptUtilities.kt`, new `octopus/processing/` | High | 0.1 (E2E harness must validate) |
-| 1.2 | **Remove hardcoded provider fallback** and generate SPI at build time | `ServiceProviderManager.kt`, Gradle build | Medium | 0.2 (SPI already works) |
-| 1.3 | **Map compile errors to original source lines** (preamble offset subtraction) | `ScriptingHostBackend.kt`, `AnnotationsProcessor.kt` | Medium | 0.1 |
-| 1.4 | **Flip reflection/regex priority** for type extraction | `AnnotationsProcessor.kt:333-338`, `ScriptUtilities.kt` | Low | 0.7 |
+| # | Task | Files affected | Effort | Dependencies | Status |
+|---|---|---|---|---|---|
+| 1.1 | **Replace primary regex annotation extraction** with KSP or PSI-based discovery | `shared/ScriptUtilities.kt`, new `octopus/processing/` | High | 0.1 (E2E harness must validate) | 🟡 Active |
+| 1.2 | **Remove hardcoded provider fallback** and generate SPI at build time | `ServiceProviderManager.kt`, Gradle build | Medium | 0.2 (SPI already works) | ✅ Done (2026-06-24) |
+| 1.3 | **Map compile errors to original source lines** (preamble offset subtraction) | `ScriptingHostBackend.kt`, `AnnotationsProcessor.kt` | Medium | 0.1 | ✅ Done (2026-06-24) |
+| 1.4 | **Flip reflection/regex priority** for type extraction | `AnnotationsProcessor.kt:333-338`, `ScriptUtilities.kt` | Low | 0.7 | ✅ Done (2026-06-24) |
+| 1.5 | **Prometheus `/metrics` endpoint** | `OctopusBootstrap.kt`, `DaemonMetrics` | Low | 0.8 | ✅ Done (2026-06-24) |
 
 ### Wave 2: Scale & Protocol (4-6 weeks)
 **Goal:** Multi-node readiness, standard protocol, HA.
@@ -369,16 +370,16 @@ These can be started now, without waiting for the full wave plan:
 | ~~P2~~ | ~~Add `@Secret` annotation + auto-redaction~~ | ✅ Done — `SecretRedactor` integrated in stdout bridge |
 | ~~P2~~ | ~~Version provider preamble~~ | ✅ Done — `@KoupperVersion` with fail-fast validation |
 
-### Active (post-session 19)
+### Active (post-6.6.0 wave)
 
 | Priority | Task | Why now? |
 |---|---|---|
 | **P0** | Replace primary regex annotation extraction with KSP/PSI | The reflection validation layer (0.7) is a safety net, not a replacement. Every future wave depends on reliable annotation discovery. |
-| **P0** | Remove hardcoded provider fallback | SPI is primary but fallback still contains 46 hardcoded classes. Eliminate drift risk. |
-| **P1** | Map compile errors to original source lines | `preambleLineCount` is calculated but not applied. Users still see wrong line numbers. |
-| **P1** | Flip reflection/regex priority for type extraction | `reflectExportSignature()` is more robust than regex for generics and data classes. |
-| **P2** | Expand E2E harness to `@Scheduled` and `@Pipeline` | Current harness only covers `@Export`. Pipeline scheduling logic needs regression tests. |
-| **P2** | Add Prometheus `/metrics` endpoint | Low effort: wire `DaemonMetrics` into a simple HTTP handler using existing `bootstrap/` infrastructure. |
+| **P1** | **mTLS + JWT auth with scopes** (read/execute/admin) | Current auth is a single static token in plaintext. Needed for any multi-user deployment. |
+| **P1** | **Script sandboxing** — isolated classloader per script | Scripts run with full JVM access. A malicious `.kts` can `System.exit(0)`. `SecurityManager` is deprecated; investigate classloader isolation. |
+| **P2** | **gRPC or HTTP/2 endpoint** alongside legacy TCP | Raw TCP is non-standard. curl/Postman can't talk to Octopus. A REST or gRPC facade unlocks ecosystem integration. |
+| **P2** | **OpenTelemetry tracing** with automatic span creation | `TraceContext` gives correlation IDs but no spans, no external propagation. Add OTel SDK for pipeline step tracing. |
+| **P2** | **Provider tier system** (core/community/experimental) + CI enforcement | Quality is uneven: SSH provider is production-grade, `command-runner` is a thin wrapper. Users can't tell the difference. |
 
 ---
 
@@ -392,7 +393,7 @@ These can be started now, without waiting for the full wave plan:
 
 ---
 
-*Last updated: 2026-06-23 (post-session 19 audit). Sync with `SESSION_STATE.md` after completing any item above.*
+*Last updated: 2026-06-24 (post-6.6.0 wave). Sync with `SESSION_STATE.md` after completing any item above.*
 
 ---
 
