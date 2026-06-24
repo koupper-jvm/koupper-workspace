@@ -245,3 +245,35 @@ _Last updated: 2026-04-23_
 ### Assessment: COMPLETED ✅
 
 All 3 assessment items fully implemented and merged to develop.
+
+---
+
+## Wave: Koupper v7 Architecture (Sesión 22)
+
+### Scope
+
+- [x] Process Isolation & Sandboxing via JVM ProcessBuilder (`System.exit` safety)
+- [x] Server-Sent Events (SSE) Streaming for realtime execution logs
+- [x] Hot-Reloading of ServiceProviders via URLClassLoader
+- [x] High Availability distributed queue assessment
+
+### Implementation
+
+- [x] `ProcessSandbox.kt` created to spawn isolated JVM sub-processes.
+- [x] `AnnotationsProcessor.kt` hooks into sandbox when `koupper.sandbox.enabled=true`.
+- [x] `RuntimeRouterProvider.kt` Grizzly integration with `SseEmitter`.
+- [x] `HttpApiServer.kt` new endpoint `POST /api/v1/run-stream` capturing stdout.
+- [x] `ServiceProviderManager.kt` uses custom dynamic `URLClassLoader`.
+- [x] `OctopusBootstrap.kt` handles `RELOAD_PROVIDERS` protocol command to reload DI container.
+- [x] `ReloadCommand.kt` CLI command `koupper reload` created.
+
+### Validation
+
+- [x] Sandbox safely traps `System.exit(1)`.
+- [x] SSE streams real-time stdout prints directly from HTTP endpoint.
+- [x] `koupper reload` refreshes classes dynamically.
+
+### Release Flow
+
+- [ ] Merge to develop
+- [ ] Tag v7.0.0 after CI verifications

@@ -8,6 +8,7 @@ _Last updated: 2026-06-24 (sesión 21 — cerrada)_
 - **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, PR #169-#174 merged
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, pipelineNext mergeado
 - **Assessment**: 3/3 items completados, regex legacy removido, ejemplos y docs actualizados
+- **Koupper v7 Architecture**: Sandboxing, SSE, Hot Reloading y validación de HA implementados exitosamente.
 
 ---
 
@@ -93,9 +94,9 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 ## Pendiente próxima sesión
 
-- [ ] Mergear PR #172 (KSP runtime integration)
-- [ ] Remover código regex legacy una vez validado en producción
-- [ ] Performance benchmark: KSP vs regex extraction
+- [ ] Mergear PR (v7 architecture features: Sandboxing, SSE, Hot Reloading) a `develop`
+- [ ] Validar flujos completos E2E con el nuevo CLI `koupper reload`
+- [ ] Preparar el tag release para `v7.0.0`
 
 ---
 
