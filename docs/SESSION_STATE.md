@@ -1,13 +1,13 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-24 (sesión 21 — activa)_
+_Last updated: 2026-06-24 (sesión 21 — cerrada)_
 
 ---
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, PR #169, #170 merged, #171 y #172 ready
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, PR #169-#173 merged
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, pipelineNext mergeado
-- **Branch activa**: `feature/ksp-runtime-integration` (listo para merge)
+- **Assessment**: 3/3 items completados, regex legacy removido
 
 ---
 
@@ -15,7 +15,7 @@ _Last updated: 2026-06-24 (sesión 21 — activa)_
 
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
-| koupper (framework) | `~/develop/koupper workspace/koupper` | `feature/ksp-runtime-integration` | KSP integration ✅ |
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | PR #169-#173 merged ✅ |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `develop` | limpio ✅ |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
 | dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
@@ -24,22 +24,23 @@ _Last updated: 2026-06-24 (sesión 21 — activa)_
 
 ## Lo que está construido
 
-### Sesión 21 — KSP Integration (completado)
+### Sesión 21 — KSP Integration + Regex Removal (completado)
 
 | Fix | Estado | PR |
 |---|---|---|
 | Provider tier system (CORE/COMMUNITY/EXPERIMENTAL) | ✅ Merged | #169 |
 | gRPC bidirectional streaming | ✅ Merged | #170 |
-| KSP/PSI replaces regex annotation extraction | ✅ Integration lista | #172 (ready) |
+| KSP/PSI replaces regex annotation extraction | ✅ Completo | #171, #172, #173 |
 
 #### KSP integration detalle
-- KSP processor extendido para `@Scheduled` y `@Pipeline`
+- `:annotation-processor` module con KSP 2.0.20-1.0.25
+- `KoupperSymbolProcessor`: extrae `@Export`, `@Scheduled`, `@Pipeline`
 - `KspMetadataReader`: lector runtime para metadata JSON
-- `extractExportFunctionSignature`: usa KSP primero, regex como fallback
-- Parity tests: KSP vs regex para simple, param, complex, multi-annotation
+- `extractExportFunctionSignature`: **KSP único camino** (regex removido)
 - KSP genera `koupper-exports.json` con exports, scheduled, pipelines
+- ~40 líneas de regex legacy eliminadas
 
-#### Arquitectura actual
+#### Arquitectura final
 ```
 KSP Processor (compile time)
   → lee @Export/@Scheduled/@Pipeline de fuentes Kotlin
@@ -47,7 +48,9 @@ KSP Processor (compile time)
   
 Runtime
   → KspMetadataReader lee JSON
-  → extractExportFunctionSignature usa KSP metadata primero
+  → extractExportFunctionSignature usa KSP metadata únicamente
+  → Fails fast con error claro si KSP no está configurado
+```
   → Fallback a regex si KSP no está disponible
 ```
 
