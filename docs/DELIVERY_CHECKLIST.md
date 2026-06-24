@@ -216,14 +216,15 @@ _Last updated: 2026-04-23_
 - [x] `JobQueueGrpcClient` with auto-reconnect (5s backoff)
 - [x] `JobQueueGrpcIntegrationTest` (single + concurrent jobs)
 - [x] `:annotation-processor` module with KSP configured
-- [x] `KoupperSymbolProcessor` extracts `@Export` at compile time
-- [x] `KoupperSymbolProcessor` extracts `@Scheduled` and `@Pipeline`
+- [x] `KoupperSymbolProcessor` extracts `@Export`, `@Scheduled`, `@Pipeline`
 - [x] Generates `koupper-exports.json` with exports, scheduled, pipelines
 - [x] KSP integrated into `:octopus` build
 - [x] `KoupperSymbolProcessorTest` (unit tests)
 - [x] `KspMetadataReader`: runtime reader for KSP JSON
-- [x] `extractExportFunctionSignature` uses KSP first, regex fallback
-- [x] `KspRegexParityTest` validates parity for simple, param, complex, multi-annotation
+- [x] `extractExportFunctionSignature` uses KSP metadata **exclusively**
+- [x] Regex fallback **removed** from `extractExportFunctionSignature`
+- [x] `KspRegexParityTest` removed (regex no longer exists)
+- [x] ~40 lines of regex legacy code deleted
 
 ### Validation
 
@@ -231,10 +232,16 @@ _Last updated: 2026-04-23_
 - [x] gRPC PR #170 merged to develop
 - [x] KSP processor compiles and passes tests
 - [x] KSP runtime integration compiles and passes tests
+- [x] Regex removal compiles successfully
 
 ### Release Flow
 
 - [x] PR #169 merged via squash
 - [x] PR #170 merged via squash
 - [x] PR #171 (KSP foundation) merged
-- [x] PR #172 (KSP runtime integration) ready for merge
+- [x] PR #172 (KSP runtime integration) merged
+- [x] PR #173 (regex removal) merged
+
+### Assessment: COMPLETED ✅
+
+All 3 assessment items fully implemented and merged to develop.
