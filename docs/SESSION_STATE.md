@@ -5,9 +5,9 @@ _Last updated: 2026-06-24 (sesión 21 — cerrada)_
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, PR #169-#173 merged
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, PR #169-#174 merged
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, pipelineNext mergeado
-- **Assessment**: 3/3 items completados, regex legacy removido
+- **Assessment**: 3/3 items completados, regex legacy removido, ejemplos y docs actualizados
 
 ---
 
