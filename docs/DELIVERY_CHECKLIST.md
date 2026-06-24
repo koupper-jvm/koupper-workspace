@@ -192,13 +192,13 @@ _Last updated: 2026-04-23_
 
 ---
 
-## Wave: Koupper Framework Assessment Fixes (Sesión 20)
+## Wave: Koupper Framework Assessment Fixes (Sesión 20-21)
 
 ### Scope
 
 - [x] Provider tier system (CORE/COMMUNITY/EXPERIMENTAL)
 - [x] gRPC bidirectional streaming for job queue
-- [ ] KSP/PSI annotation processing (replaces regex) — next session
+- [x] KSP/PSI annotation processing foundation (replaces regex)
 
 ### Implementation
 
@@ -215,15 +215,20 @@ _Last updated: 2026-04-23_
 - [x] `JobQueueGrpcServer` with bidi stream handling
 - [x] `JobQueueGrpcClient` with auto-reconnect (5s backoff)
 - [x] `JobQueueGrpcIntegrationTest` (single + concurrent jobs)
+- [x] `:annotation-processor` module with KSP configured
+- [x] `KoupperSymbolProcessor` extracts `@Export` at compile time
+- [x] Generates `koupper-exports.json` metadata file
+- [x] KSP integrated into `:octopus` build
+- [x] `KoupperSymbolProcessorTest` (unit tests)
 
 ### Validation
 
 - [x] Tier system PR #169 merged to develop
 - [x] gRPC PR #170 merged to develop
-- [ ] KSP processor compiles — next session
+- [x] KSP processor compiles and passes tests
 
 ### Release Flow
 
 - [x] PR #169 merged via squash
 - [x] PR #170 merged via squash
-- [ ] KSP/PSI PR pending (next session)
+- [x] PR #171 (KSP foundation) ready for review
