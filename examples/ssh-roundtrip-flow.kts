@@ -24,8 +24,8 @@ import com.koupper.providers.ssh.SSHSyncRequest
 import com.koupper.providers.ssh.SSHTemplateRequest
 
 data class Input(
-    val mode: String,
-    val remotePath: String,
+    val mode: String = "",
+    val remotePath: String = "",
     val localWorkingDir: String = ".koupper/ssh-work",
     val localFileName: String = "remote-file.txt",
     val appendLine: String = "",

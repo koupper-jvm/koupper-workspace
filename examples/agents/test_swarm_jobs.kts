@@ -19,7 +19,6 @@ import com.koupper.orchestrator.dispatchToQueue
 import com.koupper.providers.agent.*
 import com.koupper.providers.files.JSONFileHandler
 import com.koupper.providers.files.fromJson
-import com.koupper.providers.files.toJsonString
 import com.koupper.shared.annotations.Export
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -139,7 +138,7 @@ fun test() {
         id = UUID.randomUUID().toString(),
         fileName = "test_swarm_jobs",
         functionName = "juezAgenteWorker",
-        params = mapOf("arg0" to genResult.toJsonString()),
+        params = mapOf("arg0" to genResult),
         signature = Pair(
             listOf(GeneratorOutput::class.qualifiedName!!),
             JudgementResult::class.qualifiedName!!
@@ -188,7 +187,7 @@ fun test() {
 
         judgeResult = runBlocking {
             orchestrator.execute(
-                juezAgenteConfig.copy(contextFromPrevious = genOutput.toJsonString())
+                juezAgenteConfig.copy(contextFromPrevious = genOutput)
             )
         } as? JudgementResult ?: error("JuezAgente failed to produce JudgementResult")
 

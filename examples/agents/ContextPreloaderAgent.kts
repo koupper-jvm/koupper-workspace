@@ -15,8 +15,7 @@ val setup: () -> Unit = {
     val memory = runCatching { app.getInstance(MemoryProvider::class) }.getOrNull()
     if (memory == null) {
         log("MemoryProvider not available — aborting")
-        return@setup
-    }
+    } else {
 
     // --- 1. Purge stale/bad entries from previous sessions ---
     val textsFile = File(home, ".koupper/memory/memory-texts.json")
@@ -26,14 +25,16 @@ val setup: () -> Unit = {
         var purged = 0
         val seen = mutableSetOf<String>()
         entries.forEach { entry ->
-            val id   = entry["id"] as? String ?: return@forEach
-            val text = entry["text"] as? String ?: ""
-            val isDump      = text.length > 350
-            val isDuplicate = !seen.add(text.take(80))
-            val isTestEntry = text == "the exact fact to store"
-            if (isDump || isDuplicate || isTestEntry) {
-                runCatching { memory.forget(id) }
-                purged++
+            val id   = entry["id"] as? String
+            if (id != null) {
+                val text = entry["text"] as? String ?: ""
+                val isDump      = text.length > 350
+                val isDuplicate = !seen.add(text.take(80))
+                val isTestEntry = text == "the exact fact to store"
+                if (isDump || isDuplicate || isTestEntry) {
+                    runCatching { memory.forget(id) }
+                    purged++
+                }
             }
         }
         log("Purged $purged stale entries")
@@ -79,4 +80,5 @@ val setup: () -> Unit = {
 
     log("Context preloaded: $loaded facts stored in memory")
     log("Memory ready — CORTEX will now have project context on every query")
+    }
 }

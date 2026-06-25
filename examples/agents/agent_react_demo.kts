@@ -32,14 +32,6 @@ val run: () -> Unit = {
         task<AnalysisResult> {
             // Este prompt contiene 'file', lo que disparará el ToolCall en nuestro motor simulado
             prompt = "Read the system metrics from the file 'metrics.json' and analyze the CPU usage."
-            
-            onToken { token ->
-                print(token)
-            }
-
-            onHallucination { error, raw ->
-                println("\n[!] Hallucination: ${error.message}")
-            }
         }
     }
 

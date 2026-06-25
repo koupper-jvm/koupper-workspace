@@ -38,15 +38,6 @@ val setup: () -> Unit = {
                 Read the file 'examples/agents/hardware_audit.json' and evaluate if this system 
                 is optimized for a Multi-Agent distributed swarm. 
             """.trimIndent()
-            
-            onToken { token ->
-                println("TOKEN: $token")
-            }
-
-            onHallucination { error, rawOutput ->
-                println("\n[!] Hallucination Detected: ${error.message}")
-                println("[Raw Output]: $rawOutput")
-            }
         }
     }
 
