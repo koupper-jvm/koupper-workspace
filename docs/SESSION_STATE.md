@@ -1,15 +1,15 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-25 (sesión 22 — en progreso)_
+_Last updated: 2026-06-25 (sesión 22 — completada)_
 
 ---
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, PR #169-#174 merged
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, fixes pusheados
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, pipelineNext mergeado
 - **Assessment**: 3/3 items completados, regex legacy removido, ejemplos y docs actualizados
-- **Koupper v7 Architecture**: Sandboxing, SSE, Hot Reloading y validación de HA implementados exitosamente.
-- **Koupper v7 Install**: ✅ Funcional. FatJar (~300MB) construido e instalado correctamente a nivel SO.
+- **Koupper v7 Architecture**: Sandboxing, SSE, Hot Reloading y validación de HA implementados.
+- **Koupper v7 Install**: ✅ Funcional. FatJar (~300MB) con fixes de framework.
 
 ---
 
@@ -17,7 +17,7 @@ _Last updated: 2026-06-25 (sesión 22 — en progreso)_
 
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
-| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | limpio ✅ |
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | limpio ✅ (commit `1af35d6`) |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `develop` | limpio ✅ |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
 | dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
@@ -42,34 +42,37 @@ _Last updated: 2026-06-25 (sesión 22 — en progreso)_
 - KSP genera `koupper-exports.json` con exports, scheduled, pipelines
 - ~40 líneas de regex legacy eliminadas
 
-#### Arquitectura final
-```
-KSP Processor (compile time)
-  → lee @Export/@Scheduled/@Pipeline de fuentes Kotlin
-  → genera koupper-exports.json
-
-Runtime
-  → KspMetadataReader lee JSON
-  → extractExportFunctionSignature usa KSP metadata únicamente
-  → Fails fast con error claro si KSP no está configurado
-```
-
 ---
 
-### Sesión 22 — Verificación de Instalación y Correcciones de Ejemplos
+### Sesión 22 — Fixes de Framework v7.1.1
 
-| Observación | Estado | Detalle |
+| Fix | Archivo | Detalle |
 |---|---|---|
-| FatJar construcción | ✅ OK | `octopus:fatJar` completa en ~21s con cache. JAR funcional para instalación SO. |
-| CLI version | ✅ v7.1.1 | `koupper -v` reporta `koupper cli 7.1.1` / `octopus engine 7.1.1` |
-| Ejemplos KSP compatibles | ✅ Fixed | `sandbox_test.kts` y `sse_test.kts` usan `val` con `@Export` (no `fun`) |
-| Working tree | ✅ Limpio | No hay cambios locales pendientes en ningún repo |
+| `ClassCastException: Unit → String` | `SandboxWorker.kt` | Cambiado `runFromScriptFile<String>` a `runFromScriptFile<Any?>` |
+| `ClassCastException: Unit → String` | `HttpApiServer.kt` | Cambiado ambos `<String>` a `<Any?>` con manejo de `Unit`/null |
+| SPI Services faltantes en JAR | `octopus.jar` | Agregados `META-INF/services/com.koupper.providers.ServiceProvider` y `providers-catalog.json` |
 
-#### Notas técnicas sesión 22
-- **FatJar (~300MB)**: Es el JAR de sistema operativo, contiene todas las dependencias (gRPC, protobuf, native libs). El `optimized` JAR (~2.2MB) es para proyectos web.
-- **KSP requiere `@Export` en `val`**: `@Export fun name()` no funciona con KSP. Debe ser `@Export val name: () -> ReturnType = { ... }`.
-- **Instalación funcional**: `install-workspace.kts` ejecuta `:octopus:fatJar`, despliega artefactos, genera shims en `~/.koupper/bin`, y el PATH funciona.
-- **Ningún fix necesario**: Los ejemplos ya están corregidos en `develop`. No se requiere branch de fix.
+#### Resultado del fix
+- Scripts que retornan `Unit` (ej: `GreetingAgent.kts`, `FileOrganizerAgent.kts`, `SysMonitorAgent.kts`) ya no crashean con `ClassCastException`.
+- El sandbox ejecuta correctamente sin error de `No ServiceProviders discovered via SPI`.
+
+#### Scripts probados y funcionando (post-fix)
+| Script | Estado |
+|---|---|
+| `examples/agents/GreetingAgent.kts` | ✅ Funciona (retorna `kotlin.Unit`) |
+| `examples/agents/CodeReviewAgent.kts` | ✅ Funciona |
+| `examples/agents/FileOrganizerAgent.kts` | ✅ Funciona |
+| `examples/agents/HeartbeatAgent.kts` | ✅ Funciona |
+| `examples/agents/PortScannerAgent.kts` | ✅ Funciona |
+| `examples/agents/SysMonitorAgent.kts` | ✅ Funciona |
+
+#### Scripts con errores NO relacionados al framework (errores de scripts)
+| Script | Error | Causa |
+|---|---|---|
+| `agent_react_demo.kts`, `omega_researcher.kts` | `Unresolved reference 'onToken'` | API obsoleta en scripts |
+| `ContextPreloaderAgent.kts`, `PluginManagerAgent.kts` | `'return' is prohibited here` | `return` en lambdas (Kotlin scripting) |
+| `FileIndexerAgent.kts` | `No hay 'invoke' con aridad 0` | Firma incompatible con KSP |
+| `FileWatcherAgent.kts` | `Unresolved reference 'watcher'` | API obsoleta en script |
 
 ---
 
@@ -104,21 +107,16 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 - **Branch activa**: `develop` (limpia, todo mergeado)
 - **Assessment**: 3/3 items completados
-- **Instalación**: Funcional, CLI v7.1.1 operativo
-- **Próximos pasos potenciales**:
-  1. Tag release `v7.0.0` / `v7.1.1` y changelog
-  2. Ejecutar pipelineNext para generar release formal
-  3. Validar E2E con `koupper run` sobre todos los ejemplos
+- **Instalación**: Funcional, CLI v7.1.1 operativo con fixes de framework
+- **Commits recientes koupper/develop**: `1af35d6` — fix(octopus): support Any? return type in sandbox and HTTP API
 
 ---
 
 ## Pendiente próxima sesión
 
-- [x] Validar flujos completos E2E con el nuevo CLI `koupper reload` (Hot Reload arreglado vía Singleton + ClassLoader)
-- [x] Validar Process Sandbox y SSE scripts (Fallback de Reflexión implementado para bypass KSP en scripts dinámicos)
-- [x] Preparar el tag release para `v7.0.0` (Versión bumps listos, documentación README actualizada y pusheados a origin/develop)
-- [ ] Tag release y changelog (Ejecutar pipelineNext para generar release)
-- [ ] Validar `koupper run` sobre todos los ejemplos del directorio `examples/`
+- [ ] Arreglar scripts de `examples/` con errores de sintaxis (`return` en lambdas, APIs obsoletas)
+- [ ] Validar E2E completo sobre TODOS los scripts del directorio `examples/`
+- [ ] Tag release `v7.1.1` y changelog
 
 ---
 
@@ -135,14 +133,9 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 ## Commits sesión 21-22
 
 ```
-koupper/feature/ksp-runtime-integration:
-  4215877  feat(ksp): integrate KSP metadata into runtime extraction
-
-koupper/feature/ksp-annotation-processor:
-  baaccd2  feat(annotation-processor): add KSP foundation for @Export extraction
-
-koupper/develop (post-merge):
+koupper/develop:
+  1af35d6  fix(octopus): support Any? return type in sandbox and HTTP API
+  761c441  (otros cambios remotos)
+  37eeb17  fix(octopus): support Any? return type in sandbox and HTTP API
   a6f80ac  chore: ignore koupper-vscode repo directory
-  5085f5b  docs: mark v7 and script tests as completed
-  1d34df0  docs: v7 architecture documentation and state update
 ```
