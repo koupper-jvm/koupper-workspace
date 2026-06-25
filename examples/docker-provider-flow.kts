@@ -17,7 +17,7 @@ import com.koupper.providers.docker.DockerExecRequest
 import com.koupper.providers.docker.DockerRunRequest
 
 data class Input(
-    val action: String,
+    val action: String = "",
     val image: String? = null,
     val container: String? = null,
     val command: List<String> = emptyList(),

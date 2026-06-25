@@ -19,7 +19,7 @@ import com.koupper.providers.git.GitMergeRequest
 import com.koupper.providers.git.GitTagRequest
 
 data class Input(
-    val action: String,
+    val action: String = "",
     val repoPath: String = ".",
     val branch: String? = null,
     val message: String? = null,
