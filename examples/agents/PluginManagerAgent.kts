@@ -13,20 +13,19 @@ import com.koupper.shared.annotations.Export
 import com.koupper.providers.files.fromJson
 import com.koupper.providers.files.toJson
 import com.koupper.providers.files.toJsonPretty
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Export
 val setup: () -> Unit = {
 
-    val jobsDir     = File(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
-    val agentsDir   = File(home, ".koupper/agents").also  { it.mkdirs() }
-    val cacheDir    = File(home, ".koupper/cache/plugins").also { it.mkdirs() }
-    val catalogFile = File(home, ".koupper/catalog/providers.json")
-    val serversFile = File(home, ".koupper/mcp/servers.json")
-    val queueDir    = File(jobsDir, "plugin-manager").also { it.mkdirs() }
-    val logDir      = File(jobsDir, "logs/plugin-manager").also { it.mkdirs() }
+    val jobsDir     = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val agentsDir   = koupper.files().load(home, ".koupper/agents").also  { it.mkdirs() }
+    val cacheDir    = koupper.files().load(home, ".koupper/cache/plugins").also { it.mkdirs() }
+    val catalogFile = koupper.files().load(home, ".koupper/catalog/providers.json")
+    val serversFile = koupper.files().load(home, ".koupper/mcp/servers.json")
+    val queueDir    = koupper.files().load(jobsDir, "plugin-manager").also { it.mkdirs() }
+    val logDir      = koupper.files().load(jobsDir, "logs/plugin-manager").also { it.mkdirs() }
     // ── Pick next job ─────────────────────────────────────────────────────────
 
     val jobFile = queueDir.listFiles { f -> f.name.endsWith(".json") }
@@ -37,8 +36,8 @@ val setup: () -> Unit = {
     } else {
 
     val sessionId = jobFile.nameWithoutExtension
-    val logFile   = File(logDir, "$sessionId.log")
-    val procFile  = File(queueDir, "$sessionId.json.processing")
+    val logFile   = koupper.files().load(logDir, "$sessionId.log")
+    val procFile  = koupper.files().load(queueDir, "$sessionId.json.processing")
 
     jobFile.renameTo(procFile)
     logFile.writeText("")
@@ -67,7 +66,7 @@ val setup: () -> Unit = {
         else                                               -> source  // local path
     }
     val repoName = repoUrl.trimEnd('/').substringAfterLast('/')
-    val cloneDir = if (source.startsWith("/")) File(source) else File(cacheDir, repoName)
+    val cloneDir = if (source.startsWith("/")) koupper.files().load(source) else koupper.files().load(cacheDir, repoName)
 
     log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     log("  PLUGIN MANAGER")
@@ -104,9 +103,9 @@ val setup: () -> Unit = {
 
     // ── Detect plugin type ────────────────────────────────────────────────────
 
-    val manifestFile = File(cloneDir, "koupper-plugin.json")
-    val packageFile  = File(cloneDir, "package.json")
-    val gradleFile   = File(cloneDir, "build.gradle")
+    val manifestFile = koupper.files().load(cloneDir, "koupper-plugin.json")
+    val packageFile  = koupper.files().load(cloneDir, "package.json")
+    val gradleFile   = koupper.files().load(cloneDir, "build.gradle")
     val ktsFiles     = cloneDir.listFiles { f -> f.extension == "kts" && f.name != "build.gradle.kts" }
         ?: emptyArray()
 
@@ -141,7 +140,7 @@ val setup: () -> Unit = {
 
             // Build executable command
             val pkgMain  = pkgJson?.get("main")?.toString() ?: "index.js"
-            val mainFile = File(cloneDir, pkgMain)
+            val mainFile = koupper.files().load(cloneDir, pkgMain)
             val (execCmd, execArgs) = if (mainFile.exists()) {
                 "node" to listOf(mainFile.absolutePath)
             } else {
@@ -182,13 +181,13 @@ val setup: () -> Unit = {
         "agent" -> {
             var count = 0
             ktsFiles.forEach { f ->
-                f.copyTo(File(agentsDir, f.name), overwrite = true)
+                f.copyTo(koupper.files().load(agentsDir, f.name), overwrite = true)
                 log("  ✓ ${f.name}")
                 count++
             }
             // Copy skill definitions if present
             cloneDir.listFiles { f -> f.extension == "json" && f.name.contains("skill") }
-                ?.forEach { f -> f.copyTo(File(agentsDir, f.name), overwrite = true) }
+                ?.forEach { f -> f.copyTo(koupper.files().load(agentsDir, f.name), overwrite = true) }
 
             log("  ✓ $count agent(s) installed → ~/.koupper/agents/")
             log("  Run with: koupper run ~/.koupper/agents/<AgentName>.kts")
@@ -213,7 +212,7 @@ val setup: () -> Unit = {
                     .filter { it.extension == "jar" && "sources" !in it.name && "javadoc" !in it.name }
                     .maxByOrNull { it.length() }
                 if (jar != null) {
-                    val dest = File(home, ".koupper/libs/$providerId.jar")
+                    val dest = koupper.files().load(home, ".koupper/libs/$providerId.jar")
                     jar.copyTo(dest, overwrite = true)
                     log("  ✓ JAR → ~/.koupper/libs/$providerId.jar")
                 } else {
@@ -224,7 +223,7 @@ val setup: () -> Unit = {
                 // Pre-built: look for a JAR in the repo
                 val jar = cloneDir.walk().filter { it.extension == "jar" }.firstOrNull()
                 if (jar != null) {
-                    jar.copyTo(File(home, ".koupper/libs/$providerId.jar"), overwrite = true)
+                    jar.copyTo(koupper.files().load(home, ".koupper/libs/$providerId.jar"), overwrite = true)
                     log("  ✓ JAR → ~/.koupper/libs/$providerId.jar")
                 }
             }

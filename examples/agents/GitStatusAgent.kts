@@ -9,24 +9,23 @@ import com.koupper.providers.files.fromJson
 import com.koupper.providers.files.getInt
 import com.koupper.providers.files.getObject
 import com.koupper.providers.files.getString
-import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Export
 val setup: () -> Unit = {
-    val jobsDir = File(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
-    val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
+    val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val logDir  = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
     val today   = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-    val logFile = File(logDir, "gitstatus-$today.log")
+    val logFile = koupper.files().load(logDir, "gitstatus-$today.log")
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) { logFile.appendText("[${ts()}] $msg\n"); emit(msg) }
 
     // ── Repos to monitor ─────────────────────────────────────────────────────
 
-    val configFile = File(home, ".koupper/gitstatus-repos.json")
+    val configFile = koupper.files().load(home, ".koupper/gitstatus-repos.json")
     if (!configFile.exists()) {
         configFile.writeText("""[
   {"owner": "koupper-jvm", "repo": "koupper"},
@@ -48,7 +47,7 @@ val setup: () -> Unit = {
     // ── Connect to GitHub MCP ────────────────────────────────────────────────
 
     val mcpConfigs = runCatching {
-        File(home, ".koupper/mcp/servers.json").readText().fromJson<List<Map<String, Any>>>()
+        koupper.files().load(home, ".koupper/mcp/servers.json").readText().fromJson<List<Map<String, Any>>>()
     }.getOrDefault(emptyList())
 
     val githubCfg = mcpConfigs.firstOrNull { it["name"] == "github" }

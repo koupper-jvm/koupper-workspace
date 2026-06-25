@@ -15,23 +15,22 @@
 import com.koupper.shared.annotations.Export
 import com.koupper.providers.files.WatchEvent
 import com.koupper.providers.files.fromJson
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Export
 val setup: () -> Unit = {
-    val jobsDir = File(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
-    val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
-    val logFile = File(logDir, "filewatcher.log")
+    val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val logDir  = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
+    val logFile = koupper.files().load(logDir, "filewatcher.log")
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) { logFile.appendText("[${ts()}] $msg\n"); emit(msg) }
 
     // ── Config ────────────────────────────────────────────────────────────────
 
-    val configFile = File(home, ".koupper/filewatcher-rules.json")
+    val configFile = koupper.files().load(home, ".koupper/filewatcher-rules.json")
     if (!configFile.exists()) {
         configFile.writeText("""[
   {
@@ -89,14 +88,14 @@ val setup: () -> Unit = {
     }
 
     fun doDispatch(file: File, rule: Rule) {
-        val agentFile = File(home, ".koupper/agents/${rule.agent}")
+        val agentFile = koupper.files().load(home, ".koupper/agents/${rule.agent}")
         if (!agentFile.exists()) {
             log("  ⚠ Agent not found: ${rule.agent}")
         } else {
             val agentName = rule.agent.removeSuffix(".kts")
             val jobId     = "$agentName-fw-${System.currentTimeMillis()}"
-            val queueDir  = File(jobsDir, rule.queue).also { it.mkdirs() }
-            File(queueDir, "$jobId.json").writeText(
+            val queueDir  = koupper.files().load(jobsDir, rule.queue).also { it.mkdirs() }
+            koupper.files().load(queueDir, "$jobId.json").writeText(
                 """{"id":"$jobId","fileName":"$agentName","functionName":"setup","scriptPath":"agents/${rule.agent}","sourceType":"script","triggeredBy":"filewatcher","filePath":"${file.absolutePath}"}"""
             )
             log("  ▶ Dispatched ${rule.agent} for ${file.name} → queue:${rule.queue}")
@@ -104,8 +103,8 @@ val setup: () -> Unit = {
     }
 
     fun doMove(file: File, rule: Rule) {
-        val dest = File(rule.destDir.replace("~", home)).also { it.mkdirs() }
-        val target = File(dest, file.name)
+        val dest = koupper.files().load(rule.destDir.replace("~", home)).also { it.mkdirs() }
+        val target = koupper.files().load(dest, file.name)
         val moved = file.renameTo(target)
         if (!moved) {
             file.copyTo(target, overwrite = true)
@@ -115,7 +114,7 @@ val setup: () -> Unit = {
     }
 
     fun handleFile(dir: File, filename: String) {
-        val file = File(dir, filename)
+        val file = koupper.files().load(dir, filename)
         if (file.isFile) {
             val matched = rules.filter {
                 it.watchDir.replace("~", home) == dir.absolutePath && matches(filename, it.pattern)
@@ -138,7 +137,7 @@ val setup: () -> Unit = {
     if (rules.isEmpty()) {
         log("No rules configured — exiting.")
     } else {
-        val dirs = rules.map { File(it.watchDir.replace("~", home)).also { d -> d.mkdirs() } }.distinct()
+        val dirs = rules.map { koupper.files().load(it.watchDir.replace("~", home)).also { d -> d.mkdirs() } }.distinct()
 
         if (dirs.isEmpty()) {
             log("No dirs to watch — exiting.")

@@ -17,7 +17,6 @@ import com.koupper.providers.commandbridge.CommandBridgeProvider
 import com.koupper.shared.annotations.Export
 import com.koupper.providers.files.fromJson
 import com.koupper.providers.files.toJson
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicBoolean
@@ -25,15 +24,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 @Export
 val setup: () -> Unit = {
     val home    = System.getProperty("user.home")!!
-    val jobsDir = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
+    val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
     data class TelegramConfig(val token: String, val allowedChatIds: List<Long> = emptyList())
 
-    val configFile = File(home, ".koupper/telegram.json")
+    val configFile = koupper.files().load(home, ".koupper/telegram.json")
 
     val rawConfig: TelegramConfig? = when {
-        System.getenv("KOUPPER_TELEGRAM_TOKEN") != null -> {
-            val token = System.getenv("KOUPPER_TELEGRAM_TOKEN")!!
-            val ids   = System.getenv("KOUPPER_TELEGRAM_CHAT_IDS")
+        env("KOUPPER_TELEGRAM_TOKEN") != null -> {
+            val token = env("KOUPPER_TELEGRAM_TOKEN")!!
+            val ids   = env("KOUPPER_TELEGRAM_CHAT_IDS")
                 ?.split(",")?.mapNotNull { it.trim().toLongOrNull() } ?: emptyList()
             TelegramConfig(token, ids)
         }
@@ -60,11 +59,11 @@ val setup: () -> Unit = {
     if (config != null) {
 
     val bridge        = app.getInstance(CommandBridgeProvider::class)
-    val cmdInDir      = File(jobsDir, "commands/wizard").also { it.mkdirs() }
-    val cortexLogFile = File(jobsDir, "logs/cortex/cortex-session.log")
-    val logDir        = File(jobsDir, "logs/default").also { it.mkdirs() }
-    val agentLog      = File(logDir, "telegram-bridge.log")
-    val offsetFile    = File(home, ".koupper/telegram-offset.json")
+    val cmdInDir      = koupper.files().load(jobsDir, "commands/wizard").also { it.mkdirs() }
+    val cortexLogFile = koupper.files().load(jobsDir, "logs/cortex/cortex-session.log")
+    val logDir        = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
+    val agentLog      = koupper.files().load(logDir, "telegram-bridge.log")
+    val offsetFile    = koupper.files().load(home, ".koupper/telegram-offset.json")
     val running       = AtomicBoolean(true)
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
@@ -238,7 +237,7 @@ val setup: () -> Unit = {
 
             log("MSG [$chatId] $text")
 
-            val procFile = File(jobsDir, "cortex/cortex-session.json.processing")
+            val procFile = koupper.files().load(jobsDir, "cortex/cortex-session.json.processing")
             if (!procFile.exists()) {
                 tgSend(chatId, "CORTEX is not running. Start it first.")
                 continue
@@ -246,9 +245,9 @@ val setup: () -> Unit = {
 
             val logPosBefore = if (cortexLogFile.exists()) cortexLogFile.length() else 0L
             val ts = System.currentTimeMillis()
-            val tmpCmd = File(jobsDir, "commands/.tmp_$ts")
+            val tmpCmd = koupper.files().load(jobsDir, "commands/.tmp_$ts")
             tmpCmd.writeText(text)
-            tmpCmd.renameTo(File(cmdInDir, "$ts.response"))
+            tmpCmd.renameTo(koupper.files().load(cmdInDir, "$ts.response"))
             log("  -> sent to CommandBridge")
 
             val response = collectResponse(logPosBefore, text)
@@ -294,7 +293,7 @@ val setup: () -> Unit = {
             }
 
             // Send any photos queued by CORTEX during this request
-            val photoQueueDir = File(jobsDir, "telegram/photo_queue")
+            val photoQueueDir = koupper.files().load(jobsDir, "telegram/photo_queue")
             photoQueueDir.mkdirs()
             photoQueueDir.listFiles { f -> f.extension == "json" }
                 ?.sortedBy { it.name }
@@ -303,7 +302,7 @@ val setup: () -> Unit = {
                         val req     = reqFile.readText().fromJson<Map<String, Any>>()
                         val path    = req["path"]?.toString() ?: return@runCatching
                         val caption = req["caption"]?.toString() ?: ""
-                        tgSendPhoto(chatId, java.io.File(path), caption)
+                        tgSendPhoto(chatId, java.io.koupper.files().load(path), caption)
                         reqFile.delete()
                     }.onFailure { log("  photo queue error: ${it.message}") }
                 }

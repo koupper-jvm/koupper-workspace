@@ -3,7 +3,6 @@
 // y genera un reporte en ~/.koupper/jobs/logs/default/sysmonitor-<fecha>.log
 
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -11,10 +10,10 @@ import java.time.format.DateTimeFormatter
 @Export
 val setup: () -> Unit = {
     val home    = System.getProperty("user.home")!!
-    val jobsDir = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
-    val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
+    val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val logDir  = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
     val today   = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-    val logFile = File(logDir, "sysmonitor-$today.log")
+    val logFile = koupper.files().load(logDir, "sysmonitor-$today.log")
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n").also { println(msg) }

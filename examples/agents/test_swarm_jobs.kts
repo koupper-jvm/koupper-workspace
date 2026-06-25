@@ -21,7 +21,6 @@ import com.koupper.providers.files.JSONFileHandler
 import com.koupper.providers.files.fromJson
 import com.koupper.shared.annotations.Export
 import kotlinx.coroutines.runBlocking
-import java.io.File
 import java.nio.file.Paths
 import java.util.LinkedList
 import java.util.UUID
@@ -153,7 +152,7 @@ fun test() {
     println("[JOBS] Dispatching Job to Queue: JuezAgente ← GeneratorOutput(id=${genResult.analysisId})")
     juezTask.dispatchToQueue(context = workingDir)
 
-    val jobsDir = File("$workingDir/jobs/agent-swarm")
+    val jobsDir = koupper.files().load("$workingDir/jobs/agent-swarm")
     val jobFile = jobsDir.listFiles()?.firstOrNull { it.nameWithoutExtension == juezTask.id }
     check(jobFile != null && jobFile.exists()) {
         "Job file not found on disk. Expected: ${juezTask.id}.json in $jobsDir"
@@ -214,5 +213,5 @@ fun test() {
     println("  GeneradorAgente → KouTask → jobs/agent-swarm/UUID.json → Worker → JuezAgente")
     println("════════════════════════════════════════════════════════════════\n")
 
-    File("$workingDir/jobs/agent-swarm").deleteRecursively()
+    koupper.files().load("$workingDir/jobs/agent-swarm").deleteRecursively()
 }

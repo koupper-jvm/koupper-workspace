@@ -13,7 +13,6 @@ import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.annotations.Scheduled
 import com.koupper.providers.files.FileHandler
-import java.io.File
 
 @Export
 @Logger(destination = "file:disk-maintenance-[yyyy-MM-dd]", level = "INFO")
@@ -26,7 +25,7 @@ val nightlyLogCleanup: () -> Unit = {
         // Fetch Koupper's universal File Handler
         val fileHandler = app.getInstance(FileHandler::class)
         
-        val logDir = File(System.getProperty("user.dir"), "logs")
+        val logDir = koupper.files().load(System.getProperty("user.dir") + "/logs")
         if (logDir.exists()) {
             val obsoleteFiles = logDir.listFiles()?.filter { 
                 it.name.endsWith(".log") && (System.currentTimeMillis() - it.lastModified() > 7 * 24 * 60 * 60 * 1000) // Older than 7 days

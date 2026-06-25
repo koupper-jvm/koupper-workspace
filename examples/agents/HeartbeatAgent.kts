@@ -24,7 +24,6 @@
 import com.koupper.shared.annotations.Export
 import com.koupper.providers.files.fromJson
 import com.koupper.providers.files.toJson
-import java.io.File
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -32,12 +31,12 @@ import java.time.temporal.ChronoUnit
 
 @Export
 val setup: () -> Unit = {
-    val jobsDir       = File(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
-    val runDir        = File(home, ".koupper/run").also { it.mkdirs() }
-    val stateFile     = File(home, ".koupper/heartbeat-state.json")
-    val heartbeatFile = File(home, ".koupper/heartbeat.md")
-    val logDir        = File(jobsDir, "logs/default").also { it.mkdirs() }
-    val logFile       = File(logDir, "heartbeat.log")
+    val jobsDir       = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val runDir        = koupper.files().load(home, ".koupper/run").also { it.mkdirs() }
+    val stateFile     = koupper.files().load(home, ".koupper/heartbeat-state.json")
+    val heartbeatFile = koupper.files().load(home, ".koupper/heartbeat.md")
+    val logDir        = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
+    val logFile       = koupper.files().load(logDir, "heartbeat.log")
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) { logFile.appendText("[${ts()}] $msg\n"); emit(msg) }
@@ -166,20 +165,20 @@ val setup: () -> Unit = {
     fun isPidAlive(pidFile: File): Boolean {
         if (!pidFile.exists()) return false
         val pid = pidFile.readText().trim().toLongOrNull() ?: return false
-        return File("/proc/$pid").exists()
+        return koupper.files().load("/proc/$pid").exists()
     }
 
     // ── Actions ───────────────────────────────────────────────────────────────
 
     fun dispatch(cond: Condition) {
-        val agentFile = File(home, ".koupper/agents/${cond.agent}")
+        val agentFile = koupper.files().load(home, ".koupper/agents/${cond.agent}")
         if (!agentFile.exists()) { log("  ⚠ Agent not found: ${cond.agent}"); return }
 
         val agentName = cond.agent.removeSuffix(".kts")
         val jobId     = "$agentName-hb-${System.currentTimeMillis()}"
-        val queueDir  = File(jobsDir, cond.queue).also { it.mkdirs() }
+        val queueDir  = koupper.files().load(jobsDir, cond.queue).also { it.mkdirs() }
 
-        File(queueDir, "$jobId.json").writeText(
+        koupper.files().load(queueDir, "$jobId.json").writeText(
             """{"id":"$jobId","fileName":"$agentName","functionName":"setup","scriptPath":"agents/${cond.agent}","sourceType":"script","triggeredBy":"heartbeat/${cond.id}"}"""
         )
         state[cond.id] = System.currentTimeMillis()
@@ -187,7 +186,7 @@ val setup: () -> Unit = {
     }
 
     fun restart(cond: Condition) {
-        val pidFile = File(cond.target.replace("~", home))
+        val pidFile = koupper.files().load(cond.target.replace("~", home))
 
         // Kill stale process
         runCatching {
@@ -197,12 +196,12 @@ val setup: () -> Unit = {
 
         val resolvedLog = (cond.logPath ?: "$home/.koupper/jobs/logs/default/${cond.agent.removeSuffix(".kts")}.log")
             .replace("~", home)
-        val agentLog = File(resolvedLog).also { it.parentFile?.mkdirs() }
+        val agentLog = koupper.files().load(resolvedLog).also { it.parentFile?.mkdirs() }
 
         val cmd = if (cond.agent == "worker") {
             listOf("koupper", "worker")
         } else {
-            val agentPath = File(home, ".koupper/agents/${cond.agent}")
+            val agentPath = koupper.files().load(home, ".koupper/agents/${cond.agent}")
             if (!agentPath.exists()) { log("  ⚠ Agent not found: ${cond.agent}"); return }
             listOf("koupper", "run", agentPath.absolutePath)
         }
@@ -221,17 +220,17 @@ val setup: () -> Unit = {
     // ── Evaluate ──────────────────────────────────────────────────────────────
 
     fun evaluate(cond: Condition): Boolean = when (cond.whenever) {
-        "file_exists"      -> File(cond.target.replace("~", home)).exists()
-        "queue_empty"      -> File(jobsDir, cond.target).let { q ->
+        "file_exists"      -> koupper.files().load(cond.target.replace("~", home)).exists()
+        "queue_empty"      -> koupper.files().load(jobsDir, cond.target).let { q ->
             (q.listFiles { f -> f.name.endsWith(".json") }?.size ?: 0) == 0 &&
             (q.listFiles { f -> f.name.endsWith(".json.processing") }?.size ?: 0) == 0
         }
-        "queue_has_failed" -> (File(File(jobsDir, cond.target), ".failed")
+        "queue_has_failed" -> (koupper.files().load(koupper.files().load(jobsDir, cond.target), ".failed")
             .listFiles { f -> f.name.endsWith(".json") }?.size ?: 0) > 0
         "time_after"       -> runCatching {
             LocalTime.now().isAfter(LocalTime.parse(cond.target, DateTimeFormatter.ofPattern("HH:mm")))
         }.getOrDefault(false)
-        "agent_down"       -> !isPidAlive(File(cond.target.replace("~", home)))
+        "agent_down"       -> !isPidAlive(koupper.files().load(cond.target.replace("~", home)))
         "always"           -> true
         else               -> false
     }

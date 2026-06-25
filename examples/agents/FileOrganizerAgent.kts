@@ -4,17 +4,16 @@
 // Input opcional: ORGANIZER_TARGET env var para cambiar el directorio.
 
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Export
 val setup: () -> Unit = {
     val home      = System.getProperty("user.home")!!
-    val jobsDir   = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
-    val logDir    = File(jobsDir, "logs/default").also { it.mkdirs() }
-    val logFile   = File(logDir, "file-organizer.log")
-    val targetDir = File(System.getenv("ORGANIZER_TARGET") ?: "$home/Downloads")
+    val jobsDir   = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val logDir    = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
+    val logFile   = koupper.files().load(logDir, "file-organizer.log")
+    val targetDir = koupper.files().load(env("ORGANIZER_TARGET", "$home/Downloads"))
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n").also { println(msg) }
@@ -40,8 +39,8 @@ val setup: () -> Unit = {
         targetDir.listFiles { f -> f.isFile }?.forEach { file ->
             val ext = file.extension.lowercase()
             val category = categoryMap.entries.firstOrNull { ext in it.value }?.key ?: "other"
-            val destDir  = File(targetDir, category).also { it.mkdirs() }
-            val dest     = File(destDir, file.name)
+            val destDir  = koupper.files().load(targetDir, category).also { it.mkdirs() }
+            val dest     = koupper.files().load(destDir, file.name)
 
             if (dest.exists()) {
                 log("  skip  ${file.name} (already in $category/)")

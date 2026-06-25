@@ -27,7 +27,6 @@ import com.koupper.providers.vectordb.VectorDbProvider
 import com.koupper.providers.vectordb.VectorRecord
 import com.koupper.providers.vectordb.HashEmbedder
 import com.koupper.providers.vectordb.OllamaEmbedder
-import java.io.File
 import java.time.Instant
 
 // ── providers ─────────────────────────────────────────────────────────────────
@@ -39,12 +38,12 @@ val vectorDb    = app.getInstance(VectorDbProvider::class)
 
 // ── config ────────────────────────────────────────────────────────────────────
 
-val STATE_DIR     = File(System.getProperty("user.home"), ".koupper/indexer")
+val STATE_DIR     = koupper.files().load(System.getProperty("user.home"), ".koupper/indexer")
 val CHUNK_WORDS   = 300
 val CHUNK_OVERLAP = 50
 
-val embedUrl   = System.getenv("EMBEDDER_URL")   ?: "http://localhost:11434"
-val embedModel = System.getenv("EMBEDDER_MODEL") ?: "nomic-embed-text"
+val embedUrl   = env("EMBEDDER_URL", "http://localhost:11434")
+val embedModel = env("EMBEDDER_MODEL", "nomic-embed-text")
 
 // Resolve embedder at startup — prefer Ollama unless "hash" is forced or Ollama is down
 val useOllama: Boolean = embedModel != "hash" && OllamaEmbedder.isAvailable(embedUrl)
@@ -75,7 +74,7 @@ fun chunkText(text: String): List<String> {
 }
 
 fun extractText(filePath: String): String {
-    return when (File(filePath).extension.lowercase()) {
+    return when (koupper.files().load(filePath).extension.lowercase()) {
         "pdf"                         -> runCatching { pdfReader.extractText(filePath) }.getOrElse { "" }
         "txt", "md", "markdown",
         "log", "csv", "json", "yaml",
@@ -99,7 +98,7 @@ fun saveState(stateFile: File, state: Map<String, Any>) {
 // ── indexing logic ────────────────────────────────────────────────────────────
 
 fun runIndexPass(watchDir: String, collection: String, extensions: List<String>): Map<String, Int> {
-    val stateFile = File(STATE_DIR, "${collection}-state.json")
+    val stateFile = koupper.files().load(STATE_DIR, "${collection}-state.json")
     val state     = loadState(stateFile)
 
     // Detect embedder change — clear collection to avoid dimension mismatch
@@ -119,7 +118,7 @@ fun runIndexPass(watchDir: String, collection: String, extensions: List<String>)
     log("Scanning $watchDir — ${allFiles.size} file(s) found (exts: $extensions, collection: $collection, embedder: $resolvedEmbedder)")
 
     for (filePath in allFiles) {
-        val f       = File(filePath)
+        val f       = koupper.files().load(filePath)
         val lastMod = f.lastModified()
 
         @Suppress("UNCHECKED_CAST")
@@ -164,11 +163,11 @@ fun runIndexPass(watchDir: String, collection: String, extensions: List<String>)
 
 @Export
 val setup: () -> String = {
-    val watchDir     = System.getenv("INDEXER_DIR")             ?: "${System.getProperty("user.home")}/.koupper"
-    val collection   = System.getenv("INDEXER_COLLECTION")      ?: "cortex-knowledge"
-    val extStr       = System.getenv("INDEXER_EXTENSIONS")      ?: "txt,md,pdf"
+    val watchDir     = env("INDEXER_DIR", "${System.getProperty(")user.home")}/.koupper"
+    val collection   = env("INDEXER_COLLECTION", "cortex-knowledge")
+    val extStr       = env("INDEXER_EXTENSIONS", "txt,md,pdf")
     val extensions   = extStr.split(",").map { it.trim().lowercase().trimStart('.') }.filter { it.isNotBlank() }
-    val loopInterval = (System.getenv("INDEXER_LOOP_INTERVAL_S") ?: "0").toLong()
+    val loopInterval = (env("INDEXER_LOOP_INTERVAL_S", "0")).toLong()
 
     log("Embedder: $resolvedEmbedder (${if (useOllama) "Ollama at $embedUrl" else "HashEmbedder fallback"})")
 

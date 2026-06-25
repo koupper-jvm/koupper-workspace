@@ -3,7 +3,6 @@
  */
 import com.koupper.providers.files.fromJson
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -63,14 +62,14 @@ class AtomicSwarmCoordinator(val sidecar: AtomicSidecar) {
 
 @Export
 val run: () -> Unit = {
-    val exe = System.getenv("KOUPPER_LLM_EXECUTABLE") ?: "/home/tdn-dell/develop/llama.cpp/build/bin/llama-server"
-    val model = System.getenv("KOUPPER_LLM_MODEL_PATH") ?: "/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf"
+    val exe = env("KOUPPER_LLM_EXECUTABLE", "/home/tdn-dell/develop/llama.cpp/build/bin/llama-server")
+    val model = env("KOUPPER_LLM_MODEL_PATH", "/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf")
     val port = 8082
 
     println("--- SWARM HANDOFF ATOMIC TEST ---")
 
     val process = ProcessBuilder(listOf(exe, "-m", model, "--port", port.toString(), "-t", "4", "-ngl", "0", "--log-disable"))
-        .redirectError(File("/dev/null"))
+        .redirectError(koupper.files().load("/dev/null"))
         .start()
 
     runBlocking {

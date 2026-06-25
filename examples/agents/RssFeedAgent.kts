@@ -13,7 +13,6 @@ import com.koupper.providers.agent.InferenceEngine
 import com.koupper.providers.agent.TokenListener
 import com.koupper.providers.rss.RSSReader
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -23,17 +22,17 @@ import kotlinx.coroutines.runBlocking
 @Export
 val setup: () -> Unit = {
     val home    = System.getProperty("user.home")!!
-    val jobsDir = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
-    val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
+    val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val logDir  = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
     val today   = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-    val logFile = File(logDir, "rss-digest-$today.log")
+    val logFile = koupper.files().load(logDir, "rss-digest-$today.log")
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n")
 
     // ── Load feed config ──────────────────────────────────────────────────────
 
-    val configFile = File(home, ".koupper/agents/rss-feeds.json")
+    val configFile = koupper.files().load(home, ".koupper/agents/rss-feeds.json")
     val defaultFeeds = listOf(
         mapOf("name" to "Hacker News", "url" to "https://news.ycombinator.com/rss"),
         mapOf("name" to "The Verge",   "url" to "https://www.theverge.com/rss/index.xml")

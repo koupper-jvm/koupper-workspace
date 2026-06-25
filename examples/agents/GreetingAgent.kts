@@ -3,7 +3,6 @@
 // Can be run directly by the MonitorApp or submitted as a worker job.
 
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -12,12 +11,12 @@ data class SwarmStats(val pending: Int, val processing: Int, val failed: Int, va
 @Export
 val setup: () -> Unit = {
     val home    = System.getProperty("user.home")!!
-    val jobsDir = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
+    val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
 
     val sessionId = "cortex-greeting"
-    val queueDir  = File(jobsDir, "cortex").also { it.mkdirs() }
-    val logDir    = File(jobsDir, "logs/cortex").also { it.mkdirs() }
-    val logFile   = File(logDir, "$sessionId.log")
+    val queueDir  = koupper.files().load(jobsDir, "cortex").also { it.mkdirs() }
+    val logDir    = koupper.files().load(jobsDir, "logs/cortex").also { it.mkdirs() }
+    val logFile   = koupper.files().load(logDir, "$sessionId.log")
 
     logFile.writeText("")
 
@@ -25,8 +24,8 @@ val setup: () -> Unit = {
     fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n")
 
     // Create job entry so WatchService picks it up and monitor shows it
-    val jobFile  = File(queueDir, "$sessionId.json")
-    val procFile = File(queueDir, "$sessionId.json.processing")
+    val jobFile  = koupper.files().load(queueDir, "$sessionId.json")
+    val procFile = koupper.files().load(queueDir, "$sessionId.json.processing")
     jobFile.writeText("""{"id":"$sessionId","fileName":"GreetingAgent","functionName":"setup","scriptPath":"agents/GreetingAgent.kts","sourceType":"script"}""")
     jobFile.renameTo(procFile)
 
@@ -44,12 +43,12 @@ val setup: () -> Unit = {
                         f.name.endsWith(".json") -> pending++
                     }
                 }
-                failed += File(qDir, ".failed").listFiles { f -> f.name.endsWith(".json") }?.size ?: 0
+                failed += koupper.files().load(qDir, ".failed").listFiles { f -> f.name.endsWith(".json") }?.size ?: 0
             }
         return SwarmStats(pending, processing, failed, queues)
     }
 
-    val agentsDir  = File(home, ".koupper/agents")
+    val agentsDir  = koupper.files().load(home, ".koupper/agents")
     val agentCount = agentsDir.listFiles { f -> f.name.endsWith(".kts") && f.name !in setOf("GreetingAgent.kts", "AgentCreatorAgent.kts") }?.size ?: 0
     val stats      = analyzeJobs()
 

@@ -41,7 +41,7 @@ val sshTreeRoot: (Input?, TerminalIO) -> String = { maybeInput, terminal ->
     val host = pick(input.sshHost, "SSH_HOST", "SSH host (ip/domain):")
     val user = pick(input.sshUser, "SSH_USER", "SSH username:")
     val password = input.sshPassword?.takeIf { it.isNotBlank() }
-        ?: System.getenv("SSH_PASSWORD")?.takeIf { it.isNotBlank() }
+        ?: env("SSH_PASSWORD").takeIf { it.isNotBlank() }
         ?: run {
             if (!input.sshIdentityFile.isNullOrBlank()) null
             else {

@@ -7,7 +7,6 @@ import com.koupper.providers.agent.AgentMessage
 import com.koupper.providers.agent.InferenceEngine
 import com.koupper.providers.commandbridge.CommandBridgeProvider
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.runBlocking
@@ -16,15 +15,15 @@ enum class WizardStep { NAME, ROLE, OBJECTIVE, GENERATING, DONE }
 
 @Export
 val setup: () -> Unit = {
-    val jobsDir   = File(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val jobsDir   = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
     val sessionId = "wizard-${System.currentTimeMillis()}"
 
-    val agentsDir   = File(home, ".koupper/agents").also { it.mkdirs() }
-    val wizardInDir = File(jobsDir, "commands/wizard").also { it.mkdirs() }
-    val logDir      = File(jobsDir, "logs/wizard").also { it.mkdirs() }
-    val logFile     = File(logDir, "$sessionId.log")
-    val queueDir    = File(jobsDir, "wizard").also { it.mkdirs() }
-    val procFile    = File(queueDir, "$sessionId.json.processing")
+    val agentsDir   = koupper.files().load(home, ".koupper/agents").also { it.mkdirs() }
+    val wizardInDir = koupper.files().load(jobsDir, "commands/wizard").also { it.mkdirs() }
+    val logDir      = koupper.files().load(jobsDir, "logs/wizard").also { it.mkdirs() }
+    val logFile     = koupper.files().load(logDir, "$sessionId.log")
+    val queueDir    = koupper.files().load(jobsDir, "wizard").also { it.mkdirs() }
+    val procFile    = koupper.files().load(queueDir, "$sessionId.json.processing")
 
     logFile.writeText("")
 
@@ -46,8 +45,8 @@ Rules:
 - Imports: com.koupper.container.app, com.koupper.shared.annotations.Export, java.io.File, java.time.*
 - Preamble already provides: home:String, env(name,default=""):String, emit(text):Unit
 - One entrypoint: $exportTag  val setup: () -> Unit = { ... }
-- Inside setup: val jobsDir = File(env("CORTEX_JOBS_DIR", System.getProperty("user.home") + "/.koupper/jobs"))
-- Write logs to File(jobsDir, "logs/default/$name-session.log")
+- Inside setup: val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", System.getProperty("user.home") + "/.koupper/jobs"))
+- Write logs to koupper.files().load(jobsDir, "logs/default/$name-session.log")
 - Use app.getInstance(HtppClient::class) for HTTP, app.getInstance(RSSReader::class) for feeds
 - No TODO comments — implement the logic fully
 
@@ -100,15 +99,14 @@ $code
 // Objective : $objective
 
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 $ann
 val setup: () -> Unit = {
-    val jobsDir = File(env("CORTEX_JOBS_DIR", "${'$'}home/.koupper/jobs"))
-    val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
-    val logFile = File(logDir, "$name-session.log")
+    val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", "${'$'}home/.koupper/jobs"))
+    val logDir  = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
+    val logFile = koupper.files().load(logDir, "$name-session.log")
     fun ts()         = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(m: String) { logFile.appendText("[${'$'}{ts()}] ${'$'}m\n"); emit(m) }
 
@@ -178,8 +176,8 @@ val setup: () -> Unit = {
     // ── Save ──────────────────────────────────────────────────────────────────
 
     fun saveAgent(name: String, role: String, objective: String, code: String) {
-        File(agentsDir, "$name.kts").writeText(code)
-        File(agentsDir, "$name.skill.json").writeText("""
+        koupper.files().load(agentsDir, "$name.kts").writeText(code)
+        koupper.files().load(agentsDir, "$name.skill.json").writeText("""
 {
   "name": "$name",
   "version": "1.0.0",

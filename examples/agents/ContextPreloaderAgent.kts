@@ -2,7 +2,6 @@ import com.koupper.container.app
 import com.koupper.shared.annotations.Export
 import com.koupper.providers.files.fromJson
 import com.koupper.providers.memory.MemoryProvider
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -18,7 +17,7 @@ val setup: () -> Unit = {
     } else {
 
     // --- 1. Purge stale/bad entries from previous sessions ---
-    val textsFile = File(home, ".koupper/memory/memory-texts.json")
+    val textsFile = koupper.files().load(home, ".koupper/memory/memory-texts.json")
     if (textsFile.exists()) {
         val raw = textsFile.readText()
         val entries = raw.fromJson<List<Map<String, Any?>>>()
