@@ -15,8 +15,7 @@ val setup: () -> Unit = {
     val memory = runCatching { app.getInstance(MemoryProvider::class) }.getOrNull()
     if (memory == null) {
         log("MemoryProvider not available — aborting")
-        return@setup
-    }
+    } else {
 
     // --- 1. Purge stale/bad entries from previous sessions ---
     val textsFile = File(home, ".koupper/memory/memory-texts.json")
@@ -81,4 +80,5 @@ val setup: () -> Unit = {
 
     log("Context preloaded: $loaded facts stored in memory")
     log("Memory ready — CORTEX will now have project context on every query")
+    }
 }
