@@ -2,7 +2,6 @@
  * Multi-Agent Swarm Handoff - ATOMIC PROOF v2
  */
 import com.koupper.providers.files.fromJson
-import com.koupper.providers.files.toJsonString
 import com.koupper.shared.annotations.Export
 import java.io.File
 import java.net.URI
@@ -28,7 +27,7 @@ class AtomicSidecar(val modelPath: String, val exePath: String, val port: Int = 
         val request = HttpRequest.newBuilder()
             .uri(URI.create("http://127.0.0.1:$port/completion"))
             .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(requestBody.toJsonString()))
+            .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build()
 
         return try {

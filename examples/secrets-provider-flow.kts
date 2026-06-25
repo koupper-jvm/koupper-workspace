@@ -13,8 +13,8 @@ import com.koupper.shared.annotations.Export
 import com.koupper.providers.secrets.SecretsClient
 
 data class Input(
-    val action: String,
-    val key: String,
+    val action: String = "",
+    val key: String = "",
     val value: String? = null
 )
 
