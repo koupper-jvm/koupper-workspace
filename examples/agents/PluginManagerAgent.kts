@@ -31,7 +31,10 @@ val setup: () -> Unit = {
 
     val jobFile = queueDir.listFiles { f -> f.name.endsWith(".json") }
         ?.minByOrNull { it.lastModified() }
-        ?: run { emit("[!] No jobs in plugin-manager queue."); return@setup }
+
+    if (jobFile == null) {
+        emit("[!] No jobs in plugin-manager queue.")
+    } else {
 
     val sessionId = jobFile.nameWithoutExtension
     val logFile   = File(logDir, "$sessionId.log")
@@ -45,10 +48,16 @@ val setup: () -> Unit = {
     fun fail(msg: String) { log("  ✗ $msg"); logFile.appendText("[FAILED]\n"); procFile.delete() }
 
     val job = runCatching { procFile.readText().fromJson<Map<String, Any>>() }.getOrNull()
-        ?: run { fail("Invalid job payload"); return@setup }
+
+    if (job == null) {
+        fail("Invalid job payload")
+    } else {
 
     val source = job["source"]?.toString()
-        ?: run { fail("Missing 'source' in job"); return@setup }
+
+    if (source == null) {
+        fail("Missing 'source' in job")
+    } else {
 
     // ── Normalize source URL ──────────────────────────────────────────────────
 
@@ -239,7 +248,7 @@ val setup: () -> Unit = {
             }
         }
 
-        else -> { fail("Unknown plugin type '$type'"); return@setup }
+        else -> { fail("Unknown plugin type '$type'") }
     }
 
     log("")
@@ -248,4 +257,5 @@ val setup: () -> Unit = {
     log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     logFile.appendText("[DONE]\n")
     procFile.delete()
-}
+    }}}
+    }

@@ -163,12 +163,12 @@ fun runIndexPass(watchDir: String, collection: String, extensions: List<String>)
 // ── entry point ───────────────────────────────────────────────────────────────
 
 @Export
-val setup: (Map<String, String>) -> String = { params ->
-    val watchDir     = params["watchDir"]             ?: System.getenv("INDEXER_DIR")             ?: error("INDEXER_DIR not set — provide watchDir param or INDEXER_DIR env var")
-    val collection   = params["collection"]           ?: System.getenv("INDEXER_COLLECTION")      ?: "cortex-knowledge"
-    val extStr       = params["extensions"]           ?: System.getenv("INDEXER_EXTENSIONS")      ?: "txt,md,pdf"
+val setup: () -> String = {
+    val watchDir     = System.getenv("INDEXER_DIR")             ?: "${System.getProperty("user.home")}/.koupper"
+    val collection   = System.getenv("INDEXER_COLLECTION")      ?: "cortex-knowledge"
+    val extStr       = System.getenv("INDEXER_EXTENSIONS")      ?: "txt,md,pdf"
     val extensions   = extStr.split(",").map { it.trim().lowercase().trimStart('.') }.filter { it.isNotBlank() }
-    val loopInterval = (params["loopIntervalSeconds"] ?: System.getenv("INDEXER_LOOP_INTERVAL_S") ?: "0").toLong()
+    val loopInterval = (System.getenv("INDEXER_LOOP_INTERVAL_S") ?: "0").toLong()
 
     log("Embedder: $resolvedEmbedder (${if (useOllama) "Ollama at $embedUrl" else "HashEmbedder fallback"})")
 
