@@ -26,14 +26,16 @@ val setup: () -> Unit = {
         var purged = 0
         val seen = mutableSetOf<String>()
         entries.forEach { entry ->
-            val id   = entry["id"] as? String ?: return@forEach
-            val text = entry["text"] as? String ?: ""
-            val isDump      = text.length > 350
-            val isDuplicate = !seen.add(text.take(80))
-            val isTestEntry = text == "the exact fact to store"
-            if (isDump || isDuplicate || isTestEntry) {
-                runCatching { memory.forget(id) }
-                purged++
+            val id   = entry["id"] as? String
+            if (id != null) {
+                val text = entry["text"] as? String ?: ""
+                val isDump      = text.length > 350
+                val isDuplicate = !seen.add(text.take(80))
+                val isTestEntry = text == "the exact fact to store"
+                if (isDump || isDuplicate || isTestEntry) {
+                    runCatching { memory.forget(id) }
+                    purged++
+                }
             }
         }
         log("Purged $purged stale entries")
