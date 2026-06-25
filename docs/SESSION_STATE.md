@@ -1,15 +1,15 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-25 (sesión 22 — completada)_
+_Last updated: 2026-06-25 (sesión 23 — completada)_
 
 ---
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, fixes pusheados
-- **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, pipelineNext mergeado
-- **Assessment**: 3/3 items completados, regex legacy removido, ejemplos y docs actualizados
-- **Koupper v7 Architecture**: Sandboxing, SSE, Hot Reloading y validación de HA implementados.
-- **Koupper v7 Install**: ✅ Funcional. FatJar (~300MB) con fixes de framework.
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, commit `b3b134c` pusheado
+- **Koupper Workspace**: `github.com:koupper-jvm/koupper-workspace` → PR #21 abierto (`fix/example-scripts-compilation`)
+- **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, operativo
+- **Koupper v7.1.1**: ✅ FatJar (~308MB) funcional con todos los fixes. 59 scripts smoke-tested.
+- **0 bugs de framework pendientes.**
 
 ---
 
@@ -17,62 +17,79 @@ _Last updated: 2026-06-25 (sesión 22 — completada)_
 
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
-| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | limpio ✅ (commit `1af35d6`) |
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | limpio ✅ (commit `b3b134c`) |
+| koupper-workspace | `~/develop/koupper workspace/` | `fix/example-scripts-compilation` | PR #21 abierto |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `develop` | limpio ✅ |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
-| dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
 
 ---
 
-## Lo que está construido
+## Sesión 23 — Regression Fix: Parameter Passing v7.1.1
 
-### Sesión 21 — KSP Integration + Regex Removal (completado)
+### Bugs corregidos (3 framework fixes + 2 script fixes)
 
-| Fix | Estado | PR |
-|---|---|---|
-| Provider tier system (CORE/COMMUNITY/EXPERIMENTAL) | ✅ Merged | #169 |
-| gRPC bidirectional streaming | ✅ Merged | #170 |
-| KSP/PSI replaces regex annotation extraction | ✅ Completo | #171, #172, #173 |
+| # | Fix | Archivo | Detalle |
+|---|---|---|---|
+| 1 | Sandbox `--` prefix | `SandboxWorker.kt:26` | `--${key}=${value}` → `${key}=${value}`. El prefijo `--` causaba mismatch entre `parseArgs` (almacena `--key`) y `buildParamsJson` (busca `key` sin `--`). |
+| 2 | Type generic fallback | `ScriptRunnerOrchestrator.kt:334-350` | Para inline data classes (`SalesReportCommand`), `resolveClassFromArgName` ⟹ null. Ahora usa `target.javaClass.genericInterfaces` → `FunctionN<Input, Return>` → `mapper.typeFactory.constructType(typeArg)` para deserializar con el Type genérico real. |
+| 3a | Generic-aware split | `ScriptUtilities.kt:251` | `split(",")` → `splitTypesTopLevel()`. `Map<String, Any?>` se splitteaba en 2 params. |
+| 3b | Multi-annotation regex | `ScriptUtilities.kt:242` | Regex `@Export\s*val` → `@Export\s*(?:@\w+(?:\([^)]*\))?\s*)*val`. Soporta `@Export + @Scheduled + @Logger + val`. |
+| 4 | `return@label` → if/else | `ContextPreloaderAgent.kts` | `return@setup` prohibitido en Kotlin scripting. Reestructurado con if/else. |
+| 5 | `return@label` → flags | `PluginManagerAgent.kts` | 4x `return@setup` reemplazados con boolean flags + if/else. |
 
-#### KSP integration detalle
-- `:annotation-processor` module con KSP 2.0.20-1.0.25
-- `KoupperSymbolProcessor`: extrae `@Export`, `@Scheduled`, `@Pipeline`
-- `KspMetadataReader`: lector runtime para metadata JSON
-- `extractExportFunctionSignature`: **KSP único camino** (regex removido)
-- KSP genera `koupper-exports.json` con exports, scheduled, pipelines
-- ~40 líneas de regex legacy eliminadas
+### Commits
+
+```
+koupper/develop:
+  b3b134c  fix(octopus): parameter passing regression for dynamic .kts scripts
+
+koupper-workspace/fix/example-scripts-compilation:
+  0e8b1e8  fix(examples): remove return@label from ContextPreloaderAgent and PluginManagerAgent
+  bb35e30  fix(examples): ajustar scripts para compatibilidad con v7.1.1
+  0470da1  fix(examples): arreglar scripts con APIs obsoletas, return en lambdas, y parametros
+```
 
 ---
 
-### Sesión 22 — Fixes de Framework v7.1.1
+## Smoke Test: 59 Scripts (Resultado Final)
 
-| Fix | Archivo | Detalle |
+### Metodología
+- `koupper run <script>` con timeout 20s por script
+- Categorización automática por tipo de error
+- Los scripts con `@JobsListener` (`ai-email-worker.kts`, `payment-worker.kts`) requieren configuración de cola — no son ejecutables directos
+- Los scripts con `@Scheduled` (`logger-scheduled-*.kts`) ahora se ejecutan correctamente gracias al Fix 3b
+
+### Resultados
+
+| Categoría | Conteo | Detalle |
 |---|---|---|
-| `ClassCastException: Unit → String` | `SandboxWorker.kt` | Cambiado `runFromScriptFile<String>` a `runFromScriptFile<Any?>` |
-| `ClassCastException: Unit → String` | `HttpApiServer.kt` | Cambiado ambos `<String>` a `<Any?>` con manejo de `Unit`/null |
-| SPI Services faltantes en JAR | `octopus.jar` | Agregados `META-INF/services/com.koupper.providers.ServiceProvider` y `providers-catalog.json` |
+| ✅ **PASS** (ejecutan correctamente) | **36** | Scripts que compilan y ejecutan su lógica sin errores |
+| ⏱️ **DAEMON** (corren indefinidamente) | **3** | `AgentCreatorAgent.kts`, `TelegramBridgeAgent.kts`, `test_server_sidecar.kts` |
+| 🌐 **ENV/INFRA** (necesitan infraestructura) | **14** | SSH, GitHub tokens, llama.cpp, Docker, Secrets provider — no son bugs |
+| 📦 **OBSOLETE API** (APIs obsoletas en scripts) | **6** | `toTypeRef`, `onToken`, `LlamaCppSidecar`, `RuntimeRouter` API — no son bugs |
+| ❌ **FRAMEWORK BUG** | **0** | — |
 
-#### Resultado del fix
-- Scripts que retornan `Unit` (ej: `GreetingAgent.kts`, `FileOrganizerAgent.kts`, `SysMonitorAgent.kts`) ya no crashean con `ClassCastException`.
-- El sandbox ejecuta correctamente sin error de `No ServiceProviders discovered via SPI`.
-
-#### Scripts probados y funcionando (post-fix)
-| Script | Estado |
+### Scripts con APIs obsoletas (no son bugs de framework)
+| Script | API obsoleta |
 |---|---|
-| `examples/agents/GreetingAgent.kts` | ✅ Funciona (retorna `kotlin.Unit`) |
-| `examples/agents/CodeReviewAgent.kts` | ✅ Funciona |
-| `examples/agents/FileOrganizerAgent.kts` | ✅ Funciona |
-| `examples/agents/HeartbeatAgent.kts` | ✅ Funciona |
-| `examples/agents/PortScannerAgent.kts` | ✅ Funciona |
-| `examples/agents/SysMonitorAgent.kts` | ✅ Funciona |
+| `debug-deep-type.kts` | `toTypeRef()` removido en KSP migration |
+| `test_swarm.kts` | `onToken {}` callback removido |
+| `test_sidecar.kts` | `LlamaCppSidecar` no disponible |
+| `runtime-router-live-server.kts` | `RuntimeRouter.post()` firma cambiada |
+| `runtime-router-provider-flow.kts` | `RuntimeRouter.post()` firma cambiada |
+| `agent_react_demo.kts` | `onToken`/`onHallucination` removidos |
 
-#### Scripts con errores NO relacionados al framework (errores de scripts)
-| Script | Error | Causa |
-|---|---|---|
-| `agent_react_demo.kts`, `omega_researcher.kts` | `Unresolved reference 'onToken'` | API obsoleta en scripts |
-| `ContextPreloaderAgent.kts`, `PluginManagerAgent.kts` | `'return' is prohibited here` | `return` en lambdas (Kotlin scripting) |
-| `FileIndexerAgent.kts` | `No hay 'invoke' con aridad 0` | Firma incompatible con KSP |
-| `FileWatcherAgent.kts` | `Unresolved reference 'watcher'` | API obsoleta en script |
+### Scripts que necesitan infraestructura (no son bugs)
+`DiaryAgent.kts`, `test_swarm_atomic.kts`, `test_swarm_jobs.kts`, `ai-email-worker.kts`, `payment-worker.kts`, `docker-provider-flow.kts`, `github-integration-flow.kts`, `github-provider-flow.kts`, `git-provider-flow.kts`, `integration-tests.kts`, `secrets-provider-flow.kts`, `ssh-roundtrip-flow.kts`, `ssh-tree-root.kts`, `terminal-runtime-demo.kts`
+
+---
+
+## PRs abiertos
+
+| Repo | PR | Rama | Estado |
+|---|---|---|---|
+| koupper-workspace | [#21](https://github.com/koupper-jvm/koupper-workspace/pull/21) | `fix/example-scripts-compilation` → `develop` | Abierto |
+| koupper | — | `develop` (push directo, commit `b3b134c`) | Mergeado |
 
 ---
 
@@ -96,8 +113,6 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 | 9999 | Prometheus `/metrics` |
 | 18082 | MCP server |
 | 18083 | Dashboard web (CortexWebUiAgent) |
-| 18085 | KnowledgeQueryAgent |
-| 18086 | MasterKnowledgeAgent |
 | 11434 | Ollama (local) |
 | 1234 | LM Studio LAN (192.168.1.8) |
 
@@ -105,18 +120,20 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 ## Notas para retoma en frío
 
-- **Branch activa**: `develop` (limpia, todo mergeado)
-- **Assessment**: 3/3 items completados
-- **Instalación**: Funcional, CLI v7.1.1 operativo con fixes de framework
-- **Commits recientes koupper/develop**: `1af35d6` — fix(octopus): support Any? return type in sandbox and HTTP API
+- **Branch activa koupper**: `develop` (commit `b3b134c` — framework fixes mergeados)
+- **Branch activa workspace**: `fix/example-scripts-compilation` (PR #21 abierto)
+- **Instalación**: FatJar `~/.koupper/libs/octopus.jar` (~308MB) actualizado con todos los fixes
+- **CLI**: `koupper -v` → v7.1.1 operativo
+- **Smoke test**: 59/59 scripts probados, 0 bugs de framework
 
 ---
 
 ## Pendiente próxima sesión
 
-- [ ] Arreglar scripts de `examples/` con errores de sintaxis (`return` en lambdas, APIs obsoletas)
-- [ ] Validar E2E completo sobre TODOS los scripts del directorio `examples/`
+- [ ] Mergear PR #21 (workspace example fixes)
+- [ ] Actualizar 6 scripts con APIs obsoletas (`toTypeRef`, `onToken`, `LlamaCppSidecar`, `RuntimeRouter`)
 - [ ] Tag release `v7.1.1` y changelog
+- [ ] Publicar FatJar release en GitHub
 
 ---
 
@@ -130,12 +147,24 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 ---
 
-## Commits sesión 21-22
+## Análisis de regresión (post-mortem)
 
+### Timeline
 ```
-koupper/develop:
-  1af35d6  fix(octopus): support Any? return type in sandbox and HTTP API
-  761c441  (otros cambios remotos)
-  37eeb17  fix(octopus): support Any? return type in sandbox and HTTP API
-  a6f80ac  chore: ignore koupper-vscode repo directory
+Jun 24 09:53  Commit 7956785: KSP replace regex — remueve regex fallback
+Jun 24 12:23  Commit fea1723: Sandbox enabled by default (v7)
+Jun 24-25     Ambos combinados rompen parameter passing
+Jun 25 09:47  Sesión 22: Fix ClassCastException + SPI
+Jun 25 13:50  Sesión 23: Fix 3 regresiones de parameter passing
 ```
+
+### Causas raíz
+1. **KSP-only eliminó regex fallback** → scripts dinámicos (.kts) sin metadata KSP perdieron detección de firma
+2. **Sandbox `--` prefix** → mismatch de keys entre `SandboxWorker` y `buildParamsJson`
+3. **`split(",")` sin soporte de genéricos** → `Map<String, Any?>` → 2 params en vez de 1
+4. **Regex no manejaba múltiples anotaciones** → `@Export\n@Scheduled\nval` no matcheaba
+
+### Lecciones
+- Nunca eliminar fallback sin validar todos los casos de uso (KSP + dinámico)
+- El regex de parsing de firmas debe usar `splitTypesTopLevel` (ya existía pero no se usaba)
+- El sandbox y el orchestrator deben compartir el mismo contrato de claves
