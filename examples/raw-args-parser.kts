@@ -10,7 +10,9 @@
 import com.koupper.shared.annotations.Export
 
 @Export
-val logRawNetworkStatus: (Int, String) -> Unit = { statusCode, statusMessage ->
+val logRawNetworkStatus: () -> Unit = {
+     val statusCode = 404
+     val statusMessage = "NOT_FOUND"
      println("🌐 Validating Network Packet...")
      
      when (statusCode) {

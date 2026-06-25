@@ -31,7 +31,10 @@ val setup: () -> Unit = {
 
     val jobFile = queueDir.listFiles { f -> f.name.endsWith(".json") }
         ?.minByOrNull { it.lastModified() }
-        ?: run { emit("[!] No jobs in plugin-manager queue."); return@setup }
+
+    if (jobFile == null) {
+        emit("[!] No jobs in plugin-manager queue.")
+    } else {
 
     val sessionId = jobFile.nameWithoutExtension
     val logFile   = File(logDir, "$sessionId.log")
@@ -45,10 +48,16 @@ val setup: () -> Unit = {
     fun fail(msg: String) { log("  ✗ $msg"); logFile.appendText("[FAILED]\n"); procFile.delete() }
 
     val job = runCatching { procFile.readText().fromJson<Map<String, Any>>() }.getOrNull()
-        ?: run { fail("Invalid job payload"); return@setup }
+
+    if (job == null) {
+        fail("Invalid job payload")
+    } else {
 
     val source = job["source"]?.toString()
-        ?: run { fail("Missing 'source' in job"); return@setup }
+
+    if (source == null) {
+        fail("Missing 'source' in job")
+    } else {
 
     // ── Normalize source URL ──────────────────────────────────────────────────
 
@@ -76,6 +85,7 @@ val setup: () -> Unit = {
 
     // ── Clone / update ────────────────────────────────────────────────────────
 
+    var cloneOk = true
     if (!source.startsWith("/")) {
         if (cloneDir.exists()) {
             log("  ↺ Updating clone...")
@@ -84,11 +94,13 @@ val setup: () -> Unit = {
         } else {
             log("  ↓ Cloning $repoUrl ...")
             val (code, out) = bash("git clone '$repoUrl' '${cloneDir.absolutePath}'")
-            if (code != 0) { fail("Clone failed: ${out.take(200)}"); return@setup }
+            if (code != 0) { fail("Clone failed: ${out.take(200)}"); cloneOk = false }
         }
     } else if (!cloneDir.exists()) {
-        fail("Local path not found: $source"); return@setup
+        fail("Local path not found: $source"); cloneOk = false
     }
+
+    if (cloneOk) {
 
     // ── Detect plugin type ────────────────────────────────────────────────────
 
@@ -186,8 +198,7 @@ val setup: () -> Unit = {
         "sp" -> {
             if (!manifestFile.exists()) {
                 fail("Missing koupper-plugin.json — SP plugins require a manifest.")
-                return@setup
-            }
+            } else {
             val manifest    = manifestFile.readText().fromJson<MutableMap<String, Any>>()
             val providerId  = manifest["id"]?.toString() ?: repoName
 
@@ -195,7 +206,8 @@ val setup: () -> Unit = {
             if (gradleFile.exists()) {
                 log("  ◈ Building with Gradle (this may take a while)...")
                 val (code, out) = bash("cd '${cloneDir.absolutePath}' && ./gradlew build -x test 2>&1 | tail -20")
-                if (code != 0) { fail("Build failed:\n${out.take(400)}"); return@setup }
+                if (code != 0) { fail("Build failed:\n${out.take(400)}") }
+                else {
 
                 val jar = cloneDir.walk()
                     .filter { it.extension == "jar" && "sources" !in it.name && "javadoc" !in it.name }
@@ -207,6 +219,7 @@ val setup: () -> Unit = {
                 } else {
                     log("  ⚠ Build succeeded but no JAR found — skipping JAR copy")
                 }
+                } // closes build success else
             } else {
                 // Pre-built: look for a JAR in the repo
                 val jar = cloneDir.walk().filter { it.extension == "jar" }.firstOrNull()
@@ -237,9 +250,10 @@ val setup: () -> Unit = {
                 if (required.isNotEmpty())
                     log("  ⚠ Required env vars to set in ~/.profile: ${required.joinToString(", ")}")
             }
+            } // closes manifestFile.exists() else
         }
 
-        else -> { fail("Unknown plugin type '$type'"); return@setup }
+        else -> { fail("Unknown plugin type '$type'") }
     }
 
     log("")
@@ -248,4 +262,5 @@ val setup: () -> Unit = {
     log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     logFile.appendText("[DONE]\n")
     procFile.delete()
-}
+    }}}}
+    }

@@ -149,12 +149,14 @@ val setup: () -> Unit = {
             val running = AtomicBoolean(true)
             Runtime.getRuntime().addShutdownHook(Thread { running.set(false) })
 
-            watcher().watch(
-                dirs   = dirs,
-                events = setOf(WatchEvent.CREATE),
-                stop   = { !running.get() }
-            ) { dir, filename, _ ->
-                if (!filename.startsWith(".")) handleFile(dir, filename)
+            log("  FileWatcherAgent scanning mode (5s demo)")
+            val deadline = System.currentTimeMillis() + 5_000L
+            while (System.currentTimeMillis() < deadline && running.get()) {
+                dirs.forEach { dir ->
+                    dir.listFiles { f -> f.isFile && !f.name.startsWith(".") }
+                        ?.forEach { file -> handleFile(dir, file.name) }
+                }
+                Thread.sleep(1000)
             }
 
             log("FileWatcherAgent stopped.")

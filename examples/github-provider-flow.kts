@@ -25,7 +25,7 @@ import com.koupper.providers.github.GitHubPullRequestRequest
 import com.koupper.providers.github.GitHubWorkflowDispatchRequest
 
 data class Input(
-    val action: String,
+    val action: String = "",
     val owner: String? = null,
     val repo: String? = null,
     val title: String? = null,
