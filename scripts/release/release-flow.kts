@@ -85,7 +85,7 @@ private fun resolveScriptFile(cwd: File, relativeScriptPath: String): File {
     if (direct.exists()) return direct
 
     var cursor: File? = cwd
-    repeat(5) {
+    for (i in 0 until 5) {
         cursor = cursor?.parentFile
         val candidate = cursor?.let { File(it, relativeScriptPath) }
         if (candidate != null && candidate.exists()) {

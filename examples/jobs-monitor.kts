@@ -14,7 +14,6 @@ import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.annotations.Scheduled
 import com.koupper.providers.files.FileHandler
-import java.io.File
 
 @Export
 @Logger(destination = "file:queue-health-monitor-[yyyy-MM-dd]", level = "WARN")
@@ -22,7 +21,7 @@ import java.io.File
 val monitorLocalQueue: () -> Unit = {
     try {
         val fileHandler = app.getInstance(FileHandler::class)
-        val jobsFile = File(System.getProperty("user.dir"), "jobs/jobs.json")
+        val jobsFile = koupper.files().load(System.getProperty("user.dir") + "/jobs/jobs.json")
         
         if (!jobsFile.exists()) {
             log.info { "No jobs.json detected on root. Queue system appears dormant." }

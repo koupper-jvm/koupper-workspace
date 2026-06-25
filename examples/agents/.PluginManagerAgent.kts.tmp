@@ -1,3 +1,76 @@
+import com.koupper.providers.agent.AgentMessage
+import com.koupper.providers.agent.InferenceEngine
+import com.koupper.providers.aws.dynamo.DynamoClient
+import com.koupper.providers.aws.s3.S3Client
+import com.koupper.providers.buildops.BuildProvider
+import com.koupper.providers.files.EditProvider
+import com.koupper.providers.files.FileHandler
+import com.koupper.providers.files.FileWatcherProvider
+import com.koupper.providers.files.JSONFileHandler
+import com.koupper.providers.files.TextFileHandler
+import com.koupper.providers.files.YmlFileHandler
+import com.koupper.providers.files.fromJson
+import com.koupper.providers.files.toJson
+import com.koupper.providers.files.toJsonPretty
+import com.koupper.providers.github.GitHubClient
+import com.koupper.providers.lsp.LspBridgeProvider
+import com.koupper.providers.mailing.Sender
+import com.koupper.shared.annotations.Export
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.runBlocking
+
+
+val KOUPPER_VERSION = "6.6.0"
+val log  = com.koupper.logging.GlobalLogger.log
+val home = System.getProperty("user.home") ?: ""
+fun env(name: String, default: String = "") = com.koupper.os.envOptional(name, default)
+fun emit(text: String) = println(text)
+
+object koupper {
+    fun files(): FileHandler = com.koupper.container.app.getInstance(FileHandler::class)
+
+    fun json(): JSONFileHandler = com.koupper.container.app.getInstance(JSONFileHandler::class)
+
+    fun yml(): YmlFileHandler = com.koupper.container.app.getInstance(YmlFileHandler::class)
+
+    fun txt(): TextFileHandler = com.koupper.container.app.getInstance(TextFileHandler::class)
+
+    fun watcher(): FileWatcherProvider = com.koupper.container.app.getInstance(FileWatcherProvider::class)
+
+    fun edit(): EditProvider = com.koupper.container.app.getInstance(EditProvider::class)
+
+    fun llm(prompt: String): String = runBlocking {
+        com.koupper.container.app.getInstance(InferenceEngine::class)
+            .predict(listOf(AgentMessage("user", prompt)))
+    }
+    fun llm(system: String, prompt: String): String = runBlocking {
+        com.koupper.container.app.getInstance(InferenceEngine::class)
+            .predict(listOf(
+                AgentMessage("system", system),
+                AgentMessage("user", prompt)
+            ))
+    }
+    fun llm(history: List<AgentMessage>): String = runBlocking {
+        com.koupper.container.app.getInstance(InferenceEngine::class)
+            .predict(history)
+    }
+
+    fun dynamo(): DynamoClient = com.koupper.container.app.getInstance(DynamoClient::class)
+
+    fun s3(): S3Client = com.koupper.container.app.getInstance(S3Client::class)
+
+    fun build(): BuildProvider = com.koupper.container.app.getInstance(BuildProvider::class)
+
+    fun github(): GitHubClient = com.koupper.container.app.getInstance(GitHubClient::class)
+
+    fun lspBridge(): LspBridgeProvider = com.koupper.container.app.getInstance(LspBridgeProvider::class)
+
+    fun mailing(): Sender = com.koupper.container.app.getInstance(Sender::class)
+
+}
+
+
 // PluginManagerAgent.kts — Koupper Plugin Manager
 // Installs plugins from GitHub or local paths into the koupper ecosystem.
 //
@@ -9,12 +82,6 @@
 // Job payload: { "source": "user/repo" | "https://..." | "/local/path" }
 // Trigger:     koupper run PluginManagerAgent.kts  (after writing job to queue)
 
-import com.koupper.shared.annotations.Export
-import com.koupper.providers.files.fromJson
-import com.koupper.providers.files.toJson
-import com.koupper.providers.files.toJsonPretty
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 @Export
 val setup: () -> Unit = {

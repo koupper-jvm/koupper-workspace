@@ -20,8 +20,8 @@ val test: () -> Unit = {
         )
     )
 
-    val executablePath = System.getenv("KOUPPER_LLM_EXECUTABLE") ?: "/home/tdn-dell/develop/llama.cpp/build/bin/llama-cli"
-    val modelPath = System.getenv("KOUPPER_LLM_MODEL_PATH") ?: "/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf"
+    val executablePath = env("KOUPPER_LLM_EXECUTABLE", "/home/tdn-dell/develop/llama.cpp/build/bin/llama-cli")
+    val modelPath = env("KOUPPER_LLM_MODEL_PATH", "/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf")
 
     val sidecar = LlamaCppSidecar(cpuBudget, modelPath, executablePath)
     val prompt = "Responde solo con la palabra: EXITO"

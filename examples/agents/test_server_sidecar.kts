@@ -28,8 +28,8 @@ val test: () -> Unit = {
     )
 
     // Configuration
-    val executablePath = System.getenv("KOUPPER_LLM_EXECUTABLE") ?: "/home/tdn-dell/develop/llama.cpp/build/bin/llama-server"
-    val modelPath = System.getenv("KOUPPER_LLM_MODEL_PATH") ?: "/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf"
+    val executablePath = env("KOUPPER_LLM_EXECUTABLE", "/home/tdn-dell/develop/llama.cpp/build/bin/llama-server")
+    val modelPath = env("KOUPPER_LLM_MODEL_PATH", "/home/tdn-dell/develop/llama.cpp/modelo_prueba.gguf")
 
     println("📍 Executable: $executablePath")
     println("📍 Model: $modelPath")

@@ -4,7 +4,6 @@
 // Config: SCANNER_HOST (default: localhost), SCANNER_PORTS (default: rango común)
 
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.time.LocalDateTime
@@ -13,10 +12,10 @@ import java.time.format.DateTimeFormatter
 @Export
 val setup: () -> Unit = {
     val home    = System.getProperty("user.home")!!
-    val jobsDir = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
-    val logDir  = File(jobsDir, "logs/default").also { it.mkdirs() }
-    val logFile = File(logDir, "port-scanner.log")
-    val host    = System.getenv("SCANNER_HOST") ?: "localhost"
+    val jobsDir = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val logDir  = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
+    val logFile = koupper.files().load(logDir, "port-scanner.log")
+    val host    = env("SCANNER_HOST", "localhost")
 
     val knownPorts = mapOf(
         22 to "SSH", 80 to "HTTP", 443 to "HTTPS", 3306 to "MySQL",

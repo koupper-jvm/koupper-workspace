@@ -8,7 +8,6 @@ import com.koupper.providers.agent.AgentMessage
 import com.koupper.providers.agent.InferenceEngine
 import com.koupper.providers.agent.TokenListener
 import com.koupper.shared.annotations.Export
-import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.runBlocking
@@ -16,13 +15,12 @@ import kotlinx.coroutines.runBlocking
 @Export
 val setup: () -> Unit = {
     val home       = System.getProperty("user.home")!!
-    val jobsDir    = File(System.getenv("CORTEX_JOBS_DIR") ?: "$home/.koupper/jobs")
-    val logDir     = File(jobsDir, "logs/default").also { it.mkdirs() }
-    val targetPath = System.getenv("CODE_REVIEW_FILE")
-        ?: "$home/.koupper/agents/GreetingAgent.kts"
+    val jobsDir    = koupper.files().load(env("CORTEX_JOBS_DIR", "$home/.koupper/jobs"))
+    val logDir     = koupper.files().load(jobsDir, "logs/default").also { it.mkdirs() }
+    val targetPath = env("CODE_REVIEW_FILE", "$home/.koupper/agents/GreetingAgent.kts")
 
-    val targetFile = File(targetPath)
-    val logFile    = File(logDir, "code-review-${targetFile.nameWithoutExtension}.log")
+    val targetFile = koupper.files().load(targetPath)
+    val logFile    = koupper.files().load(logDir, "code-review-${targetFile.nameWithoutExtension}.log")
 
     fun ts()             = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
     fun log(msg: String) = logFile.appendText("[${ts()}] $msg\n").also { println(msg) }
