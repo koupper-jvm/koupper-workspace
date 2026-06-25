@@ -1,5 +1,5 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-24 (sesión 21 — cerrada)_
+_Last updated: 2026-06-25 (sesión 22 — en progreso)_
 
 ---
 
@@ -9,6 +9,7 @@ _Last updated: 2026-06-24 (sesión 21 — cerrada)_
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, pipelineNext mergeado
 - **Assessment**: 3/3 items completados, regex legacy removido, ejemplos y docs actualizados
 - **Koupper v7 Architecture**: Sandboxing, SSE, Hot Reloading y validación de HA implementados exitosamente.
+- **Koupper v7 Install**: ✅ Funcional. FatJar (~300MB) construido e instalado correctamente a nivel SO.
 
 ---
 
@@ -16,7 +17,7 @@ _Last updated: 2026-06-24 (sesión 21 — cerrada)_
 
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
-| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | PR #169-#173 merged ✅ |
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | limpio ✅ |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `develop` | limpio ✅ |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
 | dashboard (submodule) | `~/develop/cortex/dashboard` | `main` | limpio ✅ |
@@ -46,14 +47,29 @@ _Last updated: 2026-06-24 (sesión 21 — cerrada)_
 KSP Processor (compile time)
   → lee @Export/@Scheduled/@Pipeline de fuentes Kotlin
   → genera koupper-exports.json
-  
+
 Runtime
   → KspMetadataReader lee JSON
   → extractExportFunctionSignature usa KSP metadata únicamente
   → Fails fast con error claro si KSP no está configurado
 ```
-  → Fallback a regex si KSP no está disponible
-```
+
+---
+
+### Sesión 22 — Verificación de Instalación y Correcciones de Ejemplos
+
+| Observación | Estado | Detalle |
+|---|---|---|
+| FatJar construcción | ✅ OK | `octopus:fatJar` completa en ~21s con cache. JAR funcional para instalación SO. |
+| CLI version | ✅ v7.1.1 | `koupper -v` reporta `koupper cli 7.1.1` / `octopus engine 7.1.1` |
+| Ejemplos KSP compatibles | ✅ Fixed | `sandbox_test.kts` y `sse_test.kts` usan `val` con `@Export` (no `fun`) |
+| Working tree | ✅ Limpio | No hay cambios locales pendientes en ningún repo |
+
+#### Notas técnicas sesión 22
+- **FatJar (~300MB)**: Es el JAR de sistema operativo, contiene todas las dependencias (gRPC, protobuf, native libs). El `optimized` JAR (~2.2MB) es para proyectos web.
+- **KSP requiere `@Export` en `val`**: `@Export fun name()` no funciona con KSP. Debe ser `@Export val name: () -> ReturnType = { ... }`.
+- **Instalación funcional**: `install-workspace.kts` ejecuta `:octopus:fatJar`, despliega artefactos, genera shims en `~/.koupper/bin`, y el PATH funciona.
+- **Ningún fix necesario**: Los ejemplos ya están corregidos en `develop`. No se requiere branch de fix.
 
 ---
 
@@ -86,9 +102,13 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 ## Notas para retoma en frío
 
-- **Branch activa**: `feature/ksp-runtime-integration` (listo para merge)
-- **Para completar**: Merge PR #172, luego remover código regex legacy
+- **Branch activa**: `develop` (limpia, todo mergeado)
 - **Assessment**: 3/3 items completados
+- **Instalación**: Funcional, CLI v7.1.1 operativo
+- **Próximos pasos potenciales**:
+  1. Tag release `v7.0.0` / `v7.1.1` y changelog
+  2. Ejecutar pipelineNext para generar release formal
+  3. Validar E2E con `koupper run` sobre todos los ejemplos
 
 ---
 
@@ -98,6 +118,7 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 - [x] Validar Process Sandbox y SSE scripts (Fallback de Reflexión implementado para bypass KSP en scripts dinámicos)
 - [x] Preparar el tag release para `v7.0.0` (Versión bumps listos, documentación README actualizada y pusheados a origin/develop)
 - [ ] Tag release y changelog (Ejecutar pipelineNext para generar release)
+- [ ] Validar `koupper run` sobre todos los ejemplos del directorio `examples/`
 
 ---
 
@@ -111,12 +132,17 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 ---
 
-## Commits sesión 21
+## Commits sesión 21-22
 
 ```
 koupper/feature/ksp-runtime-integration:
   4215877  feat(ksp): integrate KSP metadata into runtime extraction
-  
+
 koupper/feature/ksp-annotation-processor:
   baaccd2  feat(annotation-processor): add KSP foundation for @Export extraction
+
+koupper/develop (post-merge):
+  a6f80ac  chore: ignore koupper-vscode repo directory
+  5085f5b  docs: mark v7 and script tests as completed
+  1d34df0  docs: v7 architecture documentation and state update
 ```
