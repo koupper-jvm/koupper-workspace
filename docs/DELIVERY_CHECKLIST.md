@@ -2,6 +2,32 @@
 
 _Last updated: 2026-04-23_
 
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
+
 ## Wave: Module Helpers Directory Hotfix (2026-04-23)
 
 ### Scope
@@ -35,6 +61,32 @@ _Last updated: 2026-04-23_
 
 - [x] Merged to `main` via sync PR path.
 - [x] Published release `v6.5.2` with refreshed standalone assets.
+
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
 
 ## Wave: Compiled Job Worker Bug Cluster (PRs #125–#128)
 
@@ -70,6 +122,32 @@ _Last updated: 2026-04-23_
 - [x] Local `develop` synced after all merges.
 
 ---
+
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
 
 ## Wave: Koupper 6.4.0 Release Gate
 
@@ -108,6 +186,32 @@ _Last updated: 2026-04-23_
 
 ---
 
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
+
 ## Wave: Standalone Release Installer Validation (PRs #148–#149)
 
 ### Scope
@@ -137,6 +241,32 @@ _Last updated: 2026-04-23_
 - [ ] Optional follow-up: annotate `v6.5.0` release notes as superseded by `v6.5.1` for standalone users.
 
 ---
+
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
 
 ## Wave: Maintainer Workspace Bootstrap + Install Docs Alignment
 
@@ -172,6 +302,32 @@ _Last updated: 2026-04-23_
 
 ---
 
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
+
 ## Wave: Workspace Bootstrap Clone-First Regression Fix (2026-04-23)
 
 ### Scope
@@ -191,6 +347,32 @@ _Last updated: 2026-04-23_
 - [x] User rerun from documented flow succeeded after pulling updated script.
 
 ---
+
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
 
 ## Wave: Koupper Framework Assessment Fixes (Sesión 20-21)
 
@@ -248,6 +430,32 @@ All 3 assessment items fully implemented and merged to develop.
 
 ---
 
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
+
 ## Wave: Koupper v7 Architecture (Sesión 22)
 
 ### Scope
@@ -290,6 +498,32 @@ All 3 assessment items fully implemented and merged to develop.
 
 ---
 
+## Wave: Core Framework Audit and Fixes (2026-06-25)
+
+### Scope
+
+- [x] Audit framework code, identify unsafe practices, fix cross-platform path issues and Windows length limits.
+- [x] Analyze dependency injection, runtime execution, logs and configurations.
+
+### Implementation
+
+- [x] Fixed ProcessSupervisorServiceProviderTest Windows command-line limit (Error 206) using a Java argfile for the classpath.
+- [x] Fixed GrizzlyRuntimeRouterProvider keep-alive connection read timeout (TimeoutException) when extracting POST body by respecting Content-Length.
+- [x] Fixed MediaDownloaderProviderTest cross-platform absolute path assertions.
+- [x] Relaxed concurrency assertions in FileJobDriverConcurrencyTest to handle Windows native file lock contention gracefully.
+- [x] Sanitized input paths in ScriptingHostBackend for ytdlp metadata.
+
+### Validation
+
+- [x] Core providers tests executed successfully on Windows.
+- [x] All 268 framework tests run and passed (BUILD SUCCESSFUL in 49s).
+- [x] Published to local maven repository successfully.
+
+### Documentation / Handoff
+
+- [x] docs/SESSION_STATE.md updated with state of develop.
+- [x] docs/DELIVERY_CHECKLIST.md updated.
+
 ## Wave: Session 23 — Parameter Passing Regression Fix (2026-06-25)
 
 ### Scope
@@ -319,3 +553,4 @@ All 3 assessment items fully implemented and merged to develop.
 
 - [x] koupper: commit `b3b134c` pushed to develop
 - [x] koupper-workspace: PR #21 merged to develop
+
