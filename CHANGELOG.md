@@ -10,6 +10,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [7.1.1] - 2026-06-25
+
+### Added
+- Type generic fallback for inline data class deserialization in `ScriptRunnerOrchestrator.kt`. Uses `target.javaClass.genericInterfaces` → `FunctionN` interface to resolve parameter types when `resolveClassFromArgName` returns null (e.g. `SalesReportCommand`).
+- `splitTypesTopLevel()` used in regex fallback path of `extractExportFunctionSignature()` for generic-aware parameter splitting (`Map<String, Any?>` no longer splits naively by comma).
+- Multi-annotation regex support: `@Export` followed by `@Scheduled`, `@Logger`, etc. is now correctly parsed.
+
+### Fixed
+- **Sandbox parameter pass-through**: Removed `--` prefix from `SandboxWorker.kt` CLI args construction. The prefix caused key mismatch between `parseArgs` (stores `--key`) and `buildParamsJson` (looks up `key`).
+- **`@Scheduled` script execution**: Scripts like `logger-scheduled-demo.kts` now correctly extract their parameter types when stacked with `@Logger` and `@Scheduled` annotations.
+- **Example script compatibility**: `ContextPreloaderAgent.kts` and `PluginManagerAgent.kts` restructured to avoid `return@label` (prohibited in Kotlin scripting). Provider-flow scripts updated with default parameter values.
+
+### Regression analysis
+- v7.1.0 broke parameter passing for dynamic `.kts` scripts due to two commits on Jun 24: KSP-only metadata (removed regex fallback) + sandbox enabled by default. Both fixes now coexist: KSP is primary, regex fallback handles dynamic scripts.
+
+### Smoke test
+- 59 example scripts tested: 36 pass, 3 daemon (expected), 14 need infrastructure, 6 use obsolete APIs, **0 framework bugs**.
+
+### Release alignment
+- `octopus 7.1.1` / `koupper-cli 7.1.1`
+
+---
+
+## [7.1.0] - 2026-06-24
+
+### Added
+- Process Isolation & Sandboxing via JVM `ProcessBuilder` (`ProcessSandbox.kt`, `SandboxWorker.kt`). Enabled by default (`koupper.sandbox.enabled=true`).
+- Server-Sent Events (SSE) Streaming endpoint `POST /api/v1/run-stream`.
+- Hot-Reloading of ServiceProviders via `URLClassLoader` + `RELOAD_PROVIDERS` protocol command.
+- `koupper reload` CLI command for dynamic provider refresh.
+
+### Fixed
+- `ClassCastException: Unit → String` in `SandboxWorker.kt` — changed generic from `<String>` to `<Any?>` with Unit/null handling.
+- SPI Services missing in FatJar — added `META-INF/services/com.koupper.providers.ServiceProvider` and `providers-catalog.json`.
+
+### Release alignment
+- `octopus 7.1.0` / `koupper-cli 7.1.0`
+
+---
+
 ## [6.5.3] - 2026-05-24
 
 ### Added

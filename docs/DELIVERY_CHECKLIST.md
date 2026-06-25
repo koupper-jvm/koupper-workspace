@@ -275,5 +275,47 @@ All 3 assessment items fully implemented and merged to develop.
 
 ### Release Flow
 
-- [ ] Merge to develop
-- [ ] Tag v7.0.0 after CI verifications
+- [x] PR #174 merged to develop (framework fixes)
+- [x] PR #21 merged to develop (workspace example fixes)
+- [x] FatJar v7.1.1 built and installed (~308MB)
+- [ ] Tag v7.1.1 after CI verification
+
+### Smoke Test (59 scripts)
+
+- [x] 36 scripts pass with correct execution
+- [x] 3 daemon scripts timeout (expected — run forever)
+- [x] 14 scripts need infrastructure config (not framework bugs)
+- [x] 6 scripts use obsolete APIs (not framework bugs)
+- [x] **0 framework bugs remaining**
+
+---
+
+## Wave: Session 23 — Parameter Passing Regression Fix (2026-06-25)
+
+### Scope
+
+- [x] Fix sandbox parameter pass-through (-- prefix mismatch)
+- [x] Fix inline data class deserialization (Type generic fallback)
+- [x] Fix generic-aware parameter splitting (splitTypesTopLevel)
+- [x] Fix multi-annotation regex support (@Export + @Scheduled + @Logger)
+- [x] Fix example scripts with return@label (Kotlin scripting prohibition)
+
+### Implementation
+
+- [x] `SandboxWorker.kt:26` — removed `--` prefix from cliArgs
+- [x] `ScriptRunnerOrchestrator.kt:334-350` — Type generic fallback via `FunctionN`
+- [x] `ScriptUtilities.kt:242,251` — `splitTypesTopLevel` + multi-annotation regex
+- [x] `ContextPreloaderAgent.kts` — `return@setup` → if/else
+- [x] `PluginManagerAgent.kts` — 4x `return@setup` → boolean flags + if/else
+
+### Validation
+
+- [x] `cli-report-generator.kts` with `SalesReportCommand` deserializes correctly
+- [x] `deep-type-resolution-demo.kts` with `Map<String, Any?>` passes
+- [x] `logger-scheduled-*.kts` (3 scripts) with `@Scheduled` annotation execute correctly
+- [x] Smoke test: 59/59 scripts tested, 0 framework bugs
+
+### Release Flow
+
+- [x] koupper: commit `b3b134c` pushed to develop
+- [x] koupper-workspace: PR #21 merged to develop
