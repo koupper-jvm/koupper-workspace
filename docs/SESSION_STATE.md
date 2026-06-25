@@ -1,15 +1,15 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-25 (sesión 23 — completada)_
+_Last updated: 2026-06-25 (sesión 24 — completada)_
 
 ---
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, commit `b3b134c` pusheado
-- **Koupper Workspace**: `github.com:koupper-jvm/koupper-workspace` → PR #21 abierto (`fix/example-scripts-compilation`)
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, mergeado y pusheado con fixes de Windows y Grizzly
+- **Koupper Workspace**: `github.com:koupper-jvm/koupper-workspace` → `develop`, fixes auditados mergeados
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, operativo
-- **Koupper v7.1.1**: ✅ FatJar (~308MB) funcional con todos los fixes. 59 scripts smoke-tested.
-- **0 bugs de framework pendientes.**
+- **Koupper v7.1.1**: ✅ FatJar (~308MB) funcional. Paths cross-platform y comandos de Windows arreglados. Maven local instalado con éxito.
+- **0 bugs de framework pendientes. Framework estabilizado.**
 
 ---
 
