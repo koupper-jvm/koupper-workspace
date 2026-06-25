@@ -63,3 +63,38 @@ sequenceDiagram
     Octopus Daemon (Puerto 9998)->>Contenedor DI: Registrar Nuevos Providers
     Octopus Daemon (Puerto 9998)-->>CLI: {"ok": true, "reloaded": true}
 ```
+
+---
+
+## 4. Sandbox Parameter Passing (v7.1.1 fix)
+
+El sandbox serializa parámetros como argumentos CLI para el proceso hijo. En v7.1.0, un prefijo `--` causaba un desajuste entre `SandboxWorker` (que escribe `--arg0=valor`) y `parseArgs`/`buildParamsJson` (que buscan `arg0` sin prefijo).
+
+### Flujo corregido (v7.1.1)
+
+```
+SandboxWorker (JVM hijo)
+  │
+  ├─ paramsMap = {"arg0": "{...json...}"}
+  ├─ cliArgs = "arg0={...json...}"           ← sin prefijo --
+  │
+  └─ octopus.runFromScriptFile(params = cliArgs)
+       │
+       ├─ parseArgs("arg0={...json...}")
+       │    └─ params["arg0"] = "{...json...}"   ← key sin --
+       │
+       └─ buildParamsJson(["SalesReportCommand"], params)
+            └─ out["arg0"] = "{...json...}"       ← match correcto
+```
+
+### Resolución de tipos inline (v7.1.1)
+
+Para data classes definidas inline en scripts (ej. `SalesReportCommand`), `resolveClassFromArgName` retorna null porque la clase no está en el classpath tradicional. La solución usa el `Type` genérico preservado en la interfaz `FunctionN` del lambda compilado:
+
+```
+target.javaClass.genericInterfaces
+  └─ Function1<SalesReportCommand, Unit>
+       └─ actualTypeArguments[0] = SalesReportCommand
+            └─ mapper.typeFactory.constructType(typeArg)
+                 └─ mapper.readValue(json, javaType) → SalesReportCommand(...)
+```
