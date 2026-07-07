@@ -21,7 +21,7 @@ fun main() {
 
     // 2. Registramos rutas base
     router.registerRouter {
-        get<Any> {
+        get {
             path { "/health" }
             script { { mapOf("status" to "UP") } }
         }
