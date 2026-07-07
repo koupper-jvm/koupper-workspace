@@ -1,15 +1,15 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-06-25 (sesión 24 — completada)_
+_Last updated: 2026-07-05 (sesión 25 — completada)_
 
 ---
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, mergeado y pusheado con fixes de Windows y Grizzly
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `fix/v7-defensive-router` pusheado, con manejo defensivo de NPE y observabilidad.
 - **Koupper Workspace**: `github.com:koupper-jvm/koupper-workspace` → `develop`, fixes auditados mergeados
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, operativo
-- **Koupper v7.1.1**: ✅ FatJar (~308MB) funcional. Paths cross-platform y comandos de Windows arreglados. Maven local instalado con éxito.
-- **0 bugs de framework pendientes. Framework estabilizado.**
+- **Koupper v7.1.2-SNAPSHOT**: ✅ Framework blindado contra errores 500 silenciosos y fallas de request resolution (NPE / IndexOutOfBounds). Maven local publicado.
+- **0 bugs de framework pendientes. Framework estabilizado para release.**
 
 ---
 
@@ -17,10 +17,30 @@ _Last updated: 2026-06-25 (sesión 24 — completada)_
 
 | Repo | Ruta local | Rama | Estado |
 |---|---|---|---|
-| koupper (framework) | `~/develop/koupper workspace/koupper` | `develop` | limpio ✅ (commit `b3b134c`) |
-| koupper-workspace | `~/develop/koupper workspace/` | `fix/example-scripts-compilation` | PR #21 abierto |
+| koupper (framework) | `~/develop/koupper workspace/koupper` | `fix/v7-defensive-router` | pusheado a GitHub (PR manual o fast-lane pendiente) |
+| koupper-workspace | `~/develop/koupper workspace/` | `develop` | `tmp-talk.txt` actualizado |
 | koupper-cli | `~/develop/koupper workspace/koupper-cli` | `develop` | limpio ✅ |
 | cortex | `~/develop/cortex` | `develop` | limpio ✅ |
+| quizztea-api | `~/develop/quizztea_workspace/quizztea.com` | `develop` | Modificaciones sin comitear por agente externo |
+
+---
+
+## Sesión 25 — Framework Hardening: Defensive Router
+
+### Mejoras (Koupper v7)
+
+| # | Fix | Archivo | Detalle |
+|---|---|---|---|
+| 1 | Defensive Exceptions | `RuntimeRouterProvider.kt` | Se agregó captura directa de `NullPointerException` e `IndexOutOfBoundsException` devolviendo status `400` para evitar crashes de servidor en missing query parameters o paginación inválida. |
+| 2 | Observabilidad 500 | `RuntimeRouterProvider.kt` | Se añadió `root.printStackTrace()` antes del respond `500` para que errores fatales queden en log y no desaparezcan de forma silenciosa. |
+| 3 | Documentation | `CHANGELOG.md` | Actualizado bajo la categoría `[Unreleased]` con las mejoras del router defensivo. |
+
+### Commits
+
+```
+koupper/fix/v7-defensive-router:
+  81822f5  fix(router): Defensive programming for NPE and internal error observability
+```
 
 ---
 
