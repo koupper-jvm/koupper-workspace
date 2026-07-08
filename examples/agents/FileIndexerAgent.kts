@@ -16,17 +16,17 @@
 //   EMBEDDER_URL             — Ollama base URL (default: http://localhost:11434)
 //   EMBEDDER_MODEL           — embedding model (default: nomic-embed-text) or "hash"
 
-import com.koupper.shared.annotations.Export
 import com.koupper.container.app
 import com.koupper.providers.files.FileHandler
 import com.koupper.providers.files.TextFileHandler
 import com.koupper.providers.files.fromJson
 import com.koupper.providers.files.toJson
 import com.koupper.providers.pdf.PDFReaderProvider
-import com.koupper.providers.vectordb.VectorDbProvider
-import com.koupper.providers.vectordb.VectorRecord
 import com.koupper.providers.vectordb.HashEmbedder
 import com.koupper.providers.vectordb.OllamaEmbedder
+import com.koupper.providers.vectordb.VectorDbProvider
+import com.koupper.providers.vectordb.VectorRecord
+import com.koupper.shared.annotations.Export
 import java.time.Instant
 
 // ── providers ─────────────────────────────────────────────────────────────────

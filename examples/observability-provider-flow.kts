@@ -1,6 +1,6 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.observability.ObservabilityProvider
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val metricName: String = "job.duration",

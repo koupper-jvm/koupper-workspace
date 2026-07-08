@@ -5,9 +5,9 @@
  * - Register script-defined routes and validate local HTTP execution.
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.runtime.router.MiddlewareResult
 import com.koupper.providers.runtime.router.RuntimeRouterProvider
+import com.koupper.shared.annotations.Export
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest

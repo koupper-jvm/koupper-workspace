@@ -7,9 +7,9 @@ import com.koupper.providers.agent.AgentMessage
 import com.koupper.providers.agent.InferenceEngine
 import com.koupper.providers.commandbridge.CommandBridgeProvider
 import com.koupper.shared.annotations.Export
+import kotlinx.coroutines.runBlocking
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.runBlocking
 
 enum class WizardStep { NAME, ROLE, OBJECTIVE, GENERATING, DONE }
 

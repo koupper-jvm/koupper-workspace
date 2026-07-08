@@ -4,9 +4,9 @@
  * Demonstrates the use of a custom Service Provider created via 'koupper provider new'.
  */
 
+import com.koupper.container.app
 import com.koupper.providers.helloworld.HelloWorldProvider
 import com.koupper.shared.annotations.Export
-import com.koupper.container.app
 
 @Export
 val helloWorldDemo: (Map<String, Any?>) -> Map<String, Any?> = {

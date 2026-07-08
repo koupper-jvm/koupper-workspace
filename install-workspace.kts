@@ -2,7 +2,7 @@ import java.io.File
 import java.io.FileDescriptor
 import java.io.FileOutputStream
 import java.io.PrintStream
-import java.util.Locale
+import java.util.*
 import kotlin.system.exitProcess
 
 fun shouldUseEmoji(): Boolean {

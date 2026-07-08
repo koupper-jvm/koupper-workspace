@@ -1,14 +1,14 @@
 # Session State — IGLY CORTEX / Koupper
-_Last updated: 2026-07-05 (sesión 25 — completada)_
+_Last updated: 2026-07-08 (sesión 26 — completada)_
 
 ---
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `fix/v7-defensive-router` pusheado, con manejo defensivo de NPE y observabilidad.
-- **Koupper Workspace**: `github.com:koupper-jvm/koupper-workspace` → `develop`, fixes auditados mergeados
-- **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, operativo
-- **Koupper v7.1.2-SNAPSHOT**: ✅ Framework blindado contra errores 500 silenciosos y fallas de request resolution (NPE / IndexOutOfBounds). Maven local publicado.
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, fixes de test de Windows y concurrencia mergeados.
+- **Koupper Workspace**: `github.com:koupper-jvm/koupper-workspace` → `develop`, fixes auditados mergeados y tests pasando cleanly.
+- **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, operativo.
+- **Koupper v7.1.1**: ✅ Framework completamente estable con versioning alineado, sandbox estable en Windows, y tests pasando.
 - **0 bugs de framework pendientes. Framework estabilizado para release.**
 
 ---

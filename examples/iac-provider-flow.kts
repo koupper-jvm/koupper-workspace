@@ -1,6 +1,6 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.iac.IaCProvider
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val path: String = "examples/terraform/sample",

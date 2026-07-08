@@ -3,9 +3,8 @@
  * 
  * Verifies the persistent server daemon and HTTP SSE streaming.
  */
-import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.agent.*
+import com.koupper.shared.annotations.Export
 import kotlinx.coroutines.runBlocking
 
 @Export

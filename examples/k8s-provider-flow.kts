@@ -1,6 +1,6 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.k8s.K8sProvider
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val manifestPath: String = "examples/manifests/sample-deployment.yaml",

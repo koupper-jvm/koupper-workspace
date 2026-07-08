@@ -1,6 +1,6 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.n8n.N8NProvider
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val action: String = "trigger",

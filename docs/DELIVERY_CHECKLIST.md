@@ -1,6 +1,24 @@
 # Delivery Checklist
 
-_Last updated: 2026-04-23_
+_Last updated: 2026-07-08_
+
+## Wave: Windows Test Hardening and Concurrency Fixes (2026-07-08)
+
+### Scope
+
+- [x] Fix flaky E2E tests, version alignment checks, and test runner annotations on Windows.
+- [x] Resolve file-driver claiming concurrency race conditions on Windows filesystem.
+
+### Implementation
+
+- [x] Fixed Kotest AnnotationSpec setup/teardown by replacing ignored `@BeforeTest` and `@AfterTest` with `@BeforeEach` and `@AfterEach` in `JwtAuthTest` and `HttpApiServerTest`.
+- [x] Fixed `@Scheduled` annotation processor callback invocation to properly return the registration result string instead of executing the `@Export` body value directly.
+- [x] Fixed `FileJobDriver` double claiming of job files on Windows concurrency checks using atomic `java.nio.file.Files.move` with `ATOMIC_MOVE` instead of legacy platform-dependent `renameTo`.
+- [x] Aligned runtime and OpenTelemetry tracers version to `7.1.1` and fixed all version assertions.
+
+### Validation
+
+- [x] All 280+ tests run and passed successfully across all projects (BUILD SUCCESSFUL in 3m 9s).
 
 ## Wave: Core Framework Audit and Fixes (2026-06-25)
 

@@ -15,9 +15,9 @@
  * - Ctrl+C in the CLI process or stop the Octopus daemon session.
  */
 import com.koupper.logging.GlobalLogger.log
-import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.annotations.Scheduled
+import com.koupper.shared.annotations.Export
 
 @Export
 @Logger(destination = "file:logger-scheduled-demo-[yyyy-MM-dd]", level = "DEBUG")

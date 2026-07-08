@@ -2,13 +2,13 @@
 // Role      : GitHub repository monitor
 // Objective : Check recent commits and open PRs on configured repos, write a daily digest
 
-import com.koupper.providers.mcp.LocalMCPClientProvider
-import com.koupper.providers.mcp.MCPServerConfig
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.files.fromJson
 import com.koupper.providers.files.getInt
 import com.koupper.providers.files.getObject
 import com.koupper.providers.files.getString
+import com.koupper.providers.mcp.LocalMCPClientProvider
+import com.koupper.providers.mcp.MCPServerConfig
+import com.koupper.shared.annotations.Export
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter

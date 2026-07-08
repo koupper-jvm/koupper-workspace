@@ -3,12 +3,12 @@
  * Agentic Control Plane Live Server (Flat Registry Version)
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
+import com.koupper.providers.agent.*
+import com.koupper.providers.runtime.router.RequestContext
 import com.koupper.providers.runtime.router.RuntimeRouterProvider
 import com.koupper.providers.runtime.router.StreamResponse
-import com.koupper.providers.runtime.router.RequestContext
+import com.koupper.shared.annotations.Export
 import com.koupper.shared.runtime.GlobalRouteRegistry
-import com.koupper.providers.agent.*
 import kotlinx.coroutines.runBlocking
 
 @Export
