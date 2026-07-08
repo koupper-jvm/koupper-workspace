@@ -8,7 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
----
+### Fixed
+- **Windows File Concurrency**: Replaced legacy non-atomic `renameTo` in `FileJobDriver` with atomic `Files.move(..., ATOMIC_MOVE)` to prevent double claiming in high-concurrency races on Windows.
+- **Kotest Annotation Lifecycle**: Changed ignored `@BeforeTest`/`@AfterTest` to `@BeforeEach`/`@AfterEach` in `JwtAuthTest` and `HttpApiServerTest` to ensure test setup/teardown functions execute cleanly.
+- **Scheduled Annotation Resolver**: Corrected a bug in the `@Scheduled` resolver where the return callback was ignored, ensuring scheduled execution correctly reports its registration status string.
 
 ## [7.1.1] - 2026-06-25
 
