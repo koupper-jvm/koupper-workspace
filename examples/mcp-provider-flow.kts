@@ -5,9 +5,9 @@
  * - Register tools and validate local HTTP MCP-style endpoints.
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
-import com.koupper.providers.mcp.MCPServerProvider
 import com.koupper.providers.http.HtppClient
+import com.koupper.providers.mcp.MCPServerProvider
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val port: Int = 18082

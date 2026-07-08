@@ -4,8 +4,8 @@
  * Verifies that the SwarmCoordinator can pass structured data between agents.
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.agent.*
+import com.koupper.shared.annotations.Export
 import kotlinx.coroutines.runBlocking
 
 data class LanguageList(val languages: List<String>)

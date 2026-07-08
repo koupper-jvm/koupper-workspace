@@ -1,6 +1,6 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.notifications.NotificationsProvider
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val channel: String = "ops",

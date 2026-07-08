@@ -1,10 +1,10 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.aillmops.AILlmOpsProvider
 import com.koupper.providers.aillmops.ChatRequest
 import com.koupper.providers.aillmops.EmbedRequest
 import com.koupper.providers.aillmops.StructuredRequest
 import com.koupper.providers.aillmops.ToolCallRequest
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val prompt: String = "Summarize Koupper in one sentence"

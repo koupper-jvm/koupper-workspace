@@ -8,10 +8,10 @@
  * - @Scheduled: Registers this script as an asynchronous daemon running independently (e.g. every 10 seconds).
  * - @Logger: Scopes stdout away from the interactive terminal, routing standard logs into a rotating daily file.
  */
-import com.koupper.shared.annotations.Export
+import com.koupper.logging.GlobalLogger.log
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.annotations.Scheduled
-import com.koupper.logging.GlobalLogger.log
+import com.koupper.shared.annotations.Export
 import java.lang.management.ManagementFactory
 
 @Export

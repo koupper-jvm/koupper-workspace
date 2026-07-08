@@ -1,7 +1,7 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.vectordb.VectorDbProvider
 import com.koupper.providers.vectordb.VectorRecord
+import com.koupper.shared.annotations.Export
 
 @Export
 val vectorDbDemo: () -> Map<String, Any?> = {

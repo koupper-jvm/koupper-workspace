@@ -8,8 +8,8 @@
  *   curl -X POST http://127.0.0.1:18081/api/echo -H "Content-Type: application/json" -d '"hello"'
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.runtime.router.RuntimeRouterProvider
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val host: String = "127.0.0.1",

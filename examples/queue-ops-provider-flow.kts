@@ -1,6 +1,6 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.queueops.QueueOpsProvider
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val queue: String = "demo-queue",

@@ -8,9 +8,9 @@
  * - koupper run examples/scheduled/with-config/logger-scheduled-with-config.kts "demo"
  */
 import com.koupper.logging.GlobalLogger.log
-import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.annotations.Scheduled
+import com.koupper.shared.annotations.Export
 
 @Export
 @Logger(destination = "file:scheduled-with-config-[yyyy-MM-dd]", level = "DEBUG")

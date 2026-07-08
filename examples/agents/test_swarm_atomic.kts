@@ -3,12 +3,12 @@
  */
 import com.koupper.providers.files.fromJson
 import com.koupper.shared.annotations.Export
+import kotlinx.coroutines.*
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
-import kotlinx.coroutines.*
 
 class AtomicSidecar(val modelPath: String, val exePath: String, val port: Int = 8081) {
     private val httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()

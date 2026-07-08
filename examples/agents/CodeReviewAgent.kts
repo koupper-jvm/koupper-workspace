@@ -8,9 +8,9 @@ import com.koupper.providers.agent.AgentMessage
 import com.koupper.providers.agent.InferenceEngine
 import com.koupper.providers.agent.TokenListener
 import com.koupper.shared.annotations.Export
+import kotlinx.coroutines.runBlocking
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import kotlinx.coroutines.runBlocking
 
 @Export
 val setup: () -> Unit = {

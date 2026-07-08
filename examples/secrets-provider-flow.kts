@@ -9,8 +9,8 @@
  * - koupper run examples/secrets-provider-flow.kts '{"action":"get","key":"api-token"}'
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.secrets.SecretsClient
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val action: String = "",

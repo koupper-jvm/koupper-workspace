@@ -1,7 +1,7 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.aws.dynamo.DynamoLocalAdmin
 import com.koupper.providers.aws.dynamo.DynamoTableSpec
+import com.koupper.shared.annotations.Export
 
 data class TableInput(
     val tableName: String,

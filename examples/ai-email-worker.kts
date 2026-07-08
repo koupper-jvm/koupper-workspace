@@ -10,13 +10,13 @@
  */
 import com.koupper.container.app
 import com.koupper.logging.GlobalLogger.log
-import com.koupper.shared.annotations.Export
 import com.koupper.octopus.annotations.JobsListener
 import com.koupper.octopus.annotations.Logger
 import com.koupper.octopus.process.JobEvent
 import com.koupper.providers.ai.AI
 import com.koupper.providers.ai.ModelType
 import com.koupper.providers.mailing.Sender
+import com.koupper.shared.annotations.Export
 
 // Automatic deserialization from the Job payload
 data class SupportTicket(
