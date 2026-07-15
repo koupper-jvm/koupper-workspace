@@ -6,12 +6,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [7.2.0] - 2026-06-25
+
+### Added
+- **Multiple @Export declarations** with priority-based selection. Scripts can now define multiple `@Export` entrypoints sorted by `priority` attribute.
+- **YoutubeTranscriptProvider** SP for fetching and processing YouTube video transcripts.
+- **RouterAnalyzer** — strongly-typed HTTP route analysis for multi-module projects.
+- **Request context attributes** in RuntimeRouter with native support for `PUT`, `PATCH`, `DELETE` methods.
+- **CORS + ExceptionHandler DSL** blocks in RuntimeRouterDsl for global middleware configuration.
+- **PathParams extraction** from route patterns into `RequestContext`.
+- **Non-generic route methods** in RuntimeRouterDsl for simpler registration.
+- **FileHandler fs ops + TextFileHandler stateless methods** for direct filesystem operations.
 
 ### Fixed
 - **Windows File Concurrency**: Replaced legacy non-atomic `renameTo` in `FileJobDriver` with atomic `Files.move(..., ATOMIC_MOVE)` to prevent double claiming in high-concurrency races on Windows.
 - **Kotest Annotation Lifecycle**: Changed ignored `@BeforeTest`/`@AfterTest` to `@BeforeEach`/`@AfterEach` in `JwtAuthTest` and `HttpApiServerTest` to ensure test setup/teardown functions execute cleanly.
 - **Scheduled Annotation Resolver**: Corrected a bug in the `@Scheduled` resolver where the return callback was ignored, ensuring scheduled execution correctly reports its registration status string.
+- **SseEmitter buffering**: Buffered events until stream callbacks register, preventing dropped initial events.
+- **Script compilation with module-info**: Scripts now compile against a module-info-stripped JAR copy for compatibility with JPMS classloaders.
+- **Sandbox params on Windows**: Resolved parameter passing through sandbox on Windows hosts.
+- **OpenAI + DynamoDB error handling**: Enhanced error recovery and logging in cloud provider clients.
+- **OkHttp response body leak**: Closed response body in `YoutubeTimedTextClient` preventing resource exhaustion.
+- **Build**: Excluded `module-info` from both optimized (Maven local) and shadowJar artifacts.
+- **Installer**: Replaced obsolete `fatJar` task reference with `shadowJar` in `install.kts`.
+
+### Removed
+- 25 `.tmp` garbage files left in `examples/` tree by previous session.
+- `.env.test` config file mistakenly committed to repository.
+
+### Release alignment
+- `octopus 7.2.0` / `koupper-cli 7.2.0`
+
+---
 
 ## [7.1.1] - 2026-06-25
 
