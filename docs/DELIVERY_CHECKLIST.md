@@ -503,8 +503,11 @@ All 3 assessment items fully implemented and merged to develop.
 
 - [x] PR #174 merged to develop (framework fixes)
 - [x] PR #21 merged to develop (workspace example fixes)
-- [x] FatJar v7.1.1 built and installed (~308MB)
-- [ ] Tag v7.1.1 after CI verification
+- [x] FatJar v7.2.0 built and installed (~309MB)
+- [x] Optimized JAR v7.2.0 published to Maven local (~2.2MB)
+- [x] 59 scripts smoke-tested: 38 OK, 18 ENV, 3 DAEMON, 0 FAIL
+- [x] Autonobot: 3 WA bot stability fixes merged to develop (PR #6)
+- [x] Cortex: 5 agents fixed for K2 compatibility, KOUPPER_SHARED.md created
 
 ### Smoke Test (59 scripts)
 
