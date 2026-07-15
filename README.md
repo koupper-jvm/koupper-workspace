@@ -4,7 +4,7 @@ Este repositorio es el punto central del ecosistema Koupper. Contiene el core de
 
 ---
 
-## 🐙 Novedades Modernización 2026 (v7.1.1)
+## 🐙 Novedades Modernización 2026 (v7.2.0)
 
 Hemos realizado un salto tecnológico masivo para convertir a Koupper en un framework de grado enterprise, más rápido, más limpio y 100% asíncrono.
 
