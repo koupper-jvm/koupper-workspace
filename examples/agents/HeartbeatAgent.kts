@@ -199,12 +199,13 @@ val setup: () -> Unit = {
             .replace("~", home)
         val agentLog = koupper.files().load(resolvedLog).also { it.parentFile?.mkdirs() }
 
+        val koupperBin = "$home/.koupper/bin/koupper"
         val cmd = if (cond.agent == "worker") {
-            listOf("koupper", "worker")
+            listOf(koupperBin, "worker")
         } else {
             val agentPath = koupper.files().load(home, ".koupper/agents/${cond.agent}")
             if (!agentPath.exists()) { log("  ⚠ Agent not found: ${cond.agent}"); return }
-            listOf("koupper", "run", agentPath.absolutePath)
+            listOf(koupperBin, "run", agentPath.absolutePath)
         }
 
         val proc = ProcessBuilder(cmd)
