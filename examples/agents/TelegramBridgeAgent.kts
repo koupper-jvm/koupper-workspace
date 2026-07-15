@@ -302,7 +302,7 @@ val setup: () -> Unit = {
                         val req     = reqFile.readText().fromJson<Map<String, Any>>()
                         val path    = req["path"]?.toString() ?: return@runCatching
                         val caption = req["caption"]?.toString() ?: ""
-                        tgSendPhoto(chatId, java.io.koupper.files().load(path), caption)
+                        tgSendPhoto(chatId, koupper.files().load(path), caption)
                         reqFile.delete()
                     }.onFailure { log("  photo queue error: ${it.message}") }
                 }
