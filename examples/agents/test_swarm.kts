@@ -24,7 +24,6 @@ val run: () -> Unit = {
         }
         task<LanguageList> {
             prompt = "Escribe 3 nombres de lenguajes de programación."
-            onToken { token -> print(token) }
         }
     }
 
@@ -37,7 +36,6 @@ val run: () -> Unit = {
         }
         task<Evaluation> {
             prompt = "Evalúa cuál de estos lenguajes es el más rápido y explica por qué en una línea."
-            onToken { token -> print(token) }
         }
     }
 
