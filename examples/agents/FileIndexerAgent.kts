@@ -29,141 +29,128 @@ import com.koupper.providers.vectordb.VectorRecord
 import com.koupper.shared.annotations.Export
 import java.time.Instant
 
-// ── providers ─────────────────────────────────────────────────────────────────
-
-val fileHandler = app.getInstance(FileHandler::class)
-val textHandler = app.getInstance(TextFileHandler::class)
-val pdfReader   = app.getInstance(PDFReaderProvider::class)
-val vectorDb    = app.getInstance(VectorDbProvider::class)
-
-// ── config ────────────────────────────────────────────────────────────────────
-
-val STATE_DIR     = koupper.files().load(System.getProperty("user.home"), ".koupper/indexer")
-val CHUNK_WORDS   = 300
-val CHUNK_OVERLAP = 50
-
-val embedUrl   = env("EMBEDDER_URL", "http://localhost:11434")
-val embedModel = env("EMBEDDER_MODEL", "nomic-embed-text")
-
-// Resolve embedder at startup — prefer Ollama unless "hash" is forced or Ollama is down
-val useOllama: Boolean = embedModel != "hash" && OllamaEmbedder.isAvailable(embedUrl)
-val resolvedEmbedder   = if (useOllama) "ollama:$embedModel" else "hash"
-
-// ── utilities ─────────────────────────────────────────────────────────────────
-
-fun log(msg: String) = println("[FileIndexerAgent] ${Instant.now()} $msg")
-
-fun embed(text: String): List<Double> {
-    if (!useOllama) return HashEmbedder.embed(text)
-    val result = OllamaEmbedder.embed(text, embedUrl, embedModel)
-    return if (result.isNotEmpty()) result else HashEmbedder.embed(text)
-}
-
-fun chunkText(text: String): List<String> {
-    val words = text.split(Regex("\\s+")).filter { it.isNotBlank() }
-    if (words.isEmpty()) return emptyList()
-    val chunks = mutableListOf<String>()
-    var start = 0
-    while (start < words.size) {
-        val end = minOf(start + CHUNK_WORDS, words.size)
-        chunks += words.subList(start, end).joinToString(" ")
-        if (end == words.size) break
-        start += CHUNK_WORDS - CHUNK_OVERLAP
-    }
-    return chunks
-}
-
-fun extractText(filePath: String): String {
-    return when (koupper.files().load(filePath).extension.lowercase()) {
-        "pdf"                         -> runCatching { pdfReader.extractText(filePath) }.getOrElse { "" }
-        "txt", "md", "markdown",
-        "log", "csv", "json", "yaml",
-        "yml", "xml", "html", "htm"   -> runCatching { textHandler.read(filePath) }.getOrElse { "" }
-        else                          -> ""
-    }
-}
-
-fun loadState(stateFile: File): MutableMap<String, Any> {
-    if (!stateFile.exists()) return mutableMapOf()
-    return runCatching {
-        stateFile.readText().fromJson<MutableMap<String, Any>>() ?: mutableMapOf()
-    }.getOrElse { mutableMapOf() }
-}
-
-fun saveState(stateFile: File, state: Map<String, Any>) {
-    STATE_DIR.mkdirs()
-    stateFile.writeText(state.toJson())
-}
-
-// ── indexing logic ────────────────────────────────────────────────────────────
-
-fun runIndexPass(watchDir: String, collection: String, extensions: List<String>): Map<String, Int> {
-    val stateFile = koupper.files().load(STATE_DIR, "${collection}-state.json")
-    val state     = loadState(stateFile)
-
-    // Detect embedder change — clear collection to avoid dimension mismatch
-    val prevEmbedder = state["_embedder"]?.toString()
-    if (prevEmbedder != null && prevEmbedder != resolvedEmbedder) {
-        log("Embedder changed ($prevEmbedder → $resolvedEmbedder) — clearing collection for full re-index")
-        vectorDb.clear(collection)
-        state.clear()
-    }
-    state["_embedder"] = resolvedEmbedder
-
-    val allFiles = fileHandler.listFiles(watchDir, recursive = true, extensions = extensions)
-    var indexed  = 0
-    var skipped  = 0
-    var failed   = 0
-
-    log("Scanning $watchDir — ${allFiles.size} file(s) found (exts: $extensions, collection: $collection, embedder: $resolvedEmbedder)")
-
-    for (filePath in allFiles) {
-        val f       = koupper.files().load(filePath)
-        val lastMod = f.lastModified()
-
-        @Suppress("UNCHECKED_CAST")
-        val storedMod = (state[filePath] as? Number)?.toLong()
-        if (storedMod == lastMod) { skipped++; continue }
-
-        val text = extractText(filePath)
-        if (text.isBlank()) {
-            log("  SKIP (no text) $filePath")
-            failed++
-            continue
-        }
-
-        val chunks  = chunkText(text)
-        val records = chunks.mapIndexed { i, chunk ->
-            VectorRecord(
-                id     = "${filePath.hashCode()}_$i",
-                vector = embed(chunk),
-                metadata = mapOf(
-                    "filePath"     to filePath,
-                    "fileName"     to f.name,
-                    "chunkIndex"   to i,
-                    "chunkTotal"   to chunks.size,
-                    "lastModified" to lastMod,
-                    "snippet"      to chunk.take(400)
-                )
-            )
-        }
-
-        vectorDb.upsert(collection, records)
-        state[filePath] = lastMod
-        indexed++
-        log("  INDEXED (${chunks.size} chunks) $filePath")
-    }
-
-    saveState(stateFile, state)
-    log("Pass done — indexed: $indexed, skipped: $skipped, failed: $failed (embedder: $resolvedEmbedder)")
-    return mapOf("indexed" to indexed, "skipped" to skipped, "failed" to failed)
-}
-
 // ── entry point ───────────────────────────────────────────────────────────────
 
 @Export
 val setup: () -> String = {
-    val watchDir     = env("INDEXER_DIR", "${System.getProperty(")user.home")}/.koupper"
+    val fileHandler  = app.getInstance(FileHandler::class)
+    val textHandler  = app.getInstance(TextFileHandler::class)
+    val pdfReader    = app.getInstance(PDFReaderProvider::class)
+    val vectorDb     = app.getInstance(VectorDbProvider::class)
+    val stateDir     = koupper.files().load(System.getProperty("user.home"), ".koupper/indexer")
+    val chunkWords   = 300
+    val chunkOverlap = 50
+    val embedUrl     = env("EMBEDDER_URL", "http://localhost:11434")
+    val embedModel   = env("EMBEDDER_MODEL", "nomic-embed-text")
+    val useOllama    = embedModel != "hash" && OllamaEmbedder.isAvailable(embedUrl)
+    val resolvedEmbedder = if (useOllama) "ollama:$embedModel" else "hash"
+
+    fun log(msg: String) = println("[FileIndexerAgent] ${Instant.now()} $msg")
+
+    fun embed(text: String): List<Double> {
+        if (!useOllama) return HashEmbedder.embed(text)
+        val result = OllamaEmbedder.embed(text, embedUrl, embedModel)
+        return if (result.isNotEmpty()) result else HashEmbedder.embed(text)
+    }
+
+    fun chunkText(text: String): List<String> {
+        val words = text.split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (words.isEmpty()) return emptyList()
+        val chunks = mutableListOf<String>()
+        var start = 0
+        while (start < words.size) {
+            val end = minOf(start + chunkWords, words.size)
+            chunks += words.subList(start, end).joinToString(" ")
+            if (end == words.size) break
+            start += chunkWords - chunkOverlap
+        }
+        return chunks
+    }
+
+    fun extractText(filePath: String): String {
+        return when (koupper.files().load(filePath).extension.lowercase()) {
+            "pdf"                         -> runCatching { pdfReader.extractText(filePath) }.getOrElse { "" }
+            "txt", "md", "markdown",
+            "log", "csv", "json", "yaml",
+            "yml", "xml", "html", "htm"   -> runCatching { textHandler.read(filePath) }.getOrElse { "" }
+            else                          -> ""
+        }
+    }
+
+    fun loadState(stateFile: java.io.File): MutableMap<String, Any> {
+        if (!stateFile.exists()) return mutableMapOf()
+        return runCatching {
+            stateFile.readText().fromJson<MutableMap<String, Any>>() ?: mutableMapOf()
+        }.getOrElse { mutableMapOf() }
+    }
+
+    fun saveState(stateFile: java.io.File, state: Map<String, Any>) {
+        stateDir.mkdirs()
+        stateFile.writeText(state.toJson())
+    }
+
+    fun runIndexPass(watchDir: String, collection: String, extensions: List<String>): Map<String, Int> {
+        val stateFile = koupper.files().load(stateDir, "${collection}-state.json")
+        val state     = loadState(stateFile)
+
+        val prevEmbedder = state["_embedder"]?.toString()
+        if (prevEmbedder != null && prevEmbedder != resolvedEmbedder) {
+            log("Embedder changed ($prevEmbedder → $resolvedEmbedder) — clearing collection for full re-index")
+            vectorDb.clear(collection)
+            state.clear()
+        }
+        state["_embedder"] = resolvedEmbedder
+
+        val allFiles = fileHandler.listFiles(watchDir, recursive = true, extensions = extensions)
+        var indexed  = 0
+        var skipped  = 0
+        var failed   = 0
+
+        log("Scanning $watchDir — ${allFiles.size} file(s) found (exts: $extensions, collection: $collection, embedder: $resolvedEmbedder)")
+
+        for (filePath in allFiles) {
+            val f       = koupper.files().load(filePath)
+            val lastMod = f.lastModified()
+
+            @Suppress("UNCHECKED_CAST")
+            val storedMod = (state[filePath] as? Number)?.toLong()
+            if (storedMod == lastMod) { skipped++; continue }
+
+            val text = extractText(filePath)
+            if (text.isBlank()) {
+                log("  SKIP (no text) $filePath")
+                failed++
+                continue
+            }
+
+            val chunks  = chunkText(text)
+            val records = chunks.mapIndexed { i, chunk ->
+                VectorRecord(
+                    id     = "${filePath.hashCode()}_$i",
+                    vector = embed(chunk),
+                    metadata = mapOf(
+                        "filePath"     to filePath,
+                        "fileName"     to f.name,
+                        "chunkIndex"   to i,
+                        "chunkTotal"   to chunks.size,
+                        "lastModified" to lastMod,
+                        "snippet"      to chunk.take(400)
+                    )
+                )
+            }
+
+            vectorDb.upsert(collection, records)
+            state[filePath] = lastMod
+            indexed++
+            log("  INDEXED (${chunks.size} chunks) $filePath")
+        }
+
+        saveState(stateFile, state)
+        log("Pass done — indexed: $indexed, skipped: $skipped, failed: $failed (embedder: $resolvedEmbedder)")
+        return mapOf("indexed" to indexed, "skipped" to skipped, "failed" to failed)
+    }
+
+    val watchDir     = env("INDEXER_DIR", "${System.getProperty("user.home")}/.koupper")
     val collection   = env("INDEXER_COLLECTION", "cortex-knowledge")
     val extStr       = env("INDEXER_EXTENSIONS", "txt,md,pdf")
     val extensions   = extStr.split(",").map { it.trim().lowercase().trimStart('.') }.filter { it.isNotBlank() }
