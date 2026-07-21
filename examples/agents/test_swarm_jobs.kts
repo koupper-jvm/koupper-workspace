@@ -1,0 +1,216 @@
+/**
+ * Fase 9 — Multi-Agent Swarm Handoff via Koupper Native Jobs
+ *
+ * Everything flows through the Koupper container (app.getInstance).
+ * No third-party imports — JSON serialization uses Koupper's own extensions.
+ *
+ * Job lifecycle:
+ *   [GeneradorAgente] → GeneratorOutput DTO
+ *   → dispatchToQueue() → jobs/agent-swarm/UUID.json  (real file on disk)
+ *   → Worker forEachPending() → reads + acks job
+ *   → [JuezAgente] → JudgementResult DTO
+ */
+import com.koupper.container.app
+import com.koupper.orchestrator.FileJobDriver
+import com.koupper.orchestrator.JobResult
+import com.koupper.orchestrator.KouTask
+import com.koupper.orchestrator.config.JobConfiguration
+import com.koupper.orchestrator.dispatchToQueue
+import com.koupper.providers.agent.*
+import com.koupper.providers.files.JSONFileHandler
+import com.koupper.providers.files.fromJson
+import com.koupper.shared.annotations.Export
+import kotlinx.coroutines.runBlocking
+import java.nio.file.Paths
+import java.util.*
+
+// ── DTOs ──────────────────────────────────────────────────────────────────────
+
+data class GeneratorOutput(
+    val analysisId: String = "",
+    val content: String = "",
+    val confidence: Double = 0.0,
+    val metadata: Map<String, String> = emptyMap()
+)
+
+data class JudgementResult(
+    val agentId: String = "",
+    val verdict: String = "",
+    val reasoning: String = "",
+    val inputSummary: String = ""
+)
+
+// ── MockInferenceEngine ────────────────────────────────────────────────────────
+// Implements Koupper's own InferenceEngine interface.
+// No third-party imports — returns preset strings that the orchestrator parses.
+
+class MockInferenceEngine(private val responses: LinkedList<String>) : InferenceEngine {
+    override suspend fun <T : Any> predict(
+        history: List<AgentMessage>,
+        outputSchema: Class<T>?,
+        listener: TokenListener?
+    ): T {
+        val response = responses.poll() ?: error("MockInferenceEngine: queue exhausted")
+        println("[MOCK ENGINE] returning preset response (${response.length} chars)")
+        @Suppress("UNCHECKED_CAST")
+        return response as T
+    }
+}
+
+// ── Preset responses ───────────────────────────────────────────────────────────
+
+val generatorResponse = """{"analysisId":"gen-001","content":"Kotlin is a statically-typed JVM language with coroutines, null-safety, and multiplatform support.","confidence":0.95,"metadata":{"source":"internal-kb","version":"2.0"}}"""
+
+val judgeResponse = """{"agentId":"judge-001","verdict":"APPROVED","reasoning":"Analysis accurate, confidence 0.95 exceeds threshold 0.80, no hallucinations.","inputSummary":"Kotlin language analysis with 95% confidence and valid metadata."}"""
+
+// ── Entrypoint ─────────────────────────────────────────────────────────────────
+
+@Export
+fun test() {
+    val workingDir = Paths.get("").toAbsolutePath().toString()
+    println("[JOBS] Context: $workingDir")
+
+    // Wire mock orchestrator into the container under a "test-swarm" tag.
+    // The container already holds the real orchestrator under the "undefined" tag;
+    // a tagged binding coexists without conflict.
+    val mockEngine = MockInferenceEngine(LinkedList(listOf(generatorResponse, judgeResponse)))
+
+    app.bind(AgentOrchestrator::class, {
+        DefaultAgentOrchestrator(
+            engine = mockEngine,
+            toolExecutor = app.getInstance(ToolExecutor::class),
+            mcpProvider = app.getInstance(com.koupper.providers.mcp.MCPServerProvider::class),
+            jsonHandler = app.getInstance(JSONFileHandler::class),
+            budget = app.getInstance(AgentBudget::class)
+        )
+    }, tag = "test-swarm")
+
+    val orchestrator = app.getInstance(AgentOrchestrator::class, tagName = "test-swarm")
+
+    // ── Agent configs ─────────────────────────────────────────────────────────
+
+    val generadorAgenteConfig = agent {
+        name = "GeneradorAgente"
+        role {
+            identity = "Expert Technology Analyst"
+            goal = "Produce a precise structured analysis of a programming language"
+            instructions = "Return ONLY valid JSON matching GeneratorOutput schema. No prose."
+        }
+        task<GeneratorOutput> {
+            prompt = "Analyze Kotlin and return a GeneratorOutput JSON."
+        }
+    }
+
+    val juezAgenteConfig = agent {
+        name = "JuezAgente"
+        role {
+            identity = "Quality Assurance Judge"
+            goal = "Validate the previous agent's analysis against quality standards"
+            instructions = "Evaluate context provided, return ONLY a JudgementResult JSON."
+        }
+        task<JudgementResult> {
+            prompt = "Evaluate the analysis in context and issue a verdict."
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    println("\n════════════════════════════════════════════════════════════════")
+    println("  PHASE 1: GeneradorAgente — Running Inference")
+    println("════════════════════════════════════════════════════════════════\n")
+
+    val genResult = runBlocking { orchestrator.execute(generadorAgenteConfig) }
+        as? GeneratorOutput ?: error("GeneradorAgente failed to produce GeneratorOutput")
+
+    println("[GeneradorAgente] Done:")
+    println("  analysisId = ${genResult.analysisId}")
+    println("  confidence = ${genResult.confidence}")
+    println("  content    = ${genResult.content}")
+
+    // ════════════════════════════════════════════════════════════════════════
+    println("\n════════════════════════════════════════════════════════════════")
+    println("  PHASE 2: Dispatch — JuezAgente as KouTask → agent-swarm queue")
+    println("════════════════════════════════════════════════════════════════\n")
+
+    // Serialize the DTO via Koupper's own extension (no Jackson import in script)
+    val juezTask = KouTask(
+        id = UUID.randomUUID().toString(),
+        fileName = "test_swarm_jobs",
+        functionName = "juezAgenteWorker",
+        params = mapOf("arg0" to genResult),
+        signature = Pair(
+            listOf(GeneratorOutput::class.qualifiedName!!),
+            JudgementResult::class.qualifiedName!!
+        ),
+        scriptPath = "examples/agents/test_swarm_jobs.kts",
+        packageName = null,
+        sourceType = "script",
+        context = workingDir,
+        origin = "swarm-handoff"
+    )
+
+    println("[JOBS] Dispatching Job to Queue: JuezAgente ← GeneratorOutput(id=${genResult.analysisId})")
+    juezTask.dispatchToQueue(context = workingDir)
+
+    val jobsDir = koupper.files().load("$workingDir/jobs/agent-swarm")
+    val jobFile = jobsDir.listFiles()?.firstOrNull { it.nameWithoutExtension == juezTask.id }
+    check(jobFile != null && jobFile.exists()) {
+        "Job file not found on disk. Expected: ${juezTask.id}.json in $jobsDir"
+    }
+    println("[JOBS] ✓ Job persisted: ${jobFile.absolutePath}")
+    println("[JOBS]   Payload: ${jobFile.readText().take(140)}…")
+
+    // ════════════════════════════════════════════════════════════════════════
+    println("\n════════════════════════════════════════════════════════════════")
+    println("  PHASE 3: Worker — Polling agent-swarm Queue")
+    println("════════════════════════════════════════════════════════════════\n")
+
+    val workerQueueConfig = JobConfiguration(id = "local-file", driver = "file", queue = "agent-swarm")
+    val pendingJobs = FileJobDriver.forEachPending(
+        context = workingDir,
+        config = workerQueueConfig,
+        jobId = null
+    )
+
+    var judgeResult: JudgementResult? = null
+
+    pendingJobs.filterIsInstance<JobResult.Ok>().forEach { pending ->
+        val job = pending.task
+        println("[JOBS] Worker picked up: id=${job.id}")
+        println("[JOBS]   fn=${job.functionName}  origin=${job.origin}")
+
+        // Deserialize via Koupper's own extension (no Jackson import in script)
+        val genOutput = job.params["arg0"]?.fromJson<GeneratorOutput>()
+            ?: error("Missing or invalid arg0 in job params")
+        println("[JOBS]   GeneratorOutput: analysisId=${genOutput.analysisId}, confidence=${genOutput.confidence}")
+
+        judgeResult = runBlocking {
+            orchestrator.execute(
+                juezAgenteConfig.copy(contextFromPrevious = genOutput)
+            )
+        } as? JudgementResult ?: error("JuezAgente failed to produce JudgementResult")
+
+        println("[JOBS]   JuezAgente verdict: ${judgeResult!!.verdict}")
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    println("\n════════════════════════════════════════════════════════════════")
+    println("  RESULTS")
+    println("════════════════════════════════════════════════════════════════")
+
+    val jr = judgeResult ?: error("JuezAgente never ran")
+
+    println("\n[GeneradorAgente]  analysisId=${genResult.analysisId}  confidence=${genResult.confidence}")
+    println("[JuezAgente]       verdict=${jr.verdict}  agentId=${jr.agentId}")
+    println("  reasoning    = ${jr.reasoning}")
+    println("  inputSummary = ${jr.inputSummary}")
+
+    check(genResult.analysisId.isNotBlank()) { "GeneratorOutput.analysisId must not be blank" }
+    check(jr.verdict == "APPROVED") { "Expected APPROVED, got ${jr.verdict}" }
+    check(!jobFile.exists()) { "Job file still on disk — worker ack failed" }
+
+    println("\n✓ Swarm Handoff via Native Jobs verified:")
+    println("  GeneradorAgente → KouTask → jobs/agent-swarm/UUID.json → Worker → JuezAgente")
+    println("════════════════════════════════════════════════════════════════\n")
+
+    koupper.files().load("$workingDir/jobs/agent-swarm").deleteRecursively()
+}

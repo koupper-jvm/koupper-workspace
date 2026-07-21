@@ -8,11 +8,11 @@
  * - @Logger: Ensures robust error tracing in background contexts.
  * - Deep JSON Mapping: By simply declaring a Kotlin Data Class (PaymentPayload), Koupper automatically deserializes raw strings straight into typed POJOs.
  */
-import com.koupper.shared.annotations.Export
-import com.koupper.octopus.annotations.Logger
-import com.koupper.octopus.annotations.JobsListener
-import com.koupper.octopus.process.JobEvent
 import com.koupper.logging.GlobalLogger.log
+import com.koupper.octopus.annotations.JobsListener
+import com.koupper.octopus.annotations.Logger
+import com.koupper.octopus.process.JobEvent
+import com.koupper.shared.annotations.Export
 
 // Strict Type Declaration
 data class PaymentPayload(

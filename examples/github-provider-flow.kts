@@ -18,14 +18,14 @@
  * - koupper run examples/github-provider-flow.kts '{"action":"get-run","owner":"org","repo":"repo","runId":12345}'
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.github.GitHubClient
 import com.koupper.providers.github.GitHubIssueRequest
 import com.koupper.providers.github.GitHubPullRequestRequest
 import com.koupper.providers.github.GitHubWorkflowDispatchRequest
+import com.koupper.shared.annotations.Export
 
 data class Input(
-    val action: String,
+    val action: String = "",
     val owner: String? = null,
     val repo: String? = null,
     val title: String? = null,

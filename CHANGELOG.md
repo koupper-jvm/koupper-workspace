@@ -6,7 +6,76 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased]
+## [7.2.0] - 2026-06-25
+
+### Added
+- **Multiple @Export declarations** with priority-based selection. Scripts can now define multiple `@Export` entrypoints sorted by `priority` attribute.
+- **YoutubeTranscriptProvider** SP for fetching and processing YouTube video transcripts.
+- **RouterAnalyzer** — strongly-typed HTTP route analysis for multi-module projects.
+- **Request context attributes** in RuntimeRouter with native support for `PUT`, `PATCH`, `DELETE` methods.
+- **CORS + ExceptionHandler DSL** blocks in RuntimeRouterDsl for global middleware configuration.
+- **PathParams extraction** from route patterns into `RequestContext`.
+- **Non-generic route methods** in RuntimeRouterDsl for simpler registration.
+- **FileHandler fs ops + TextFileHandler stateless methods** for direct filesystem operations.
+
+### Fixed
+- **Windows File Concurrency**: Replaced legacy non-atomic `renameTo` in `FileJobDriver` with atomic `Files.move(..., ATOMIC_MOVE)` to prevent double claiming in high-concurrency races on Windows.
+- **Kotest Annotation Lifecycle**: Changed ignored `@BeforeTest`/`@AfterTest` to `@BeforeEach`/`@AfterEach` in `JwtAuthTest` and `HttpApiServerTest` to ensure test setup/teardown functions execute cleanly.
+- **Scheduled Annotation Resolver**: Corrected a bug in the `@Scheduled` resolver where the return callback was ignored, ensuring scheduled execution correctly reports its registration status string.
+- **SseEmitter buffering**: Buffered events until stream callbacks register, preventing dropped initial events.
+- **Script compilation with module-info**: Scripts now compile against a module-info-stripped JAR copy for compatibility with JPMS classloaders.
+- **Sandbox params on Windows**: Resolved parameter passing through sandbox on Windows hosts.
+- **OpenAI + DynamoDB error handling**: Enhanced error recovery and logging in cloud provider clients.
+- **OkHttp response body leak**: Closed response body in `YoutubeTimedTextClient` preventing resource exhaustion.
+- **Build**: Excluded `module-info` from both optimized (Maven local) and shadowJar artifacts.
+- **Installer**: Replaced obsolete `fatJar` task reference with `shadowJar` in `install.kts`.
+
+### Removed
+- 25 `.tmp` garbage files left in `examples/` tree by previous session.
+- `.env.test` config file mistakenly committed to repository.
+
+### Release alignment
+- `octopus 7.2.0` / `koupper-cli 7.2.0`
+
+---
+
+## [7.1.1] - 2026-06-25
+
+### Added
+- Type generic fallback for inline data class deserialization in `ScriptRunnerOrchestrator.kt`. Uses `target.javaClass.genericInterfaces` → `FunctionN` interface to resolve parameter types when `resolveClassFromArgName` returns null (e.g. `SalesReportCommand`).
+- `splitTypesTopLevel()` used in regex fallback path of `extractExportFunctionSignature()` for generic-aware parameter splitting (`Map<String, Any?>` no longer splits naively by comma).
+- Multi-annotation regex support: `@Export` followed by `@Scheduled`, `@Logger`, etc. is now correctly parsed.
+
+### Fixed
+- **Sandbox parameter pass-through**: Removed `--` prefix from `SandboxWorker.kt` CLI args construction. The prefix caused key mismatch between `parseArgs` (stores `--key`) and `buildParamsJson` (looks up `key`).
+- **`@Scheduled` script execution**: Scripts like `logger-scheduled-demo.kts` now correctly extract their parameter types when stacked with `@Logger` and `@Scheduled` annotations.
+- **Example script compatibility**: `ContextPreloaderAgent.kts` and `PluginManagerAgent.kts` restructured to avoid `return@label` (prohibited in Kotlin scripting). Provider-flow scripts updated with default parameter values.
+
+### Regression analysis
+- v7.1.0 broke parameter passing for dynamic `.kts` scripts due to two commits on Jun 24: KSP-only metadata (removed regex fallback) + sandbox enabled by default. Both fixes now coexist: KSP is primary, regex fallback handles dynamic scripts.
+
+### Smoke test
+- 59 example scripts tested: 36 pass, 3 daemon (expected), 14 need infrastructure, 6 use obsolete APIs, **0 framework bugs**.
+
+### Release alignment
+- `octopus 7.1.1` / `koupper-cli 7.1.1`
+
+---
+
+## [7.1.0] - 2026-06-24
+
+### Added
+- Process Isolation & Sandboxing via JVM `ProcessBuilder` (`ProcessSandbox.kt`, `SandboxWorker.kt`). Enabled by default (`koupper.sandbox.enabled=true`).
+- Server-Sent Events (SSE) Streaming endpoint `POST /api/v1/run-stream`.
+- Hot-Reloading of ServiceProviders via `URLClassLoader` + `RELOAD_PROVIDERS` protocol command.
+- `koupper reload` CLI command for dynamic provider refresh.
+
+### Fixed
+- `ClassCastException: Unit → String` in `SandboxWorker.kt` — changed generic from `<String>` to `<Any?>` with Unit/null handling.
+- SPI Services missing in FatJar — added `META-INF/services/com.koupper.providers.ServiceProvider` and `providers-catalog.json`.
+
+### Release alignment
+- `octopus 7.1.0` / `koupper-cli 7.1.0`
 
 ---
 

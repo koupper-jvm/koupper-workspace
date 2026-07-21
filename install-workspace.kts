@@ -2,7 +2,7 @@ import java.io.File
 import java.io.FileDescriptor
 import java.io.FileOutputStream
 import java.io.PrintStream
-import java.util.Locale
+import java.util.*
 import kotlin.system.exitProcess
 
 fun shouldUseEmoji(): Boolean {
@@ -128,7 +128,7 @@ val cliCompilation = ProcessBuilder(if (isWindows) "cmd" else "bash", if (isWind
 
 cliCompilation.waitFor()
 
-val octopusCompilation = ProcessBuilder(if (isWindows) "cmd" else "bash", if (isWindows) "/c" else "-c", "cd koupper && $gradleCmd :octopus:fatJar -x test")
+val octopusCompilation = ProcessBuilder(if (isWindows) "cmd" else "bash", if (isWindows) "/c" else "-c", "cd koupper && $gradleCmd :octopus:shadowJar -x test")
     .redirectOutput(ProcessBuilder.Redirect.INHERIT)
     .redirectError(ProcessBuilder.Redirect.INHERIT)
     .apply {

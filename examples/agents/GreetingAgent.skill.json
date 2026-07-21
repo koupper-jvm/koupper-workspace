@@ -1,0 +1,17 @@
+{
+  "name": "GreetingAgent",
+  "version": "1.0.0",
+  "description": "Analyzes swarm state (queues, agents, jobs) and writes a summary report to the cortex-greeting log",
+  "role": "Swarm analyst",
+  "entrypoint": "setup",
+  "inputs": [],
+  "outputs": ["logs/cortex/cortex-greeting.log"],
+  "envVars": [
+    { "name": "CORTEX_JOBS_DIR", "required": false, "description": "Jobs directory (default: ~/.koupper/jobs)" }
+  ],
+  "providers": [],
+  "triggers": ["manual", "monitor-startup", "worker-job"],
+  "tags": ["utility", "monitoring", "swarm"],
+  "persistent": false,
+  "docs": "https://koupper.com/docs/agents/greeting"
+}

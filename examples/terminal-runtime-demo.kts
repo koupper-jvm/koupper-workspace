@@ -13,8 +13,8 @@
  * - koupper run examples/terminal-runtime-demo.kts '{"name":"Jacob"}'
  * - koupper run examples/terminal-runtime-demo.kts '{"askPrompt":true}'
  */
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.io.TerminalIO
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val name: String? = null,

@@ -7,11 +7,11 @@
  * Typical run:
  * - koupper run examples/ssh-tree-root.kts --json-file examples/ssh-tree-root.input.json
  */
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.io.TerminalIO
 import com.koupper.providers.ssh.JschSSHClient
-import com.koupper.providers.ssh.SSHConnectionConfig
 import com.koupper.providers.ssh.SSHClient
+import com.koupper.providers.ssh.SSHConnectionConfig
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val sshHost: String? = null,
@@ -41,7 +41,7 @@ val sshTreeRoot: (Input?, TerminalIO) -> String = { maybeInput, terminal ->
     val host = pick(input.sshHost, "SSH_HOST", "SSH host (ip/domain):")
     val user = pick(input.sshUser, "SSH_USER", "SSH username:")
     val password = input.sshPassword?.takeIf { it.isNotBlank() }
-        ?: System.getenv("SSH_PASSWORD")?.takeIf { it.isNotBlank() }
+        ?: env("SSH_PASSWORD").takeIf { it.isNotBlank() }
         ?: run {
             if (!input.sshIdentityFile.isNullOrBlank()) null
             else {

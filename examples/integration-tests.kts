@@ -10,7 +10,6 @@
 import com.koupper.container.app
 import com.koupper.octopus.ScriptExecutor
 import com.koupper.shared.annotations.Export
-import java.io.File
 
 @Export
 val runAllExamples: () -> Unit = {
@@ -34,7 +33,7 @@ val runAllExamples: () -> Unit = {
     var failed = 0
     
     testQueue.forEach { (scriptPath, args) ->
-        val scriptName = File(scriptPath).name
+        val scriptName = koupper.files().load(scriptPath).name
         print("▶️ Executing [ $scriptName ] ... ")
         
         try {

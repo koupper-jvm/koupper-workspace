@@ -1,8 +1,8 @@
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.locale2e.HttpCheck
 import com.koupper.providers.locale2e.LocalE2E
 import com.koupper.providers.locale2e.PersistenceCheck
+import com.koupper.shared.annotations.Export
 
 data class Input(
     val processNames: List<String> = emptyList(),

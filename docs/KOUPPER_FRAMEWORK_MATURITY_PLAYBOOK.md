@@ -42,39 +42,21 @@ Use 0-5 scoring (0 = missing, 5 = strong/automated).
 - K8s provider timeout now returns structured `K8sResult` (exitCode=124, timedOut=true) instead of throwing; migration note in `docs/migrations/`.
 - Deliverable: `docs/CONTRACT_VERSIONING_POLICY.md` + `docs/PROVIDER_AUTHORING_CHECKLIST.md` + checklist updates in MAINTAINER_GUIDE.
 
-## Week 2 - Security formalization
+## Week 2-4 — Deferred (superceded by assessment + SPI refactor)
 
-- Publish framework threat model for runtime/CLI/providers.
-- Add security checklist for new providers (secrets, retries, least privilege, redaction).
-- Deliverable: `docs/SECURITY_THREAT_MODEL.md` + provider authoring checklist integration.
+These deliverables were planned but replaced by the more comprehensive `docs/KOUPPER_FRAMEWORK_ASSESSMENT.md` and the SPI provider discovery refactor:
 
-## Week 3 - Reliability observability
+- ~~`docs/SECURITY_THREAT_MODEL.md`~~ → Replaced by `@Secret` annotation + security section in assessment (session 19)
+- ~~`docs/FRAMEWORK_SLOS.md`~~ → Not needed until production telemetry is active
+- ~~`docs/COMPATIBILITY_MATRIX.md`~~ → Replaced by `@KoupperVersion` annotation + versioned preamble (session 19)
+- Security checklist → Integrated into `PROVIDER_AUTHORING_CHECKLIST.md`
 
-- Define framework SLO metrics:
-  - deploy success rate
-  - rollback rate
-  - median reconcile duration
-  - transient failure retry success rate
-- Add docs for metric collection/report cadence.
-- Deliverable: `docs/FRAMEWORK_SLOS.md` and monthly review template.
+## Week 5-6 — Completed (via different implementation)
 
-## Week 4 - Upgrade safety
-
-- Add compatibility matrix (CLI version <-> provider contract expectations).
-- Add migration templates for every behavior/default change.
-- Deliverable: `docs/COMPATIBILITY_MATRIX.md` + migration template doc.
-
-## Week 5 - Provider DX acceleration
-
-- Add provider scaffold/template workflow (`register + catalog + docs + tests`).
-- Add test skeleton for provider contract validation.
-- Deliverable: scaffold script/command + updated maintainer docs.
-
-## Week 6 - Production validation loop
-
-- Run 2 real internal pilot projects through full reconcile/deploy flow.
-- Capture before/after KPIs and incident outcomes.
-- Deliverable: internal case-study note with measured ROI.
+- ~~Provider scaffold/template~~ → Done as `koupper provider new <name>` (CLI v4.8.0)
+- ~~Provider registration workflow~~ → Replaced by SPI auto-discovery (session 19)
+- ~~Test coverage for all providers~~ → Provider tests exist; E2E test harness added (session 19)
+- Production validation loop → Deferred (no active pilot projects)
 
 ## 4) Definition of done for this maturity wave
 

@@ -9,7 +9,6 @@
  * - koupper run examples/git-provider-flow.kts '{"action":"log","limit":5}'
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.git.GitBranchRequest
 import com.koupper.providers.git.GitClient
 import com.koupper.providers.git.GitCommitRequest
@@ -17,9 +16,10 @@ import com.koupper.providers.git.GitDiffRequest
 import com.koupper.providers.git.GitLogRequest
 import com.koupper.providers.git.GitMergeRequest
 import com.koupper.providers.git.GitTagRequest
+import com.koupper.shared.annotations.Export
 
 data class Input(
-    val action: String,
+    val action: String = "",
     val repoPath: String = ".",
     val branch: String? = null,
     val message: String? = null,

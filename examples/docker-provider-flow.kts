@@ -9,15 +9,15 @@
  * - koupper run examples/docker-provider-flow.kts '{"action":"compose-up","composeFile":"docker-compose.yml"}'
  */
 import com.koupper.container.app
-import com.koupper.shared.annotations.Export
 import com.koupper.providers.docker.DockerBuildRequest
 import com.koupper.providers.docker.DockerClient
 import com.koupper.providers.docker.DockerComposeRequest
 import com.koupper.providers.docker.DockerExecRequest
 import com.koupper.providers.docker.DockerRunRequest
+import com.koupper.shared.annotations.Export
 
 data class Input(
-    val action: String,
+    val action: String = "",
     val image: String? = null,
     val container: String? = null,
     val command: List<String> = emptyList(),

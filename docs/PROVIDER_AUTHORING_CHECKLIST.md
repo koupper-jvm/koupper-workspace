@@ -16,10 +16,13 @@ This checklist must be completed for every new Service Provider shipped in the f
 - [ ] Read configuration from environment variables via `env(name, required, default)`. Never hardcode credentials or hostnames.
 - [ ] Redact sensitive values (tokens, passwords, secrets) before including them in result metadata or log output.
 
-## 3 — Register in ServiceProviderManager
+## 3 — Register in ServiceProviderManager (AUTOMATIC with SPI)
 
-- [ ] Add `import` for the new service provider in `ServiceProviderManager.kt`.
-- [ ] Add the class reference to `listProviders()` return list.
+> Since v6.5.3, provider registration is automatic via SPI. A Gradle task scans `*ServiceProvider.kt` files and generates `META-INF/services/com.koupper.providers.ServiceProvider`. No manual registry editing is required.
+
+- [ ] Verify the new `<Name>ServiceProvider.kt` file follows the naming convention: ends with `ServiceProvider.kt`.
+- [ ] Run `./gradlew :providers:generateServiceProviderSpi` and confirm the provider appears in the generated SPI file.
+- [ ] The hardcoded fallback list in `ServiceProviderManager.kt` is maintained for backward compatibility but no longer needs manual updates.
 
 ## 4 — Add to providers-catalog.json
 
