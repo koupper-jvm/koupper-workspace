@@ -32,9 +32,10 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
    - Add SSE transport support to `MCPClientProvider` for servers that use HTTP+SSE (not just stdio or plain HTTP).
 
 2. **Worker hardening**
-   - Add per-job timeout to `WorkerCommand` (kill subprocess if it runs > N minutes).
-   - Add retry count tracking per job — after N failures, move to `.dead/` instead of `.failed/`.
-   - Add `koupper worker --status` subcommand to show queue sizes without starting the daemon.
+   - ~~Add per-job timeout to `WorkerCommand` (kill subprocess if it runs > N minutes).~~ Done — `--timeout` / `KOUPPER_WORKER_TIMEOUT`.
+   - ~~Add retry count tracking per job — after N failures, move to `.dead/` instead of `.failed/`.~~ Done — `attempts` field + `--max-retries`.
+   - ~~Add `koupper worker --status` subcommand to show queue sizes without starting the daemon.~~ Done.
+   - ~~`koupper doctor` health command (Java/PATH/jars/ports/queues).~~ Done (CLI ops-hardening wave).
 
 3. **Provider developer experience**
    - ~~Add a provider authoring checklist template (`register + catalog + docs + tests`).~~ Done — `docs/PROVIDER_AUTHORING_CHECKLIST.md`.
@@ -45,7 +46,7 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
 4. **Installer lifecycle hardening**
    - ~~Fix `install-uninstall-e2e-windows` CI PATH issue.~~ Done (6.4.0).
    - Add Linux/macOS uninstall E2E parity to heavy workflow.
-   - Add `koupper doctor` health command.
+   - ~~Add `koupper doctor` health command.~~ Done (CLI).
 
 5. **Observability**
    - ~~Wire ObservabilityProvider into the Octopus execution monitor chain.~~ Done (6.4.0).
