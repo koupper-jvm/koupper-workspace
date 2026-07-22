@@ -186,7 +186,7 @@ _Last updated: 2026-07-08_
 - [x] Internal agent guidance docs updated with 6.4.0 architecture overview.
 - [x] `docs/NEXT_FEATURES_NOTES.md` updated with completed items.
 - [x] `koupper-document` provider docs updated (secrets, observability, git, docker, k8s, mcp).
-- [x] `koupper.com/docs` deployed via `deploy-docs.kts`.
+- [x] `https://koupper.com/` deployed via `deploy-docs.kts`.
 
 ### Release closeout notes
 
