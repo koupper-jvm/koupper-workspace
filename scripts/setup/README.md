@@ -14,7 +14,7 @@ Use these scripts when you want a fresh workspace that includes:
 - `koupper-workspace` (workspace root)
 - `koupper/`
 - `koupper-cli/`
-- `koupper-document/`
+- `koupper-docs/` (legacy local folder `koupper-document` still accepted by `deploy-docs.kts`)
 
 Linux / macOS:
 

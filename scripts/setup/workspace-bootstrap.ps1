@@ -131,7 +131,7 @@ Ensure-RepoRoot -RepoPath $workspacePath -RemoteUrl $infraUrl
 
 Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper" -RemoteUrl $koupperUrl
 Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-cli" -RemoteUrl $cliUrl
-Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-document" -RemoteUrl $docsUrl
+Ensure-ChildRepo -WorkspacePath $workspacePath -FolderName "koupper-docs" -RemoteUrl $docsUrl
 
 $installCwd = $workspacePath
 $installScript = Join-Path $installCwd "install-workspace.kts"
@@ -157,7 +157,7 @@ Write-Info "Syncing repositories on branch $Branch"
 Update-Repo -RepoPath $workspacePath -BranchName $Branch -Label "koupper-workspace"
 Update-Repo -RepoPath (Join-Path $workspacePath "koupper") -BranchName $Branch -Label "koupper"
 Update-Repo -RepoPath (Join-Path $workspacePath "koupper-cli") -BranchName $Branch -Label "koupper-cli"
-Update-Repo -RepoPath (Join-Path $workspacePath "koupper-document") -BranchName $Branch -Label "koupper-document"
+Update-Repo -RepoPath (Join-Path $workspacePath "koupper-docs") -BranchName $Branch -Label "koupper-docs"
 
 Write-Info "Running installer ($installScriptName)"
 Push-Location $installCwd
