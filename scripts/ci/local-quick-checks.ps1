@@ -12,9 +12,11 @@ function Resolve-CliPath {
 }
 
 function Resolve-DocsPath {
+    if (Test-Path "koupper-docs") { return "koupper-docs" }
+    if (Test-Path "..\koupper-docs") { return "..\koupper-docs" }
     if (Test-Path "koupper-document") { return "koupper-document" }
     if (Test-Path "..\koupper-document") { return "..\koupper-document" }
-    throw "[ci] ERROR: koupper-document project not found (expected .\koupper-document or ..\koupper-document)"
+    throw "[ci] ERROR: koupper-docs project not found (expected .\koupper-docs, ..\koupper-docs, or legacy .\koupper-document)"
 }
 
 $CliPath = Resolve-CliPath

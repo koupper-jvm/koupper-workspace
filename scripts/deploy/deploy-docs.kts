@@ -6,9 +6,9 @@ import java.util.concurrent.TimeUnit
 /**
  * Deploy Koupper public documentation to S3 + CloudFront.
  *
- * Builds the VitePress site from koupper-document/, syncs the output to
- * s3://koupper-docs, and invalidates the CloudFront distribution so
- * koupper.com/docs reflects the update immediately.
+ * Builds the VitePress site from koupper-docs/ (legacy alias koupper-document/),
+ * syncs the output to s3://koupper-docs, and invalidates the CloudFront
+ * distribution so https://koupper.com/ reflects the update immediately.
  *
  * Usage:
  *   koupper run scripts/deploy/deploy-docs.kts '{"dryRun": true}'
@@ -61,16 +61,22 @@ private fun run(command: String, cwd: File, timeoutSeconds: Long, dryRun: Boolea
 }
 
 private fun findDocumentDir(cwd: File): File {
-    val direct = File(cwd, "koupper-document")
-    if (direct.exists() && direct.isDirectory) return direct
+    val names = listOf("koupper-docs", "koupper-document")
+
+    fun probe(base: File): File? =
+        names.map { File(base, it) }.firstOrNull { it.exists() && it.isDirectory }
+
+    probe(cwd)?.let { return it }
 
     var cursor: File? = cwd
     repeat(5) {
         cursor = cursor?.parentFile
-        val candidate = cursor?.let { File(it, "koupper-document") }
-        if (candidate != null && candidate.exists()) return candidate
+        val base = cursor ?: return@repeat
+        probe(base)?.let { return it }
     }
-    error("koupper-document directory not found relative to ${cwd.absolutePath}")
+    error(
+        "Docs directory not found (tried ${names.joinToString(", ")}) relative to ${cwd.absolutePath}"
+    )
 }
 
 @Export
@@ -129,7 +135,7 @@ val setup: (Input) -> Map<String, Any?> = { input ->
         dryRun = input.dryRun
     )
 
-    println("\n✓ Deploy complete — https://koupper.com/docs")
+    println("\n✓ Deploy complete — https://koupper.com/")
 
     mapOf(
         "ok" to true,

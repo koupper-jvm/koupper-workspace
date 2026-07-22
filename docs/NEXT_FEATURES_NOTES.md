@@ -27,7 +27,7 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
 ## Near-term priorities
 
 1. **MCP ecosystem expansion**
-   - Add `MCPClientProvider` usage examples to `koupper.com/docs` (stdio and HTTP patterns).
+   - Add `MCPClientProvider` usage examples to `https://koupper.com/` (stdio and HTTP patterns).
    - Validate compatibility with: `@playwright/mcp`, `@modelcontextprotocol/server-github`, `@modelcontextprotocol/server-filesystem`, `@modelcontextprotocol/server-postgres`.
    - Add SSE transport support to `MCPClientProvider` for servers that use HTTP+SSE (not just stdio or plain HTTP).
 
@@ -53,7 +53,7 @@ Strategic reference for enterprise hardening: `docs/KOUPPER_FRAMEWORK_MATURITY_P
    - Next evolution: OpenTelemetry / Datadog export (deferred, not blocking).
 
 6. **Docs deploy automation**
-   - ~~Add deploy script for `koupper.com/docs`.~~ Done (6.4.0).
+   - ~~Add deploy script for `https://koupper.com/`.~~ Done (6.4.0).
    - Next: wire docs deploy into CI on merge to `koupper-docs` main.
 
 ## Scope guardrails

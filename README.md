@@ -1,5 +1,22 @@
 # Koupper Framework: The Future of Agentic Automation
 
+## Community users
+
+Koupper is a Kotlin scripting runtime + CLI for automation and infrastructure workflows.
+
+- **Install (standalone):** [GitHub Releases v7.2.0](https://github.com/koupper-jvm/koupper/releases/tag/v7.2.0) — download `install-standalone.kts` and run with `kotlinc -script` (see full steps in Getting Started).
+- **Documentation:** https://koupper.com/getting-started
+- **Distribution:** GitHub Releases (not Maven Central).
+
+```bash
+curl -L -o install-standalone.kts https://github.com/koupper-jvm/koupper/releases/latest/download/install-standalone.kts
+kotlinc -script install-standalone.kts -- --force
+```
+
+---
+
+## Maintainers (español)
+
 Este repositorio es el punto central del ecosistema Koupper. Contiene el core del motor Octopus, las herramientas de CLI y la documentación estratégica para construir sistemas basados en agentes.
 
 ---
