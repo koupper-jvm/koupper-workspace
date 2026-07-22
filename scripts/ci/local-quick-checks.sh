@@ -19,6 +19,16 @@ resolve_cli_dir() {
 }
 
 resolve_docs_dir() {
+  if [ -d "koupper-docs" ]; then
+    printf "koupper-docs"
+    return
+  fi
+
+  if [ -d "../koupper-docs" ]; then
+    printf "../koupper-docs"
+    return
+  fi
+
   if [ -d "koupper-document" ]; then
     printf "koupper-document"
     return
@@ -29,7 +39,7 @@ resolve_docs_dir() {
     return
   fi
 
-  echo "[ci] ERROR: koupper-document project not found (expected ./koupper-document or ../koupper-document)" >&2
+  echo "[ci] ERROR: koupper-docs project not found (expected ./koupper-docs, ../koupper-docs, or legacy ./koupper-document)" >&2
   exit 1
 }
 

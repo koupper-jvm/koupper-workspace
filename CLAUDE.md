@@ -22,7 +22,7 @@ cd koupper && ./gradlew build
 cd koupper-cli && ./gradlew build
 
 # Docs
-cd koupper-document && npm install && npm run docs:build
+cd koupper-docs && npm install && npm run docs:build
 ```
 
 ## Test Commands
@@ -77,7 +77,7 @@ See `scripts/release/README.md` for full flag reference.
 
 ## Deploy Docs
 
-To publish the public documentation site to `koupper.com/docs`:
+To publish the public documentation site to `https://koupper.com/`:
 
 ```bash
 # Dry run first
@@ -87,7 +87,7 @@ koupper run scripts/deploy/deploy-docs.kts '{"dryRun": true}'
 koupper run scripts/deploy/deploy-docs.kts '{"dryRun": false}'
 ```
 
-The docs source lives in `koupper-document/` (separate git repo: `koupper-jvm/koupper-document`). Run this after merging any docs changes to `koupper-document` main.
+The docs source lives in `koupper-docs/` (separate git repo: `koupper-jvm/koupper-docs`; legacy local folder `koupper-document` still accepted by `deploy-docs.kts`). Run this after merging any docs changes to `koupper-docs` main.
 
 ## CI Gates
 
@@ -122,9 +122,9 @@ Dependency direction: `bootstrap → octopus → container, shared, providers, c
 
 Terminal interface for script management and dispatch. Entry point: `com.koupper.cli.CommandManagerKt`. Communicates with Octopus via socket protocol. Commands: `run`, `new`, `help`, `provider list/info`, `serve`.
 
-### 3. `koupper-document/` — Public Docs
+### 3. `koupper-docs/` — Public Docs
 
-VitePress-based docs site. Source lives in `koupper-document/docs/`. Validation: `npm run docs:check` (validates provider/CLI catalog sync).
+VitePress-based docs site. Source lives in `koupper-docs/docs/`. Validation: `npm run docs:check` (validates provider/CLI catalog sync).
 
 ## Script Execution Contract
 
@@ -139,7 +139,7 @@ See `docs/SCRIPT_EXECUTION_CONTRACT.md` for the full contract.
 
 | Location | Audience |
 |----------|----------|
-| `koupper-document/docs/` | Public (users) |
+| `koupper-docs/docs/` | Public (users) |
 | `docs/` | Internal (maintainers) |
 | `examples/*.kts` | Runnable reference scripts |
 
