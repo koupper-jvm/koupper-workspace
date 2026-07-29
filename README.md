@@ -4,9 +4,11 @@
 
 Koupper is a Kotlin scripting runtime + CLI for automation and infrastructure workflows.
 
-- **Install (standalone):** [GitHub Releases v7.2.0](https://github.com/koupper-jvm/koupper/releases/tag/v7.2.0) — download `install-standalone.kts` and run with `kotlinc -script` (see full steps in Getting Started).
-- **Documentation:** https://koupper.com/getting-started
-- **Distribution:** GitHub Releases (not Maven Central).
+- **Current release:** [v7.2.1](https://github.com/koupper-jvm/koupper/releases/tag/v7.2.1)
+- **Install / upgrade:** download `install-standalone.kts` from latest release and run with `--force`
+- **Docs:** https://koupper.com/getting-started.html
+- **How to contribute:** [koupper/CONTRIBUTING.md](https://github.com/koupper-jvm/koupper/blob/develop/CONTRIBUTING.md)
+- **Distribution:** GitHub Releases + mavenLocal (`com.koupper:octopus-api`) — not Maven Central
 
 ```bash
 curl -L -o install-standalone.kts https://github.com/koupper-jvm/koupper/releases/latest/download/install-standalone.kts
