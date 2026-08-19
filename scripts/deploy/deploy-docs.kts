@@ -79,6 +79,40 @@ private fun findDocumentDir(cwd: File): File {
     )
 }
 
+/**
+ * VitePress `cleanUrls: true` emits `/getting-started` links while S3 stores
+ * `getting-started.html`. Copy each HTML object to an extensionless key with
+ * an explicit HTML content type so both URLs work without a CloudFront rewrite.
+ */
+private fun publishExtensionlessHtml(
+    distDir: File,
+    bucket: String,
+    region: String,
+    timeoutSeconds: Long,
+    dryRun: Boolean,
+    cwd: File
+): Int {
+    if (!distDir.exists()) return 0
+    var count = 0
+    distDir.walkTopDown()
+        .filter { it.isFile && it.extension.equals("html", ignoreCase = true) }
+        .filter { it.name != "index.html" && it.name != "404.html" }
+        .forEach { file ->
+            val rel = file.relativeTo(distDir).invariantSeparatorsPath
+            val key = rel.removeSuffix(".html")
+            val local = file.absolutePath.replace("\\", "/")
+            run(
+                command = "aws s3 cp '$local' 's3://$bucket/$key' --content-type 'text/html; charset=utf-8' --cache-control 'public, max-age=300' --region $region",
+                cwd = cwd,
+                timeoutSeconds = timeoutSeconds,
+                dryRun = dryRun
+            )
+            count++
+        }
+    println("Uploaded $count extensionless HTML object(s)")
+    return count
+}
+
 @Export
 val setup: (Input) -> Map<String, Any?> = { input ->
     val cwd = File(context ?: ".").absoluteFile
@@ -126,6 +160,16 @@ val setup: (Input) -> Map<String, Any?> = { input ->
         dryRun = input.dryRun
     )
 
+    println("\nPublishing extensionless HTML keys for VitePress cleanUrls...")
+    val cleanUrlUploads = publishExtensionlessHtml(
+        distDir = distDir,
+        bucket = input.bucket,
+        region = input.region,
+        timeoutSeconds = input.commandTimeoutSeconds,
+        dryRun = input.dryRun,
+        cwd = cwd
+    )
+
     // 4. CloudFront invalidation
     println("\nInvalidating CloudFront distribution ${input.distributionId}...")
     val invalidation = run(
@@ -146,6 +190,7 @@ val setup: (Input) -> Map<String, Any?> = { input ->
         "install" to install,
         "build" to build,
         "sync" to sync,
+        "cleanUrlUploads" to cleanUrlUploads,
         "invalidation" to invalidation
     )
 }

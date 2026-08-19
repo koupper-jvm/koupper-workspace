@@ -236,6 +236,13 @@ if [[ "$HAS_FAIL" == true ]]; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+if [[ ! -d "$WORKSPACE_ROOT/koupper/.git" ]]; then
+  info "Nested repos missing (koupper/ is gitignored). Running workspace-bootstrap..."
+  bash "$SCRIPT_DIR/workspace-bootstrap.sh" --workspace "$WORKSPACE_ROOT" --pull
+fi
+
 INSTALL_SCRIPT="install-workspace.kts"
 if [[ ! -f "$INSTALL_SCRIPT" ]]; then
   INSTALL_SCRIPT="install.kts"

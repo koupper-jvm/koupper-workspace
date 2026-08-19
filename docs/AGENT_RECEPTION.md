@@ -83,10 +83,10 @@ powershell.exe -Command "netstat -ano | findstr :9998"
 powershell.exe -Command "Stop-Process -Id <PID> -Force"
 
 # 2. Rebuild (force fresh)
-cd koupper && ./gradlew :octopus:fatJar -x test --rerun-tasks
+cd koupper && ./gradlew :octopus:shadowJar -x test --rerun-tasks
 
 # 3. Copy via PowerShell (more reliable than bash cp for large JARs on Windows)
-powershell.exe -Command "Copy-Item -Path 'koupper\octopus\build\libs\octopus-6.4.0.jar' -Destination '$env:USERPROFILE\.koupper\libs\octopus.jar' -Force"
+powershell.exe -Command "Copy-Item -Path (Get-ChildItem 'koupper\octopus\build\libs\octopus-*-all.jar' | Select-Object -First 1).FullName -Destination '$env:USERPROFILE\.koupper\libs\octopus.jar' -Force"
 ```
 
 The next `koupper` invocation will boot a fresh daemon with the new jar.

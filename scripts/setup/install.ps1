@@ -11,6 +11,26 @@ function Write-Warn([string]$Message) { Write-Host "[WARN] $Message" -Foreground
 function Write-Fail([string]$Message) { Write-Host "[FAIL] $Message" -ForegroundColor Red }
 function Write-Info([string]$Message) { Write-Host "[*] $Message" -ForegroundColor Cyan }
 
+function Get-WorkspaceRoot {
+    return (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+}
+
+function Ensure-NestedRepos {
+    $root = Get-WorkspaceRoot
+    if (Test-Path (Join-Path $root "koupper\.git")) {
+        return
+    }
+    $bootstrap = Join-Path $PSScriptRoot "workspace-bootstrap.ps1"
+    if (-not (Test-Path $bootstrap)) {
+        throw "koupper/ is missing and scripts/setup/workspace-bootstrap.ps1 was not found. Clone the engine repo or run workspace-bootstrap first."
+    }
+    Write-Info "Nested repos missing (koupper/ is gitignored). Running workspace-bootstrap..."
+    & $bootstrap -Workspace $root -Pull
+    if ($LASTEXITCODE -ne 0) {
+        throw "workspace-bootstrap failed with exit $LASTEXITCODE"
+    }
+}
+
 function Test-Command([string]$Name) {
     return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
@@ -181,6 +201,8 @@ if ($hasFail) {
     Write-Host "  .\scripts\setup\install.ps1 -AutoInstallDeps" -ForegroundColor Cyan
     exit 1
 }
+
+Ensure-NestedRepos
 
 $installScript = "install-workspace.kts"
 if (-not (Test-Path $installScript)) {

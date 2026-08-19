@@ -5,10 +5,10 @@ _Last updated: 2026-07-08 (sesión 26 — completada)_
 
 ## Estado general
 
-- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, fixes de test de Windows y concurrencia mergeados.
+- **Koupper** (framework): `github.com:koupper-jvm/koupper` → `develop`, current community release **v7.2.1**.
 - **Koupper Workspace**: `github.com:koupper-jvm/koupper-workspace` → `develop`, fixes auditados mergeados y tests pasando cleanly.
 - **Koupper CLI**: `github.com:koupper-jvm/koupper-cli` → `develop`, operativo.
-- **Koupper v7.1.1**: ✅ Framework completamente estable con versioning alineado, sandbox estable en Windows, y tests pasando.
+- **Koupper v7.2.1**: framework + CLI alineados. Jars locales deben coincidir con el GitHub Release (`install-standalone.kts -- --force`).
 - **0 bugs de framework pendientes. Framework estabilizado para release.**
 
 ---
@@ -115,11 +115,7 @@ koupper-workspace/fix/example-scripts-compilation:
 
 ## Arquitectura del LLM routing
 
-```
-Local (Gemma 3 12B — Ollama :11434)  prioridad 3
-LAN   (Gemma-4-12B — LM Studio :1234, 192.168.1.8)  prioridad 2  ← soporta tool calling
-Cloud (Qwen3 35B — Groq)  prioridad cloud
-```
+Configured per machine (local / LAN / cloud). Do not commit host IPs or tokens here.
 
 ---
 
@@ -143,7 +139,7 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 - **Branch activa koupper**: `develop` (commit `b3b134c` — framework fixes mergeados)
 - **Branch activa workspace**: `fix/example-scripts-compilation` (PR #21 abierto)
 - **Instalación**: FatJar `~/.koupper/libs/octopus.jar` (~308MB) actualizado con todos los fixes
-- **CLI**: `koupper -v` → v7.1.1 operativo
+- **CLI**: `koupper -v` → v7.2.1
 - **Smoke test**: 59/59 scripts probados, 0 bugs de framework
 
 ---
@@ -152,7 +148,7 @@ Cloud (Qwen3 35B — Groq)  prioridad cloud
 
 - [ ] Mergear PR #21 (workspace example fixes)
 - [ ] Actualizar 6 scripts con APIs obsoletas (`toTypeRef`, `onToken`, `LlamaCppSidecar`, `RuntimeRouter`)
-- [ ] Tag release `v7.1.1` y changelog
+- [x] Tag release `v7.2.1` y changelog (GitHub Release 2026-07-29)
 - [ ] Publicar FatJar release en GitHub
 
 ---
