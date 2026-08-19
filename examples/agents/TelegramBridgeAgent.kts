@@ -277,7 +277,7 @@ val setup: () -> Unit = {
                     val msg = when {
                         hasRateLimit -> "⚠ CORTEX: rate limit hit. Try again in a moment."
                         hasTooBig    -> "⚠ CORTEX: request too large. Try a shorter question."
-                        hasNoRoute   -> "⚠ CORTEX: LLM server not reachable (192.168.1.9:1234 offline?)."
+                        hasNoRoute   -> "⚠ CORTEX: LLM server not reachable (offline or wrong host?)."
                         hasError     -> "⚠ CORTEX error: ${response.lines().firstOrNull { it.contains("[Error:") }?.trim() ?: "unknown"}"
                         else         -> "⚠ CORTEX responded but the message was empty."
                     }
