@@ -6,6 +6,9 @@ koupper-vscode/
 koupper_mixed_backup_*/
 koupper-cli_mixed_backup_*/
 
+.env
+META-INF/
+
 bin/
 **/bin/
 gradle/

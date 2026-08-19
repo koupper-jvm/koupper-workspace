@@ -35,17 +35,17 @@ koupper run scripts/release/version-bump.kts '{"bump":"patch","dryRun":true}'
 - Apply exact version bump:
 
 ```bash
-koupper run scripts/release/version-bump.kts '{"targetVersion":"6.4.0","dryRun":false}'
+koupper run scripts/release/version-bump.kts '{"targetVersion":"7.2.1","dryRun":false}'
 ```
 
 - Dry-run tag creation:
 
 ```bash
-koupper run scripts/release/tag-release.kts '{"version":"6.4.0","dryRun":true}'
+koupper run scripts/release/tag-release.kts '{"version":"7.2.1","dryRun":true}'
 ```
 
 - Create and push release tag:
 
 ```bash
-koupper run scripts/release/tag-release.kts '{"version":"6.4.0","push":true,"dryRun":false}'
+koupper run scripts/release/tag-release.kts '{"version":"7.2.1","push":true,"dryRun":false}'
 ```

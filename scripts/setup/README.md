@@ -35,7 +35,9 @@ Helpful flags:
 - `--doctor-only` / `-DoctorOnly`
 - `--no-force` / `-NoForce`
 
-## Linux / macOS
+`scripts/setup/install.ps1` and `install.sh` run `workspace-bootstrap` automatically when `koupper/` is missing (the nested repos are gitignored).
+
+Linux / macOS:
 
 ```bash
 chmod +x ./scripts/setup/install.sh
