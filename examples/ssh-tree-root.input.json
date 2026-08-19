@@ -1,9 +1,9 @@
 {
-  "sshHost": "192.168.1.123",
-  "sshUser": "dependabot",
+  "sshHost": "192.0.2.10",
+  "sshUser": "example",
   "sshPort": 22,
-  "sshPassword": "unoconlafuerza",
-  "rootPath": "/home/dependabot",
+  "sshPassword": "",
+  "rootPath": "/home/example",
   "maxDepth": 3,
   "includeHidden": true
 }
