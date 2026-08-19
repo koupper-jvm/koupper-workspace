@@ -13,5 +13,5 @@
   "triggers": ["manual", "monitor-startup", "worker-job"],
   "tags": ["utility", "monitoring", "swarm"],
   "persistent": false,
-  "docs": "https://koupper.com/docs/agents/greeting"
+  "docs": "https://koupper.com/agents/greeting.html"
 }

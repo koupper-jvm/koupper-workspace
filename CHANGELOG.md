@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [7.2.1] - 2026-07-29
+
+### Added
+- Community standalone install on GitHub Releases (`install-standalone.kts`, fat `octopus.jar`, `koupper-cli.jar`, `octopus-api.jar`, `SHA256SUMS`).
+- Gradle compile coordinate `com.koupper:octopus-api:7.2.1` via mavenLocal (not Maven Central).
+
+### Fixed
+- Public install/docs alignment for v7.2.1 (engine + CLI share this semver).
+
+### Release alignment
+- `octopus 7.2.1` / `koupper-cli 7.2.1`
+
+---
+
 ## [7.2.0] - 2026-06-25
 
 ### Added

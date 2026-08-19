@@ -14,5 +14,5 @@
   "triggers": ["manual", "worker-job"],
   "tags": ["wizard", "agent-creation", "llm", "meta"],
   "persistent": false,
-  "docs": "https://koupper.com/docs/agents/agent-creator"
+  "docs": "https://koupper.com/agents/agent-creator.html"
 }

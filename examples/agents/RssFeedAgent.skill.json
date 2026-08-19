@@ -19,5 +19,5 @@
     "format": "[{\"name\": \"Feed Name\", \"url\": \"https://feed.url/rss\"}]",
     "default": ["Hacker News: https://news.ycombinator.com/rss", "The Verge: https://www.theverge.com/rss/index.xml"]
   },
-  "docs": "https://koupper.com/docs/agents/rss-feed"
+  "docs": "https://koupper.com/agents/rss-feed.html"
 }
