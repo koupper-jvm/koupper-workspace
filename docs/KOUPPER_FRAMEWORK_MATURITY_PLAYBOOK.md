@@ -53,7 +53,7 @@ These deliverables were planned but replaced by the more comprehensive `docs/KOU
 
 ## Week 5-6 — Completed (via different implementation)
 
-- ~~Provider scaffold/template~~ → Done as `koupper provider new <name>` (CLI v4.8.0)
+- ~~Provider scaffold/template~~ → Done as `koupper provider new <name>` (CLI v7.2.1)
 - ~~Provider registration workflow~~ → Replaced by SPI auto-discovery (session 19)
 - ~~Test coverage for all providers~~ → Provider tests exist; E2E test harness added (session 19)
 - Production validation loop → Deferred (no active pilot projects)

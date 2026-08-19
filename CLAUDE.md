@@ -102,14 +102,14 @@ Merge only when CI concludes `success`. Fix root cause before retrying — do no
 
 Koupper is a **Kotlin scripting runtime + CLI** for automation and infrastructure orchestration. It has three pillars:
 
-### 1. `koupper/` — Octopus Engine (v6.4.0)
+### 1. `koupper/` — Octopus Engine (v7.2.1)
 
 A JVM daemon that compiles, routes, and executes `.kts` scripts. Organized as a multi-module Gradle project:
 
 - **octopus** — Main scripting runtime using Kotlin scripting APIs (JSR-223, scripting-jvm-host)
 - **bootstrap** — HTTP entry point (Jersey 3.1.6 + Grizzly2 REST API)
 - **container** — Custom dependency injection framework (not Spring)
-- **providers** — 40+ cloud/infra Service Provider integrations (AWS, GitHub, Docker, SSH, PostgreSQL, Redis, SQLite, SQS, DynamoDB, Email, etc.)
+- **providers** — 50 cloud/infra Service Provider integrations (AWS, GitHub, Docker, SSH, PostgreSQL, Redis, SQLite, SQS, DynamoDB, Email, MCP, etc.)
 - **orchestrator-core** — Pipeline and job orchestration engine
 - **configurations** — Configuration management
 - **os** — OS integration layer
@@ -118,7 +118,7 @@ A JVM daemon that compiles, routes, and executes `.kts` scripts. Organized as a 
 
 Dependency direction: `bootstrap → octopus → container, shared, providers, configurations, os, orchestrator-core, logging`
 
-### 2. `koupper-cli/` — CLI (v4.7.1)
+### 2. `koupper-cli/` — CLI (v7.2.1)
 
 Terminal interface for script management and dispatch. Entry point: `com.koupper.cli.CommandManagerKt`. Communicates with Octopus via socket protocol. Commands: `run`, `new`, `help`, `provider list/info`, `serve`.
 

@@ -61,7 +61,7 @@ val setup: () -> Unit = {
         "Build: cd koupper && ./gradlew build | cd koupper-cli && ./gradlew build. Tests: ./gradlew test --tests 'ClassName'. failFast=true",
         "Release: koupper run scripts/release/fast-lane.kts '{\"featureBranch\":\"feature/name\",\"enableAutoMerge\":true}'",
         "Pre-push check: ./scripts/ci/local-quick-checks.sh all (targets: core, cli, docs, all)",
-        "Repos: koupper/ (core v6.5.3+, 40+ SPs), koupper-cli/ (v4.7.1), workspace/ (agents+docs). Branch: develop. CORTEX private: igly/cortex",
+        "Repos: koupper/ (core v7.2.1, 50 SPs), koupper-cli/ (v7.2.1), workspace/ (agents+docs). Branch: develop.",
         "MCP tools available to CortexAgent: bash, write_file, read_file, list_dir, fetch_url, create_agent, run_agent, list_agents, job_status, read_log, inspect_swarm, pipeline_run, cancel_job, swarm_run + memory.remember/recall/forget",
 
         // Recent significant changes

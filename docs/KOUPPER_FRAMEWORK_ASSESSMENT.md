@@ -2,7 +2,7 @@
 
 > **Audience:** Maintainers. **Status:** Living document — sync with reality after each wave.
 >
-> Based on full codebase audit of `koupper/` (Octopus Engine v6.6.0), `koupper-cli/` (v4.8.0), and `koupper-document/` as of 2026-06-24.
+> Based on full codebase audit of `koupper/` (Octopus Engine **v7.2.1**), `koupper-cli/` (**v7.2.1**), and `koupper-docs/` as of 2026-08-19.
 >
 > **Last sync:** Session 21 (2026-06-24) — All 3 assessment items resolved. See `docs/SESSION_STATE.md` for session log.
 
