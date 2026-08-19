@@ -130,7 +130,7 @@ Configured per machine (local / LAN / cloud). Do not commit host IPs or tokens h
 | 18082 | MCP server |
 | 18083 | Dashboard web (CortexWebUiAgent) |
 | 11434 | Ollama (local) |
-| 1234 | LM Studio LAN (192.168.1.8) |
+| 1234 | LM Studio (local / LAN — configure per machine, do not commit hosts) |
 
 ---
 
